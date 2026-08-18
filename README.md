@@ -1,6 +1,6 @@
 # Tr3ack
 
-A workout tracker Android app for logging strength-training sessions, tracking body weight, and visualizing progress over time.
+Is a workout tracker Android app for logging strength-training sessions, tracking body weight (created for my personal use), and visualizing progress over time. (Used AI)
 
 ## Features
 
@@ -13,13 +13,13 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 
 ## Exercises
 
-| Exercise | Type | Tracked Metrics |
-|---|---|---|
+| Exercise          | Type                | Tracked Metrics                   |
+| ----------------- | ------------------- | --------------------------------- |
 | Weighted Pull-Ups | Weighted bodyweight | System weight, % BW, daily volume |
-| Weighted Dips | Weighted bodyweight | System weight, % BW, daily volume |
-| Bicep Curls | Free weight | Weight × reps |
-| Hammer Curls | Free weight | Weight × reps |
-| Lateral Raises | Free weight | Weight × reps |
+| Weighted Dips     | Weighted bodyweight | System weight, % BW, daily volume |
+| Bicep Curls       | Free weight         | Weight × reps                     |
+| Hammer Curls      | Free weight         | Weight × reps                     |
+| Lateral Raises    | Free weight         | Weight × reps                     |
 
 ## Key Metrics
 
@@ -38,6 +38,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 ## Install
 
 **USB:**
+
 ```bash
 ./gradlew installDebug
 ```
