@@ -1,8 +1,12 @@
 package com.example.tr3ack.ui.navigation
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -12,8 +16,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -29,6 +37,8 @@ import com.example.tr3ack.ui.screen.DashboardScreen
 import com.example.tr3ack.ui.screen.HistoryScreen
 import com.example.tr3ack.ui.screen.LogWorkoutScreen
 import com.example.tr3ack.ui.screen.ProgressScreen
+import com.example.tr3ack.viewmodel.HistoryViewModel
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +49,30 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
 
     val showBottomBar = Screen.all.any { screen ->
         currentDestination?.hierarchy?.any { it.route == screen.route } == true
+    }
+
+    val isHistory = currentDestination?.hierarchy?.any { it.route == Screen.History.route } == true
+    val context = LocalContext.current
+
+    val historyViewModel: HistoryViewModel = remember { HistoryViewModel(repository) }
+    val exportCsv by historyViewModel.exportCsv.collectAsState()
+
+    val csvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        uri?.let {
+            context.contentResolver.openOutputStream(it)?.use { os ->
+                os.write(exportCsv?.toByteArray() ?: return@let)
+            }
+            Toast.makeText(context, "CSV exported!", Toast.LENGTH_SHORT).show()
+            historyViewModel.consumeCsv()
+        }
+    }
+
+    LaunchedEffect(exportCsv) {
+        exportCsv?.let {
+            csvLauncher.launch("Tr3ack_Export_${LocalDate.now()}.csv")
+        }
     }
 
     Scaffold(
@@ -55,6 +89,16 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                     if (canNavigateBack) {
                         IconButton(onClick = { navController.navigateUp() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                },
+                actions = {
+                    if (isHistory) {
+                        IconButton(onClick = { historyViewModel.generateCsv() }) {
+                            Icon(
+                                Icons.Default.FileDownload,
+                                contentDescription = "Export CSV"
+                            )
                         }
                     }
                 }
@@ -102,7 +146,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                 BodyWeightScreen(repository = repository)
             }
             composable(Screen.History.route) {
-                HistoryScreen(repository = repository)
+                HistoryScreen(repository = repository, viewModel = historyViewModel)
             }
             composable(Screen.Progress.route) {
                 ProgressScreen(repository = repository)

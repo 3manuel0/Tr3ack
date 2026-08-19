@@ -104,7 +104,6 @@ class LogWorkoutViewModel(private val repository: Tr3ackRepository) : ViewModel(
             )
             repository.insertWorkoutSet(set)
             _reps.value = ""
-            _addedWeight.value = ""
             _lastUsedWeight.value = weightValue
             _saveSuccess.value = true
             loadSavedSets()
