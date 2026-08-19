@@ -180,31 +180,63 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 PRRow(
-                                    "1RM Weight",
-                                    "%.1f kg".format(oneRepMax!!.oneRepMaxWeight)
+                                    "1RM Total System Load",
+                                    "%.1f kg".format(oneRepMax!!.oneRepMaxTSL)
+                                )
+                                PRRow(
+                                    "1RM Added Weight",
+                                    "%.1f kg".format(oneRepMax!!.oneRepMaxAddedWeight)
                                 )
                                 PRRow(
                                     "Based on",
-                                    "%.1f kg x %d reps".format(oneRepMax!!.basedOnWeight, oneRepMax!!.basedOnReps)
+                                    "%.1f kg TSL x %d reps".format(oneRepMax!!.basedOnTSL, oneRepMax!!.basedOnReps)
                                 )
                                 PRRow(
                                     "Set Date",
                                     oneRepMax!!.basedOnDate
                                 )
-                                if (selectedExercise.isBodyweightBased && oneRepMax!!.currentBodyWeight > 0) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Relative Strength",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                PRRow(
+                                    "BW Multiplier",
+                                    "%.2fx BW".format(oneRepMax!!.strengthMultiplier)
+                                )
+                                PRRow(
+                                    "Added as % BW",
+                                    "%.1f%%".format(oneRepMax!!.bodyweightPercentage)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Working Loads",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                PRRow(
+                                    "85% 1RM",
+                                    "%.1f kg TSL".format(oneRepMax!!.workingLoad85)
+                                )
+                                PRRow(
+                                    "80% 1RM",
+                                    "%.1f kg TSL".format(oneRepMax!!.workingLoad80)
+                                )
+                                PRRow(
+                                    "75% 1RM",
+                                    "%.1f kg TSL".format(oneRepMax!!.workingLoad75)
+                                )
+                                if (oneRepMax!!.currentBodyWeight > 0) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "At Current Body Weight",
+                                        text = "At Current BW (%.1f kg)".format(oneRepMax!!.currentBodyWeight),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     PRRow(
-                                        "Body Weight",
-                                        "%.1f kg".format(oneRepMax!!.currentBodyWeight)
-                                    )
-                                    PRRow(
                                         "Added Weight Needed",
-                                        "%.1f kg".format(oneRepMax!!.addedWeightAtCurrentBW)
+                                        "%.1f kg".format(oneRepMax!!.oneRepMaxAddedWeight)
                                     )
                                 }
                             }

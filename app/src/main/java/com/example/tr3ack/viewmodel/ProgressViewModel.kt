@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 data class PersonalRecords(
     val maxAddedWeight: Double = 0.0,
@@ -22,13 +23,21 @@ data class PersonalRecords(
     val maxReps: Int = 0,
 )
 
+enum class MovementType { DIPS, PULLUPS, UNKNOWN }
+
 data class OneRepMax(
-    val oneRepMaxWeight: Double = 0.0,
-    val basedOnWeight: Double = 0.0,
+    val oneRepMaxTSL: Double = 0.0,
+    val oneRepMaxAddedWeight: Double = 0.0,
+    val basedOnTSL: Double = 0.0,
     val basedOnReps: Int = 0,
     val basedOnDate: String = "",
-    val addedWeightAtCurrentBW: Double = 0.0,
     val currentBodyWeight: Double = 0.0,
+    val movementType: MovementType = MovementType.UNKNOWN,
+    val strengthMultiplier: Double = 0.0,
+    val workingLoad85: Double = 0.0,
+    val workingLoad80: Double = 0.0,
+    val workingLoad75: Double = 0.0,
+    val bodyweightPercentage: Double = 0.0,
 )
 
 data class ChartPoint(
@@ -40,6 +49,66 @@ data class ChartPoint(
 )
 
 class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() {
+
+    companion object {
+        private val DIP_COEFFICIENTS = doubleArrayOf(
+            1.000, 1.035, 1.068, 1.100, 1.130,
+            1.160, 1.190, 1.220, 1.250, 1.280
+        )
+
+        private val PULLUP_COEFFICIENTS = doubleArrayOf(
+            1.000, 1.038, 1.073, 1.108, 1.142,
+            1.175, 1.208, 1.240, 1.272, 1.304
+        )
+
+        fun getMovementType(exerciseName: String): MovementType {
+            val lower = exerciseName.lowercase()
+            return when {
+                lower.contains("dip") -> MovementType.DIPS
+                lower.contains("pull") || lower.contains("chin") -> MovementType.PULLUPS
+                else -> MovementType.UNKNOWN
+            }
+        }
+
+        fun getMovementFactor(movementType: MovementType, reps: Int): Double {
+            val cappedReps = (reps - 1).coerceIn(0, 9)
+            return when (movementType) {
+                MovementType.DIPS -> DIP_COEFFICIENTS[cappedReps]
+                MovementType.PULLUPS -> PULLUP_COEFFICIENTS[cappedReps]
+                MovementType.UNKNOWN -> 1.0 + (reps - 1) * 0.0333
+            }
+        }
+
+        fun calculate1RM(
+            bodyWeight: Double,
+            addedWeight: Double,
+            reps: Int,
+            movementType: MovementType
+        ): OneRepMax {
+            if (reps < 1 || bodyWeight <= 0) {
+                return OneRepMax(currentBodyWeight = bodyWeight, movementType = movementType)
+            }
+
+            val tsl = bodyWeight + addedWeight
+            val factor = getMovementFactor(movementType, reps)
+            val oneRepMaxTSL = tsl * factor
+            val oneRepMaxAW = (oneRepMaxTSL - bodyWeight).coerceAtLeast(0.0)
+
+            return OneRepMax(
+                oneRepMaxTSL = oneRepMaxTSL,
+                oneRepMaxAddedWeight = oneRepMaxAW,
+                basedOnTSL = tsl,
+                basedOnReps = reps,
+                currentBodyWeight = bodyWeight,
+                movementType = movementType,
+                strengthMultiplier = oneRepMaxTSL / bodyWeight,
+                workingLoad85 = oneRepMaxTSL * 0.85,
+                workingLoad80 = oneRepMaxTSL * 0.80,
+                workingLoad75 = oneRepMaxTSL * 0.75,
+                bodyweightPercentage = (oneRepMaxAW / bodyWeight) * 100.0,
+            )
+        }
+    }
 
     val exercises: StateFlow<List<Exercise>> = repository.allExercises
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -69,7 +138,7 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
                 } else {
                     _freeWeightData.value = sets
                     calculateFreeWeightPRs(sets)
-                    calculateFreeWeight1RM(sets)
+                    _oneRepMax.value = null
                 }
             }
         }
@@ -130,20 +199,22 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
             return
         }
 
-        var best1RM = 0.0
-        var bestWeight = 0.0
-        var bestReps = 0
-        var bestDate = ""
+        val exercise = exercises.value.find { it.id == sets.first().exerciseId }
+        val movementType = getMovementType(exercise?.name ?: "")
+
+        var bestResult: OneRepMax? = null
 
         for (set in sets) {
             val bodyWeight = repository.getEffectiveBodyWeight(set.date) ?: continue
-            val totalSystemWeight = bodyWeight + set.addedWeightKg
-            val est1RM = totalSystemWeight * (1.0 + set.reps / 30.0)
-            if (est1RM > best1RM) {
-                best1RM = est1RM
-                bestWeight = totalSystemWeight
-                bestReps = set.reps
-                bestDate = set.date
+            val result = calculate1RM(bodyWeight, set.addedWeightKg, set.reps, movementType)
+            val currentTSL = bodyWeight + set.addedWeightKg
+
+            if (bestResult == null || currentTSL > bestResult.basedOnTSL) {
+                bestResult = result.copy(
+                    basedOnDate = set.date,
+                    basedOnTSL = currentTSL,
+                    currentBodyWeight = bodyWeight,
+                )
             }
         }
 
@@ -152,45 +223,18 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         ) ?: repository.allBodyWeightEntries.first().maxByOrNull { it.date }?.bodyWeightKg
         ?: 0.0
 
-        val addedAtCurrentBW = if (currentBW > 0) (best1RM - currentBW).coerceAtLeast(0.0) else 0.0
-
-        _oneRepMax.value = OneRepMax(
-            oneRepMaxWeight = best1RM,
-            basedOnWeight = bestWeight,
-            basedOnReps = bestReps,
-            basedOnDate = bestDate,
-            addedWeightAtCurrentBW = addedAtCurrentBW,
-            currentBodyWeight = currentBW,
-        )
-    }
-
-    private suspend fun calculateFreeWeight1RM(sets: List<WorkoutSet>) {
-        if (sets.isEmpty()) {
-            _oneRepMax.value = null
-            return
+        if (bestResult != null && currentBW > 0) {
+            bestResult = bestResult.copy(
+                currentBodyWeight = currentBW,
+                oneRepMaxAddedWeight = (bestResult.oneRepMaxTSL - currentBW).coerceAtLeast(0.0),
+                workingLoad85 = bestResult.oneRepMaxTSL * 0.85,
+                workingLoad80 = bestResult.oneRepMaxTSL * 0.80,
+                workingLoad75 = bestResult.oneRepMaxTSL * 0.75,
+                bodyweightPercentage = ((bestResult.oneRepMaxTSL - currentBW) / currentBW) * 100.0,
+            )
         }
 
-        var best1RM = 0.0
-        var bestWeight = 0.0
-        var bestReps = 0
-        var bestDate = ""
-
-        for (set in sets) {
-            val est1RM = set.addedWeightKg * (1.0 + set.reps / 30.0)
-            if (est1RM > best1RM) {
-                best1RM = est1RM
-                bestWeight = set.addedWeightKg
-                bestReps = set.reps
-                bestDate = set.date
-            }
-        }
-
-        _oneRepMax.value = OneRepMax(
-            oneRepMaxWeight = best1RM,
-            basedOnWeight = bestWeight,
-            basedOnReps = bestReps,
-            basedOnDate = bestDate,
-        )
+        _oneRepMax.value = bestResult
     }
 
     class Factory(private val repository: Tr3ackRepository) : ViewModelProvider.Factory {
