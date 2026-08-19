@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -19,6 +20,15 @@ data class PersonalRecords(
     val maxPercentBodyWeight: Double = 0.0,
     val maxDailyVolume: Double = 0.0,
     val maxReps: Int = 0,
+)
+
+data class OneRepMax(
+    val oneRepMaxWeight: Double = 0.0,
+    val basedOnWeight: Double = 0.0,
+    val basedOnReps: Int = 0,
+    val basedOnDate: String = "",
+    val addedWeightAtCurrentBW: Double = 0.0,
+    val currentBodyWeight: Double = 0.0,
 )
 
 data class ChartPoint(
@@ -46,6 +56,9 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
     private val _personalRecords = MutableStateFlow(PersonalRecords())
     val personalRecords: StateFlow<PersonalRecords> = _personalRecords.asStateFlow()
 
+    private val _oneRepMax = MutableStateFlow<OneRepMax?>(null)
+    val oneRepMax: StateFlow<OneRepMax?> = _oneRepMax.asStateFlow()
+
     fun selectExercise(exerciseId: Long) {
         _selectedExerciseId.value = exerciseId
         viewModelScope.launch {
@@ -56,6 +69,7 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
                 } else {
                     _freeWeightData.value = sets
                     calculateFreeWeightPRs(sets)
+                    calculateFreeWeight1RM(sets)
                 }
             }
         }
@@ -86,6 +100,7 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
 
         _chartData.value = points
         calculateWeightedPRs(points)
+        calculateWeighted1RM(sets)
     }
 
     private fun calculateWeightedPRs(data: List<ChartPoint>) {
@@ -106,6 +121,75 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         _personalRecords.value = PersonalRecords(
             maxAddedWeight = sets.maxOf { it.addedWeightKg },
             maxReps = sets.maxOf { it.reps }
+        )
+    }
+
+    private suspend fun calculateWeighted1RM(sets: List<WorkoutSet>) {
+        if (sets.isEmpty()) {
+            _oneRepMax.value = null
+            return
+        }
+
+        var best1RM = 0.0
+        var bestWeight = 0.0
+        var bestReps = 0
+        var bestDate = ""
+
+        for (set in sets) {
+            val bodyWeight = repository.getEffectiveBodyWeight(set.date) ?: continue
+            val totalSystemWeight = bodyWeight + set.addedWeightKg
+            val est1RM = totalSystemWeight * (1.0 + set.reps / 30.0)
+            if (est1RM > best1RM) {
+                best1RM = est1RM
+                bestWeight = totalSystemWeight
+                bestReps = set.reps
+                bestDate = set.date
+            }
+        }
+
+        val currentBW = repository.getEffectiveBodyWeight(
+            java.time.LocalDate.now().toString()
+        ) ?: repository.allBodyWeightEntries.first().maxByOrNull { it.date }?.bodyWeightKg
+        ?: 0.0
+
+        val addedAtCurrentBW = if (currentBW > 0) (best1RM - currentBW).coerceAtLeast(0.0) else 0.0
+
+        _oneRepMax.value = OneRepMax(
+            oneRepMaxWeight = best1RM,
+            basedOnWeight = bestWeight,
+            basedOnReps = bestReps,
+            basedOnDate = bestDate,
+            addedWeightAtCurrentBW = addedAtCurrentBW,
+            currentBodyWeight = currentBW,
+        )
+    }
+
+    private suspend fun calculateFreeWeight1RM(sets: List<WorkoutSet>) {
+        if (sets.isEmpty()) {
+            _oneRepMax.value = null
+            return
+        }
+
+        var best1RM = 0.0
+        var bestWeight = 0.0
+        var bestReps = 0
+        var bestDate = ""
+
+        for (set in sets) {
+            val est1RM = set.addedWeightKg * (1.0 + set.reps / 30.0)
+            if (est1RM > best1RM) {
+                best1RM = est1RM
+                bestWeight = set.addedWeightKg
+                bestReps = set.reps
+                bestDate = set.date
+            }
+        }
+
+        _oneRepMax.value = OneRepMax(
+            oneRepMaxWeight = best1RM,
+            basedOnWeight = bestWeight,
+            basedOnReps = bestReps,
+            basedOnDate = bestDate,
         )
     }
 

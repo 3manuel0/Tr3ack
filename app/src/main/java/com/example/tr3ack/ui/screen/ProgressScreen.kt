@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -57,6 +58,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
     val chartData by viewModel.chartData.collectAsState()
     val freeWeightData by viewModel.freeWeightData.collectAsState()
     val personalRecords by viewModel.personalRecords.collectAsState()
+    val oneRepMax by viewModel.oneRepMax.collectAsState()
 
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
     var dayCount by remember { mutableIntStateOf(5) }
@@ -155,6 +157,56 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 PRRow("Max Weight", "%.1f kg".format(personalRecords.maxAddedWeight))
                                 PRRow("Max Reps", "${personalRecords.maxReps}")
+                            }
+                        }
+                    }
+                }
+
+                // 1RM Card
+                if (oneRepMax != null) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Estimated 1RM",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                PRRow(
+                                    "1RM Weight",
+                                    "%.1f kg".format(oneRepMax!!.oneRepMaxWeight)
+                                )
+                                PRRow(
+                                    "Based on",
+                                    "%.1f kg x %d reps".format(oneRepMax!!.basedOnWeight, oneRepMax!!.basedOnReps)
+                                )
+                                PRRow(
+                                    "Set Date",
+                                    oneRepMax!!.basedOnDate
+                                )
+                                if (selectedExercise.isBodyweightBased && oneRepMax!!.currentBodyWeight > 0) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "At Current Body Weight",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    PRRow(
+                                        "Body Weight",
+                                        "%.1f kg".format(oneRepMax!!.currentBodyWeight)
+                                    )
+                                    PRRow(
+                                        "Added Weight Needed",
+                                        "%.1f kg".format(oneRepMax!!.addedWeightAtCurrentBW)
+                                    )
+                                }
                             }
                         }
                     }
