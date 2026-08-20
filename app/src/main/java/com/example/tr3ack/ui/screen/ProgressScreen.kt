@@ -14,17 +14,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -68,7 +65,6 @@ fun ProgressScreen(repository: Tr3ackRepository) {
 
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
     var dayCount by remember { mutableIntStateOf(5) }
-    var showAddExerciseDialog by remember { mutableStateOf(false) }
 
     val selectedExercise = exercises.find { it.id == selectedExerciseId }
     val displayData = chartData.takeLast(dayCount)
@@ -123,19 +119,6 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                                 }
                             )
                         }
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    "+ Add Exercise",
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            onClick = {
-                                exerciseMenuExpanded = false
-                                showAddExerciseDialog = true
-                            }
-                        )
                     }
                 }
             }
@@ -404,56 +387,6 @@ fun ProgressScreen(repository: Tr3ackRepository) {
 
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
-    }
-
-    if (showAddExerciseDialog) {
-        var newName by remember { mutableStateOf("") }
-        var isBodyweight by remember { mutableStateOf(true) }
-        AlertDialog(
-            onDismissRequest = { showAddExerciseDialog = false },
-            title = { Text("Add Exercise") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it },
-                        label = { Text("Exercise Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Weighted Bodyweight")
-                        Switch(
-                            checked = isBodyweight,
-                            onCheckedChange = { isBodyweight = it }
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        if (newName.isNotBlank()) {
-                            viewModel.addExercise(newName.trim(), isBodyweight)
-                            showAddExerciseDialog = false
-                        }
-                    }
-                ) {
-                    Text("Add")
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = { showAddExerciseDialog = false }
-                ) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 }
 

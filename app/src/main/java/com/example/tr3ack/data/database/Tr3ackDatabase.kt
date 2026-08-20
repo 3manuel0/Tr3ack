@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [ExerciseEntity::class, BodyWeightEntity::class, WorkoutSetEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class Tr3ackDatabase : RoomDatabase() {
@@ -32,8 +32,7 @@ abstract class Tr3ackDatabase : RoomDatabase() {
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Add future migrations here
-                // e.g. db.execSQL("ALTER TABLE ... ADD COLUMN ...")
+                db.execSQL("INSERT INTO exercises (name, isBodyweightBased) VALUES ('Weighted Chin-Ups', 1)")
             }
         }
 

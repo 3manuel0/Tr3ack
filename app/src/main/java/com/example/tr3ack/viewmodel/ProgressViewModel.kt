@@ -153,19 +153,6 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         }
     }
 
-    fun addExercise(name: String, isBodyweightBased: Boolean) {
-        viewModelScope.launch {
-            val id = repository.insertExercise(
-                com.example.tr3ack.data.entity.Exercise(
-                    id = 0,
-                    name = name,
-                    isBodyweightBased = isBodyweightBased
-                )
-            )
-            selectExercise(id)
-        }
-    }
-
     private suspend fun processWeightedExercise(sets: List<WorkoutSet>) {
         val grouped = sets.groupBy { it.date }
         val points = mutableListOf<ChartPoint>()
