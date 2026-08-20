@@ -33,11 +33,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -272,22 +275,40 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                         }
                     }
 
-                    // System Weight chart
+                    // E1RM chart
                     item {
                         Text(
-                            text = "Total System Weight (kg)",
+                            text = "Estimated 1RM (kg)",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Card(modifier = Modifier.fillMaxWidth()) {
-                            DualAxisChart(
+                            E1RMChart(
                                 data = displayData,
-                                leftLabel = "kg",
-                                rightLabel = "reps",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(220.dp)
+                                    .padding(12.dp)
+                            )
+                        }
+                    }
+
+                    // Session Tonnage chart
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Session Tonnage (kg·reps)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            TonnageBarChart(
+                                data = displayData,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
                                     .padding(12.dp)
                             )
                         }
@@ -348,37 +369,33 @@ fun ProgressScreen(repository: Tr3ackRepository) {
 }
 
 @Composable
-private fun DualAxisChart(
+private fun E1RMChart(
     data: List<ChartPoint>,
-    leftLabel: String,
-    rightLabel: String,
     modifier: Modifier = Modifier
 ) {
     if (data.isEmpty()) return
 
-    val weightColor = MaterialTheme.colorScheme.primary
-    val repsColor = MaterialTheme.colorScheme.tertiary
+    val lineColor = MaterialTheme.colorScheme.primary
     val textColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
 
-    val maxWeight = data.maxOf { it.totalSystemWeight }
-    val minWeight = data.minOf { it.totalSystemWeight }
-    val weightRange = (maxWeight - minWeight).coerceAtLeast(1.0)
-
-    val maxReps = data.maxOf { it.reps }.coerceAtLeast(1)
-    val minReps = data.minOf { it.reps }
-    val repsRange = (maxReps - minReps).coerceAtLeast(1)
+    val e1rmValues = data.map { it.estimatedOneRM }
+    val maxE1RM = e1rmValues.max()
+    val minE1RM = e1rmValues.min()
+    val padding = ((maxE1RM - minE1RM) * 0.15).coerceAtLeast(5.0)
+    val yMin = (minE1RM - padding).coerceAtLeast(0.0)
+    val yMax = maxE1RM + padding
+    val yRange = (yMax - yMin).coerceAtLeast(1.0)
 
     Canvas(modifier = modifier) {
-        val leftPadding = 48f
-        val rightPadding = 48f
+        val leftPadding = 56f
+        val rightPadding = 24f
         val topPadding = 16f
         val bottomPadding = 36f
 
         val chartWidth = size.width - leftPadding - rightPadding
         val chartHeight = size.height - topPadding - bottomPadding
 
-        // Grid lines
         for (i in 0..4) {
             val y = topPadding + chartHeight * (i / 4f)
             drawLine(
@@ -389,7 +406,6 @@ private fun DualAxisChart(
             )
         }
 
-        // Left Y-axis labels (weight)
         val textPaint = android.graphics.Paint().apply {
             color = textColor.hashCode()
             textSize = 24f
@@ -397,7 +413,7 @@ private fun DualAxisChart(
         }
         for (i in 0..4) {
             val y = topPadding + chartHeight * (i / 4f)
-            val value = maxWeight - (weightRange * i / 4.0)
+            val value = yMax - (yRange * i / 4.0)
             drawContext.canvas.nativeCanvas.drawText(
                 "%.0f".format(value),
                 4f,
@@ -406,19 +422,6 @@ private fun DualAxisChart(
             )
         }
 
-        // Right Y-axis labels (reps)
-        for (i in 0..4) {
-            val y = topPadding + chartHeight * (i / 4f)
-            val value = maxReps - (repsRange * i / 4.0)
-            drawContext.canvas.nativeCanvas.drawText(
-                "%.0f".format(value),
-                size.width - rightPadding + 8f,
-                y + 8f,
-                textPaint
-            )
-        }
-
-        // X-axis date labels
         val stepCount = data.size - 1
         if (stepCount >= 0) {
             val labelPaint = android.graphics.Paint().apply {
@@ -429,7 +432,7 @@ private fun DualAxisChart(
             }
             for (i in data.indices) {
                 val x = leftPadding + (if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f)
-                val shortDate = data[i].date.takeLast(5) // MM-DD
+                val shortDate = data[i].date.takeLast(5)
                 drawContext.canvas.nativeCanvas.drawText(
                     shortDate,
                     x,
@@ -439,64 +442,157 @@ private fun DualAxisChart(
             }
         }
 
-        // Weight line
+        fun pointX(index: Int) = leftPadding + if (stepCount > 0) chartWidth * index / stepCount else chartWidth / 2f
+
         if (data.size >= 2) {
-            val weightPath = Path()
+            val strokePath = Path()
             data.forEachIndexed { index, point ->
-                val x = leftPadding + chartWidth * index / stepCount
-                val normalizedWeight = (point.totalSystemWeight - minWeight) / weightRange
-                val y = topPadding + chartHeight * (1.0 - normalizedWeight).toFloat()
-                if (index == 0) weightPath.moveTo(x, y) else weightPath.lineTo(x, y)
+                val x = pointX(index)
+                val normalized = (point.estimatedOneRM - yMin) / yRange
+                val y = topPadding + chartHeight * (1.0 - normalized).toFloat()
+                if (index == 0) strokePath.moveTo(x, y) else strokePath.lineTo(x, y)
             }
             drawPath(
-                path = weightPath,
-                color = weightColor,
+                path = strokePath,
+                color = lineColor,
                 style = Stroke(width = 4f, cap = StrokeCap.Round)
+            )
+
+            val fillPath = Path().apply {
+                addPath(strokePath)
+                lineTo(leftPadding + chartWidth, topPadding + chartHeight)
+                lineTo(leftPadding, topPadding + chartHeight)
+                close()
+            }
+            drawPath(
+                path = fillPath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(lineColor.copy(alpha = 0.35f), Color.Transparent),
+                    startY = topPadding,
+                    endY = topPadding + chartHeight
+                )
             )
         }
 
-        // Weight dots
         data.forEachIndexed { index, point ->
-            val x = leftPadding + chartWidth * index / stepCount
-            val normalizedWeight = (point.totalSystemWeight - minWeight) / weightRange
-            val y = topPadding + chartHeight * (1.0 - normalizedWeight).toFloat()
-            drawCircle(color = weightColor, radius = 8f, center = Offset(x, y))
+            val x = pointX(index)
+            val normalized = (point.estimatedOneRM - yMin) / yRange
+            val y = topPadding + chartHeight * (1.0 - normalized).toFloat()
+            drawCircle(color = lineColor, radius = 8f, center = Offset(x, y))
             drawCircle(color = Color.White, radius = 4f, center = Offset(x, y))
         }
 
-        // Reps dots (smaller, different color)
-        data.forEachIndexed { index, point ->
-            val x = leftPadding + chartWidth * index / stepCount
-            val normalizedReps = (point.reps - minReps).toDouble() / repsRange
-            val y = topPadding + chartHeight * (1.0 - normalizedReps).toFloat()
-            drawCircle(color = repsColor, radius = 6f, center = Offset(x, y))
-            drawCircle(color = Color.White, radius = 3f, center = Offset(x, y))
+        val unitLabelPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 20f
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+        drawContext.canvas.nativeCanvas.drawText(
+            "kg",
+            size.width - rightPadding,
+            topPadding - 2f,
+            unitLabelPaint
+        )
+    }
+}
+
+@Composable
+private fun TonnageBarChart(
+    data: List<ChartPoint>,
+    modifier: Modifier = Modifier
+) {
+    if (data.isEmpty()) return
+
+    val barColor = MaterialTheme.colorScheme.tertiary
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+
+    val tonnageValues = data.map { it.sessionTonnage }
+    val maxTonnage = tonnageValues.max()
+    val yMax = (maxTonnage * 1.15).coerceAtLeast(1.0)
+
+    Canvas(modifier = modifier) {
+        val leftPadding = 56f
+        val rightPadding = 24f
+        val topPadding = 16f
+        val bottomPadding = 36f
+
+        val chartWidth = size.width - leftPadding - rightPadding
+        val chartHeight = size.height - topPadding - bottomPadding
+
+        for (i in 0..4) {
+            val y = topPadding + chartHeight * (i / 4f)
+            drawLine(
+                color = gridColor,
+                start = Offset(leftPadding, y),
+                end = Offset(size.width - rightPadding, y),
+                strokeWidth = 1f
+            )
         }
 
-        // Legend
-        val legendY = 10f
-        val legendX = leftPadding + 10f
-        drawCircle(color = weightColor, radius = 6f, center = Offset(legendX, legendY))
+        val textPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 24f
+            isAntiAlias = true
+        }
+        for (i in 0..4) {
+            val y = topPadding + chartHeight * (i / 4f)
+            val value = yMax - (yMax * i / 4.0)
+            val label = if (value >= 1000) "%.1fk".format(value / 1000) else "%.0f".format(value)
+            drawContext.canvas.nativeCanvas.drawText(
+                label,
+                4f,
+                y + 8f,
+                textPaint
+            )
+        }
+
+        val barCount = data.size
+        val totalGap = chartWidth * 0.3f
+        val gap = if (barCount > 1) totalGap / (barCount + 1) else 0f
+        val barWidth = (chartWidth - totalGap) / barCount
+
+        val labelPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 20f
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+
+        data.forEachIndexed { index, point ->
+            val barLeft = leftPadding + gap + index * (barWidth + gap)
+            val barHeight = (point.sessionTonnage / yMax * chartHeight).toFloat()
+            val barTop = topPadding + chartHeight - barHeight
+
+            drawRoundRect(
+                color = barColor,
+                topLeft = Offset(barLeft, barTop),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(6f, 6f)
+            )
+
+            val centerX = barLeft + barWidth / 2f
+            val shortDate = point.date.takeLast(5)
+            drawContext.canvas.nativeCanvas.drawText(
+                shortDate,
+                centerX,
+                size.height - 4f,
+                labelPaint
+            )
+        }
+
+        val unitLabelPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 20f
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
         drawContext.canvas.nativeCanvas.drawText(
-            leftLabel,
-            legendX + 14f,
-            legendY + 6f,
-            android.graphics.Paint().apply {
-                color = textColor.hashCode()
-                textSize = 22f
-                isAntiAlias = true
-            }
-        )
-        drawCircle(color = repsColor, radius = 6f, center = Offset(legendX + 80f, legendY))
-        drawContext.canvas.nativeCanvas.drawText(
-            rightLabel,
-            legendX + 94f,
-            legendY + 6f,
-            android.graphics.Paint().apply {
-                color = textColor.hashCode()
-                textSize = 22f
-                isAntiAlias = true
-            }
+            "kg·reps",
+            size.width - rightPadding,
+            topPadding - 2f,
+            unitLabelPaint
         )
     }
 }

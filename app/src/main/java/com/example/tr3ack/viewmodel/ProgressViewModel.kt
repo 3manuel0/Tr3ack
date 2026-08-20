@@ -46,6 +46,8 @@ data class ChartPoint(
     val reps: Int,
     val addedWeight: Double,
     val percentBodyWeight: Double,
+    val estimatedOneRM: Double = 0.0,
+    val sessionTonnage: Double = 0.0,
 )
 
 class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() {
@@ -148,6 +150,9 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         val grouped = sets.groupBy { it.date }
         val points = mutableListOf<ChartPoint>()
 
+        val exercise = exercises.value.find { it.id == _selectedExerciseId.value }
+        val movementType = getMovementType(exercise?.name ?: "")
+
         for (entry in grouped.entries.sortedBy { it.key }) {
             val date = entry.key
             val daySets = entry.value
@@ -156,6 +161,20 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
             val tsw = bodyWeight + firstSet.addedWeightKg
             val pct = if (bodyWeight > 0) (tsw / bodyWeight) * 100 else 0.0
 
+            val bestE1RM = daySets
+                .filter { it.reps > 0 && bodyWeight > 0 }
+                .maxOfOrNull { set ->
+                    val tsl = bodyWeight + set.addedWeightKg
+                    tsl * getMovementFactor(movementType, set.reps)
+                } ?: 0.0
+
+            val tonnage = daySets
+                .filter { it.reps > 0 }
+                .sumOf { set ->
+                    val tsl = bodyWeight + set.addedWeightKg
+                    tsl * set.reps
+                }
+
             points.add(
                 ChartPoint(
                     date = date,
@@ -163,6 +182,8 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
                     reps = firstSet.reps,
                     addedWeight = firstSet.addedWeightKg,
                     percentBodyWeight = pct,
+                    estimatedOneRM = bestE1RM,
+                    sessionTonnage = tonnage,
                 )
             )
         }
