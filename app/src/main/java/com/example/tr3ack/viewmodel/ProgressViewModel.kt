@@ -66,8 +66,8 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         )
 
         private val CHINUP_COEFFICIENTS = doubleArrayOf(
-            1.000, 1.033, 1.065, 1.095, 1.125,
-            1.155, 1.185, 1.215, 1.245, 1.275
+            1.000, 1.042, 1.082, 1.120, 1.158,
+            1.194, 1.229, 1.263, 1.296, 1.328
         )
 
         fun getMovementType(exerciseName: String): MovementType {
