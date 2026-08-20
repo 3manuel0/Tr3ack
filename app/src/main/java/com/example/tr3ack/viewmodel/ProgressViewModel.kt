@@ -48,6 +48,8 @@ data class ChartPoint(
     val percentBodyWeight: Double,
     val estimatedOneRM: Double = 0.0,
     val sessionTonnage: Double = 0.0,
+    val beltLoad: Double = 0.0,
+    val bodyWeightKg: Double = 0.0,
 )
 
 class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() {
@@ -184,6 +186,8 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
                     percentBodyWeight = pct,
                     estimatedOneRM = bestE1RM,
                     sessionTonnage = tonnage,
+                    beltLoad = firstSet.addedWeightKg,
+                    bodyWeightKg = bodyWeight,
                 )
             )
         }

@@ -313,6 +313,26 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                             )
                         }
                     }
+
+                    // Belt Load vs Body Weight chart
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Belt Load vs Body Weight",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            BeltVsBodyChart(
+                                data = displayData,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(220.dp)
+                                    .padding(12.dp)
+                            )
+                        }
+                    }
                 }
 
                 // Free weight data list
@@ -594,6 +614,127 @@ private fun TonnageBarChart(
             topPadding - 2f,
             unitLabelPaint
         )
+    }
+}
+
+@Composable
+private fun BeltVsBodyChart(
+    data: List<ChartPoint>,
+    modifier: Modifier = Modifier
+) {
+    if (data.isEmpty()) return
+
+    val beltColor = MaterialTheme.colorScheme.primary
+    val bodyColor = MaterialTheme.colorScheme.secondary
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+
+    val allValues = data.flatMap { listOf(it.beltLoad, it.bodyWeightKg) }
+    val maxVal = allValues.max()
+    val minVal = allValues.min()
+    val valuePadding = ((maxVal - minVal) * 0.15).coerceAtLeast(5.0)
+    val yMin = (minVal - valuePadding).coerceAtLeast(0.0)
+    val yMax = maxVal + valuePadding
+    val yRange = (yMax - yMin).coerceAtLeast(1.0)
+
+    Canvas(modifier = modifier) {
+        val leftPadding = 56f
+        val rightPadding = 24f
+        val topPadding = 28f
+        val bottomPadding = 36f
+
+        val chartWidth = size.width - leftPadding - rightPadding
+        val chartHeight = size.height - topPadding - bottomPadding
+
+        for (i in 0..4) {
+            val y = topPadding + chartHeight * (i / 4f)
+            drawLine(
+                color = gridColor,
+                start = Offset(leftPadding, y),
+                end = Offset(size.width - rightPadding, y),
+                strokeWidth = 1f
+            )
+        }
+
+        val textPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 24f
+            isAntiAlias = true
+        }
+        for (i in 0..4) {
+            val y = topPadding + chartHeight * (i / 4f)
+            val value = yMax - (yRange * i / 4.0)
+            drawContext.canvas.nativeCanvas.drawText(
+                "%.0f".format(value),
+                4f,
+                y + 8f,
+                textPaint
+            )
+        }
+
+        val stepCount = data.size - 1
+        val labelPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 20f
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        for (i in data.indices) {
+            val x = leftPadding + if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f
+            val shortDate = data[i].date.takeLast(5)
+            drawContext.canvas.nativeCanvas.drawText(
+                shortDate,
+                x,
+                size.height - 4f,
+                labelPaint
+            )
+        }
+
+        fun pointX(index: Int) = leftPadding + if (stepCount > 0) chartWidth * index / stepCount else chartWidth / 2f
+        fun pointY(value: Double) = topPadding + chartHeight * (1.0 - (value - yMin) / yRange).toFloat()
+
+        if (data.size >= 2) {
+            val beltPath = Path()
+            data.forEachIndexed { index, point ->
+                val x = pointX(index)
+                val y = pointY(point.beltLoad)
+                if (index == 0) beltPath.moveTo(x, y) else beltPath.lineTo(x, y)
+            }
+            drawPath(path = beltPath, color = beltColor, style = Stroke(width = 4f, cap = StrokeCap.Round))
+
+            val bodyPath = Path()
+            data.forEachIndexed { index, point ->
+                val x = pointX(index)
+                val y = pointY(point.bodyWeightKg)
+                if (index == 0) bodyPath.moveTo(x, y) else bodyPath.lineTo(x, y)
+            }
+            drawPath(path = bodyPath, color = bodyColor, style = Stroke(width = 4f, cap = StrokeCap.Round))
+        }
+
+        data.forEachIndexed { index, point ->
+            val beltY = pointY(point.beltLoad)
+            drawCircle(color = beltColor, radius = 7f, center = Offset(pointX(index), beltY))
+            drawCircle(color = Color.White, radius = 3.5f, center = Offset(pointX(index), beltY))
+
+            val bodyY = pointY(point.bodyWeightKg)
+            drawCircle(color = bodyColor, radius = 7f, center = Offset(pointX(index), bodyY))
+            drawCircle(color = Color.White, radius = 3.5f, center = Offset(pointX(index), bodyY))
+        }
+
+        val legendPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 20f
+            isAntiAlias = true
+        }
+        val legendY = 10f
+        var legendX = leftPadding + 8f
+
+        drawCircle(color = beltColor, radius = 6f, center = Offset(legendX, legendY))
+        drawContext.canvas.nativeCanvas.drawText("Belt Load", legendX + 14f, legendY + 6f, legendPaint)
+        legendX += 110f
+
+        drawCircle(color = bodyColor, radius = 6f, center = Offset(legendX, legendY))
+        drawContext.canvas.nativeCanvas.drawText("Body Weight", legendX + 14f, legendY + 6f, legendPaint)
     }
 }
 
