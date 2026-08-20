@@ -85,4 +85,20 @@ class Tr3ackRepository(
     suspend fun deleteWorkoutSet(set: WorkoutSet) = workoutSetDao.delete(set.toEntity())
 
     suspend fun deleteWorkoutSetById(id: Long) = workoutSetDao.deleteById(id)
+
+    suspend fun deleteAllData() {
+        workoutSetDao.deleteAll()
+        bodyWeightDao.deleteAll()
+        exerciseDao.deleteAll()
+    }
+
+    suspend fun restoreExercises(exercises: List<ExerciseEntity>) = exerciseDao.insertAll(exercises)
+
+    suspend fun restoreWorkoutSets(sets: List<WorkoutSetEntity>) {
+        for (set in sets) {
+            workoutSetDao.insert(set)
+        }
+    }
+
+    suspend fun restoreBodyWeightEntries(entries: List<BodyWeightEntity>) = bodyWeightDao.insertAll(entries)
 }

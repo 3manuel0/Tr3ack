@@ -31,4 +31,10 @@ interface BodyWeightDao {
 
     @Query("DELETE FROM body_weight_entries WHERE date = :date")
     suspend fun deleteByDate(date: String)
+
+    @Query("DELETE FROM body_weight_entries")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(entries: List<BodyWeightEntity>)
 }

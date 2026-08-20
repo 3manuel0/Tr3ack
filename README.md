@@ -30,6 +30,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
 - **CSV Export** — Export all workout data as a formatted CSV file from the History screen
+- **JSON Backup & Restore** — Full data backup/restore from the Dashboard overflow menu; exports editable JSON file containing all exercises, sets, and body weight entries
 - **Splash Screen** — Custom branded launch screen with app icon
 - **Dark Mode** — Always-on dark theme
 
@@ -97,6 +98,19 @@ Export your data from the History screen (download icon in the top bar). The CSV
 | % of Body Weight | Total System Weight / Body Weight × 100 |
 | Reps | Reps per set (e.g. 8-7-6) |
 | Volume (kg) | Sum of (Total System Weight × Reps) |
+
+## JSON Backup & Restore
+
+Full data backup available from the Dashboard overflow menu (⋮). Exports a `Tr3ack_Backup_<date>.json` file containing all exercises, workout sets, and body weight entries. The file is human-readable and hand-editable — open it in any text editor to tweak values before re-importing.
+
+| Section | Fields |
+| --- | --- |
+| `meta` | version, export date, record counts |
+| `exercises` | id, name, isBodyweightBased |
+| `workoutSets` | id, exerciseId, date, addedWeightKg, reps, timestamp |
+| `bodyWeightEntries` | id, date, bodyWeightKg |
+
+Importing a backup replaces all current data. A confirmation dialog is shown before restore.
 
 ## Key Metrics
 

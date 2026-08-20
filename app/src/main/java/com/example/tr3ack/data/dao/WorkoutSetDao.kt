@@ -46,4 +46,7 @@ interface WorkoutSetDao {
 
     @Query("SELECT * FROM workout_sets WHERE exerciseId = :exerciseId AND date = :date ORDER BY timestamp ASC")
     fun getSetsForExerciseOnDateFlow(exerciseId: Long, date: String): Flow<List<WorkoutSetEntity>>
+
+    @Query("DELETE FROM workout_sets")
+    suspend fun deleteAll()
 }

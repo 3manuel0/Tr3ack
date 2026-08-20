@@ -3,8 +3,11 @@ package com.example.tr3ack.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.tr3ack.data.entity.BodyWeightEntity
 import com.example.tr3ack.data.entity.Exercise
+import com.example.tr3ack.data.entity.ExerciseEntity
 import com.example.tr3ack.data.entity.WorkoutSet
+import com.example.tr3ack.data.entity.WorkoutSetEntity
 import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,6 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.time.LocalDate
 
 class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
@@ -31,6 +36,12 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
     private val _exportCsv = MutableStateFlow<String?>(null)
     val exportCsv: StateFlow<String?> = _exportCsv.asStateFlow()
+
+    private val _exportJson = MutableStateFlow<String?>(null)
+    val exportJson: StateFlow<String?> = _exportJson.asStateFlow()
+
+    private val _importResult = MutableStateFlow<String?>(null)
+    val importResult: StateFlow<String?> = _importResult.asStateFlow()
 
     fun selectDate(date: LocalDate) {
         _selectedDate.value = date
@@ -121,6 +132,120 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
     fun consumeCsv() {
         _exportCsv.value = null
+    }
+
+    fun generateBackupJson() {
+        viewModelScope.launch {
+            val allExercises = repository.allExercises.first()
+            val allSets = repository.allWorkoutSets.first()
+            val allBodyWeight = repository.allBodyWeightEntries.first()
+
+            val root = JSONObject()
+            root.put("meta", JSONObject().apply {
+                put("version", 1)
+                put("exportDate", LocalDate.now().toString())
+                put("exerciseCount", allExercises.size)
+                put("workoutSetCount", allSets.size)
+                put("bodyWeightEntryCount", allBodyWeight.size)
+            })
+
+            val exercisesArr = JSONArray()
+            for (ex in allExercises) {
+                exercisesArr.put(JSONObject().apply {
+                    put("id", ex.id)
+                    put("name", ex.name)
+                    put("isBodyweightBased", ex.isBodyweightBased)
+                })
+            }
+            root.put("exercises", exercisesArr)
+
+            val setsArr = JSONArray()
+            for (set in allSets) {
+                setsArr.put(JSONObject().apply {
+                    put("id", set.id)
+                    put("exerciseId", set.exerciseId)
+                    put("date", set.date)
+                    put("addedWeightKg", set.addedWeightKg)
+                    put("reps", set.reps)
+                    put("timestamp", set.timestamp)
+                })
+            }
+            root.put("workoutSets", setsArr)
+
+            val bwArr = JSONArray()
+            for (bw in allBodyWeight) {
+                bwArr.put(JSONObject().apply {
+                    put("id", bw.id)
+                    put("date", bw.date)
+                    put("bodyWeightKg", bw.bodyWeightKg)
+                })
+            }
+            root.put("bodyWeightEntries", bwArr)
+
+            _exportJson.value = root.toString(2)
+        }
+    }
+
+    fun consumeJson() {
+        _exportJson.value = null
+    }
+
+    fun importBackupJson(jsonString: String) {
+        viewModelScope.launch {
+            try {
+                val root = JSONObject(jsonString)
+
+                val exercisesArr = root.getJSONArray("exercises")
+                val setsArr = root.getJSONArray("workoutSets")
+                val bwArr = root.getJSONArray("bodyWeightEntries")
+
+                val exercises = mutableListOf<ExerciseEntity>()
+                for (i in 0 until exercisesArr.length()) {
+                    val obj = exercisesArr.getJSONObject(i)
+                    exercises.add(ExerciseEntity(
+                        id = obj.getLong("id"),
+                        name = obj.getString("name"),
+                        isBodyweightBased = obj.getBoolean("isBodyweightBased")
+                    ))
+                }
+
+                val sets = mutableListOf<WorkoutSetEntity>()
+                for (i in 0 until setsArr.length()) {
+                    val obj = setsArr.getJSONObject(i)
+                    sets.add(WorkoutSetEntity(
+                        id = obj.getLong("id"),
+                        exerciseId = obj.getLong("exerciseId"),
+                        date = obj.getString("date"),
+                        addedWeightKg = obj.getDouble("addedWeightKg"),
+                        reps = obj.getInt("reps"),
+                        timestamp = obj.getLong("timestamp")
+                    ))
+                }
+
+                val bwEntries = mutableListOf<BodyWeightEntity>()
+                for (i in 0 until bwArr.length()) {
+                    val obj = bwArr.getJSONObject(i)
+                    bwEntries.add(BodyWeightEntity(
+                        id = obj.getLong("id"),
+                        date = obj.getString("date"),
+                        bodyWeightKg = obj.getDouble("bodyWeightKg")
+                    ))
+                }
+
+                repository.deleteAllData()
+                repository.restoreExercises(exercises)
+                repository.restoreWorkoutSets(sets)
+                repository.restoreBodyWeightEntries(bwEntries)
+
+                _importResult.value = "Restored ${exercises.size} exercises, ${sets.size} sets, ${bwEntries.size} weight entries"
+            } catch (e: Exception) {
+                _importResult.value = "Import failed: ${e.message}"
+            }
+        }
+    }
+
+    fun consumeImportResult() {
+        _importResult.value = null
     }
 
     class Factory(private val repository: Tr3ackRepository) : ViewModelProvider.Factory {

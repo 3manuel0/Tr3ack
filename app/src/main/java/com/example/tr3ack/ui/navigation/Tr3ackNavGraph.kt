@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -14,12 +19,15 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -75,6 +83,50 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
         }
     }
 
+    val exportJson by historyViewModel.exportJson.collectAsState()
+    val importResult by historyViewModel.importResult.collectAsState()
+
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showImportConfirmDialog by remember { mutableStateOf(false) }
+    var pendingImportJson by remember { mutableStateOf<String?>(null) }
+
+    val jsonExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let {
+            context.contentResolver.openOutputStream(it)?.use { os ->
+                os.write(exportJson?.toByteArray() ?: return@let)
+            }
+            Toast.makeText(context, "Backup exported!", Toast.LENGTH_SHORT).show()
+            historyViewModel.consumeJson()
+        }
+    }
+
+    val jsonImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val content = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText()
+            if (content != null) {
+                pendingImportJson = content
+                showImportConfirmDialog = true
+            }
+        }
+    }
+
+    LaunchedEffect(exportJson) {
+        exportJson?.let {
+            jsonExportLauncher.launch("Tr3ack_Backup_${LocalDate.now()}.json")
+        }
+    }
+
+    LaunchedEffect(importResult) {
+        importResult?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            historyViewModel.consumeImportResult()
+        }
+    }
+
     Scaffold(
         topBar = {
             val title = Screen.all.find { screen ->
@@ -98,6 +150,39 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                             Icon(
                                 Icons.Default.FileDownload,
                                 contentDescription = "Export CSV"
+                            )
+                        }
+                    }
+                    if (currentDestination?.route == Screen.Dashboard.route) {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More options"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Export Backup") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    historyViewModel.generateBackupJson()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Import Backup") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    jsonImportLauncher.launch(arrayOf("application/json"))
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.FileUpload, contentDescription = null)
+                                }
                             )
                         }
                     }
@@ -152,5 +237,33 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                 ProgressScreen(repository = repository)
             }
         }
+    }
+
+    if (showImportConfirmDialog && pendingImportJson != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showImportConfirmDialog = false
+                pendingImportJson = null
+            },
+            title = { Text("Import Backup") },
+            text = { Text("This will replace ALL current data with the backup. This cannot be undone. Continue?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    historyViewModel.importBackupJson(pendingImportJson!!)
+                    showImportConfirmDialog = false
+                    pendingImportJson = null
+                }) {
+                    Text("Import")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showImportConfirmDialog = false
+                    pendingImportJson = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
