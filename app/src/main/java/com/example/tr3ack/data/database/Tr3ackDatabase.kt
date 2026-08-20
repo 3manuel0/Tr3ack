@@ -32,7 +32,8 @@ abstract class Tr3ackDatabase : RoomDatabase() {
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("INSERT INTO exercises (name, isBodyweightBased) VALUES ('Weighted Chin-Ups', 1)")
+                db.execSQL("UPDATE exercises SET id = id + 3 WHERE id >= 3")
+                db.execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (3, 'Weighted Chin-Ups', 1)")
             }
         }
 
