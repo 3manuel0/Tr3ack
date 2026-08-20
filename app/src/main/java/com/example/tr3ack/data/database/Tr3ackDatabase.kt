@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [ExerciseEntity::class, BodyWeightEntity::class, WorkoutSetEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class Tr3ackDatabase : RoomDatabase() {
@@ -37,6 +37,18 @@ abstract class Tr3ackDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DELETE FROM exercises")
+                db.execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (1, 'Weighted Pull-Ups', 1)")
+                db.execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (2, 'Weighted Dips', 1)")
+                db.execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (3, 'Weighted Chin-Ups', 1)")
+                db.execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (4, 'Bicep Curls', 0)")
+                db.execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (5, 'Hammer Curls', 0)")
+                db.execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (6, 'Lateral Raises', 0)")
+            }
+        }
+
         fun getDatabase(context: Context): Tr3ackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -44,7 +56,7 @@ abstract class Tr3ackDatabase : RoomDatabase() {
                     Tr3ackDatabase::class.java,
                     "tr3ack_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)
