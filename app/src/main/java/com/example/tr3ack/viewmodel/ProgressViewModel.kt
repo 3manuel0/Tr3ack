@@ -23,7 +23,7 @@ data class PersonalRecords(
     val maxReps: Int = 0,
 )
 
-enum class MovementType { DIPS, PULLUPS, UNKNOWN }
+enum class MovementType { DIPS, PULLUPS, CHIN_UPS, UNKNOWN }
 
 data class OneRepMax(
     val oneRepMaxTSL: Double = 0.0,
@@ -65,11 +65,17 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
             1.175, 1.208, 1.240, 1.272, 1.304
         )
 
+        private val CHINUP_COEFFICIENTS = doubleArrayOf(
+            1.000, 1.033, 1.065, 1.095, 1.125,
+            1.155, 1.185, 1.215, 1.245, 1.275
+        )
+
         fun getMovementType(exerciseName: String): MovementType {
             val lower = exerciseName.lowercase()
             return when {
                 lower.contains("dip") -> MovementType.DIPS
-                lower.contains("pull") || lower.contains("chin") -> MovementType.PULLUPS
+                lower.contains("chin") -> MovementType.CHIN_UPS
+                lower.contains("pull") -> MovementType.PULLUPS
                 else -> MovementType.UNKNOWN
             }
         }
@@ -79,6 +85,7 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
             return when (movementType) {
                 MovementType.DIPS -> DIP_COEFFICIENTS[cappedReps]
                 MovementType.PULLUPS -> PULLUP_COEFFICIENTS[cappedReps]
+                MovementType.CHIN_UPS -> CHINUP_COEFFICIENTS[cappedReps]
                 MovementType.UNKNOWN -> 1.0 + (reps - 1) * 0.0333
             }
         }
@@ -140,9 +147,7 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
                 if (exercise.isBodyweightBased) {
                     processWeightedExercise(sets)
                 } else {
-                    _freeWeightData.value = sets
-                    calculateFreeWeightPRs(sets)
-                    _oneRepMax.value = null
+                    processFreeWeightExercise(sets)
                 }
             }
         }
@@ -195,6 +200,76 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         _chartData.value = points
         calculateWeightedPRs(points)
         calculateWeighted1RM(sets)
+    }
+
+    private fun processFreeWeightExercise(sets: List<WorkoutSet>) {
+        _freeWeightData.value = sets
+
+        if (sets.isEmpty()) {
+            _chartData.value = emptyList()
+            _personalRecords.value = PersonalRecords()
+            _oneRepMax.value = null
+            return
+        }
+
+        calculateFreeWeightPRs(sets)
+
+        val grouped = sets.groupBy { it.date }
+        val points = mutableListOf<ChartPoint>()
+
+        for (entry in grouped.entries.sortedBy { it.key }) {
+            val date = entry.key
+            val daySets = entry.value
+            val firstSet = daySets.minByOrNull { it.timestamp } ?: continue
+
+            val bestE1RM = daySets
+                .filter { it.reps > 0 }
+                .maxOfOrNull { set ->
+                    set.addedWeightKg * (1.0 + set.reps / 30.0)
+                } ?: 0.0
+
+            val tonnage = daySets
+                .filter { it.reps > 0 }
+                .sumOf { it.addedWeightKg * it.reps }
+
+            points.add(
+                ChartPoint(
+                    date = date,
+                    totalSystemWeight = firstSet.addedWeightKg,
+                    reps = firstSet.reps,
+                    addedWeight = firstSet.addedWeightKg,
+                    percentBodyWeight = 0.0,
+                    estimatedOneRM = bestE1RM,
+                    sessionTonnage = tonnage,
+                    beltLoad = 0.0,
+                    bodyWeightKg = 0.0,
+                )
+            )
+        }
+
+        _chartData.value = points
+
+        val exercise = exercises.value.find { it.id == _selectedExerciseId.value }
+        val movementType = getMovementType(exercise?.name ?: "")
+        var bestResult: OneRepMax? = null
+        for (set in sets) {
+            val e1rm = set.addedWeightKg * (1.0 + set.reps / 30.0)
+            if (bestResult == null || set.addedWeightKg > bestResult.basedOnTSL) {
+                bestResult = OneRepMax(
+                    oneRepMaxTSL = e1rm,
+                    oneRepMaxAddedWeight = e1rm,
+                    basedOnTSL = set.addedWeightKg,
+                    basedOnReps = set.reps,
+                    basedOnDate = set.date,
+                    movementType = movementType,
+                    strengthMultiplier = 0.0,
+                    workingLoad85 = e1rm * 0.85,
+                    workingLoad80 = e1rm * 0.80,
+                    workingLoad75 = e1rm * 0.75,
+                )
+            }
+        }
+        _oneRepMax.value = bestResult
     }
 
     private fun calculateWeightedPRs(data: List<ChartPoint>) {

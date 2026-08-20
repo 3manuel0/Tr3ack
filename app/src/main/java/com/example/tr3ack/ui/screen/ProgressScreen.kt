@@ -247,8 +247,8 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     }
                 }
 
-                // Day count toggle + chart for weighted exercises
-                if (selectedExercise.isBodyweightBased && displayData.isNotEmpty()) {
+                // Day count toggle + charts
+                if (displayData.isNotEmpty()) {
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -314,23 +314,25 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                         }
                     }
 
-                    // Belt Load vs Body Weight chart
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Belt Load vs Body Weight",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            BeltVsBodyChart(
-                                data = displayData,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(220.dp)
-                                    .padding(12.dp)
+                    // Belt Load vs Body Weight chart (bodyweight exercises only)
+                    if (selectedExercise.isBodyweightBased) {
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Belt Load vs Body Weight",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
                             )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                BeltVsBodyChart(
+                                    data = displayData,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(220.dp)
+                                        .padding(12.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -372,7 +374,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     }
                 }
 
-                if (selectedExercise.isBodyweightBased && displayData.isEmpty()) {
+                if (displayData.isEmpty() && freeWeightData.isEmpty()) {
                     item {
                         Text(
                             text = "Log some sets to see your progress chart",
