@@ -60,7 +60,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
     val selectedExerciseId by viewModel.selectedExerciseId.collectAsState()
     val chartData by viewModel.chartData.collectAsState()
     val freeWeightData by viewModel.freeWeightData.collectAsState()
-    val personalRecords by viewModel.personalRecords.collectAsState()
+    val personalRecords by viewModel.bestSet.collectAsState()
     val oneRepMax by viewModel.oneRepMax.collectAsState()
 
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
@@ -134,32 +134,52 @@ fun ProgressScreen(repository: Tr3ackRepository) {
             }
 
             if (selectedExercise != null) {
-                // Personal Records
-                item {
-                    Text(
-                        text = "Personal Records",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                if (selectedExercise.isBodyweightBased) {
+                // Personal Record — Best Set
+                if (personalRecords.estimatedOneRM > 0) {
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                PRRow("Max System Weight", "%.1f kg".format(personalRecords.maxTotalSystemWeight))
-                                PRRow("Max % Body Weight", "%.1f%%".format(personalRecords.maxPercentBodyWeight))
-                                PRRow("Max Added Weight", "%.1f kg".format(personalRecords.maxAddedWeight))
-                                PRRow("Max Reps (1 set)", "${personalRecords.maxReps}")
-                            }
-                        }
+                        Text(
+                            text = "Personal Record",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                } else {
+
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                PRRow("Max Weight", "%.1f kg".format(personalRecords.maxAddedWeight))
-                                PRRow("Max Reps", "${personalRecords.maxReps}")
+                                Text(
+                                    text = "Best Set",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "%.1f kg".format(personalRecords.estimatedOneRM),
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "estimated 1RM",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                PRRow(
+                                    "Set",
+                                    "%.1f kg × %d reps".format(personalRecords.addedWeight, personalRecords.reps)
+                                )
+                                if (selectedExercise.isBodyweightBased) {
+                                    PRRow(
+                                        "Total System Load",
+                                        "%.1f kg".format(personalRecords.totalSystemWeight)
+                                    )
+                                    PRRow(
+                                        "% Body Weight",
+                                        "%.1f%%".format(personalRecords.percentBodyWeight)
+                                    )
+                                }
+                                PRRow("Date", personalRecords.date)
                             }
                         }
                     }

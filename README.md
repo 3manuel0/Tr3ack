@@ -22,8 +22,8 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 - **Dashboard** — At-a-glance view of today's body weight, personal bests, and recent activity
 - **Log Workouts** — Select exercise, set reps/weight, pick any date for backfilling; weight persists between sets for fast logging
 - **Body Weight Tracking** — One entry per day, editable, with fallback lookup for workout days without a log
-- **Personal Best Cards** — PR tracking per exercise (max system weight, max added weight, max reps, max % BW)
-- **Estimated 1RM Card** — Calculated from best set using movement-specific coefficients; includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
+- **Personal Record Card** — Single best-set record per exercise, selected by highest estimated 1RM across all logged sets; shows e1RM, set, total system load, % BW, and date achieved
+- **Estimated 1RM Card** — Calculated from the set with the highest estimated 1RM using movement-specific coefficients; includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
 - **3 Progress Charts** (5/10 day toggle):
   - **Estimated 1RM** — Line chart with gradient fill showing strength trend over time
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
@@ -117,6 +117,7 @@ Importing a backup replaces all current data. A confirmation dialog is shown bef
 - **Total System Weight** = Body Weight + Added Weight
 - **% Body Weight** = (Total System Weight / Body Weight) × 100
 - **Estimated 1RM** = Movement-specific coefficient × TSL (bodyweight) or Epley formula (free weight)
+- **Personal Record** = The single set with the highest estimated 1RM across all history; all card values (load, reps, % BW, date) come from that one set
 - **Session Tonnage** = Sum of (TSL × Reps) per session
 - **Daily Volume** = Sum of (TSL × Reps) per day
 

@@ -15,12 +15,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-data class PersonalRecords(
-    val maxAddedWeight: Double = 0.0,
-    val maxTotalSystemWeight: Double = 0.0,
-    val maxPercentBodyWeight: Double = 0.0,
-    val maxDailyVolume: Double = 0.0,
-    val maxReps: Int = 0,
+data class BestSetRecord(
+    val estimatedOneRM: Double = 0.0,
+    val addedWeight: Double = 0.0,
+    val reps: Int = 0,
+    val totalSystemWeight: Double = 0.0,
+    val percentBodyWeight: Double = 0.0,
+    val date: String = "",
 )
 
 enum class MovementType { DIPS, PULLUPS, CHIN_UPS, UNKNOWN }
@@ -133,15 +134,18 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
     private val _freeWeightData = MutableStateFlow<List<WorkoutSet>>(emptyList())
     val freeWeightData: StateFlow<List<WorkoutSet>> = _freeWeightData.asStateFlow()
 
-    private val _personalRecords = MutableStateFlow(PersonalRecords())
-    val personalRecords: StateFlow<PersonalRecords> = _personalRecords.asStateFlow()
+    private val _bestSet = MutableStateFlow(BestSetRecord())
+    val bestSet: StateFlow<BestSetRecord> = _bestSet.asStateFlow()
 
     private val _oneRepMax = MutableStateFlow<OneRepMax?>(null)
     val oneRepMax: StateFlow<OneRepMax?> = _oneRepMax.asStateFlow()
 
+    private var selectionJob: kotlinx.coroutines.Job? = null
+
     fun selectExercise(exerciseId: Long) {
         _selectedExerciseId.value = exerciseId
-        viewModelScope.launch {
+        selectionJob?.cancel()
+        selectionJob = viewModelScope.launch {
             val exercise = exercises.value.find { it.id == exerciseId } ?: return@launch
             repository.getSetsForExercise(exerciseId).collect { sets ->
                 if (exercise.isBodyweightBased) {
@@ -198,7 +202,7 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         }
 
         _chartData.value = points
-        calculateWeightedPRs(points)
+        calculateBestSet(sets, movementType)
         calculateWeighted1RM(sets)
     }
 
@@ -207,12 +211,12 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
 
         if (sets.isEmpty()) {
             _chartData.value = emptyList()
-            _personalRecords.value = PersonalRecords()
+            _bestSet.value = BestSetRecord()
             _oneRepMax.value = null
             return
         }
 
-        calculateFreeWeightPRs(sets)
+        calculateFreeWeightBestSet(sets)
 
         val grouped = sets.groupBy { it.date }
         val points = mutableListOf<ChartPoint>()
@@ -254,7 +258,12 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         var bestResult: OneRepMax? = null
         for (set in sets) {
             val e1rm = set.addedWeightKg * (1.0 + set.reps / 30.0)
-            if (bestResult == null || set.addedWeightKg > bestResult.basedOnTSL) {
+
+            val isBetter = bestResult == null ||
+                e1rm > bestResult.oneRepMaxTSL ||
+                (e1rm == bestResult.oneRepMaxTSL && set.reps < bestResult.basedOnReps)
+
+            if (isBetter) {
                 bestResult = OneRepMax(
                     oneRepMaxTSL = e1rm,
                     oneRepMaxAddedWeight = e1rm,
@@ -272,25 +281,59 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         _oneRepMax.value = bestResult
     }
 
-    private fun calculateWeightedPRs(data: List<ChartPoint>) {
-        if (data.isEmpty()) {
-            _personalRecords.value = PersonalRecords()
-            return
+    private suspend fun calculateBestSet(sets: List<WorkoutSet>, movementType: MovementType) {
+        var best: BestSetRecord? = null
+
+        for (set in sets) {
+            if (set.reps <= 0) continue
+            val bodyWeight = repository.getEffectiveBodyWeight(set.date) ?: continue
+            if (bodyWeight <= 0) continue
+
+            val tsl = bodyWeight + set.addedWeightKg
+            val e1rm = tsl * getMovementFactor(movementType, set.reps)
+
+            val isBetter = best == null ||
+                e1rm > best.estimatedOneRM ||
+                (e1rm == best.estimatedOneRM && set.reps < best.reps)
+
+            if (isBetter) {
+                best = BestSetRecord(
+                    estimatedOneRM = e1rm,
+                    addedWeight = set.addedWeightKg,
+                    reps = set.reps,
+                    totalSystemWeight = tsl,
+                    percentBodyWeight = (tsl / bodyWeight) * 100.0,
+                    date = set.date,
+                )
+            }
         }
-        _personalRecords.value = PersonalRecords(
-            maxAddedWeight = data.maxOf { it.addedWeight },
-            maxTotalSystemWeight = data.maxOf { it.totalSystemWeight },
-            maxPercentBodyWeight = data.maxOf { it.percentBodyWeight },
-            maxReps = data.maxOf { it.reps }
-        )
+
+        _bestSet.value = best ?: BestSetRecord()
     }
 
-    private fun calculateFreeWeightPRs(sets: List<WorkoutSet>) {
-        if (sets.isEmpty()) return
-        _personalRecords.value = PersonalRecords(
-            maxAddedWeight = sets.maxOf { it.addedWeightKg },
-            maxReps = sets.maxOf { it.reps }
-        )
+    private fun calculateFreeWeightBestSet(sets: List<WorkoutSet>) {
+        var best: BestSetRecord? = null
+
+        for (set in sets) {
+            if (set.reps <= 0) continue
+            val e1rm = set.addedWeightKg * (1.0 + set.reps / 30.0)
+
+            val isBetter = best == null ||
+                e1rm > best.estimatedOneRM ||
+                (e1rm == best.estimatedOneRM && set.reps < best.reps)
+
+            if (isBetter) {
+                best = BestSetRecord(
+                    estimatedOneRM = e1rm,
+                    addedWeight = set.addedWeightKg,
+                    reps = set.reps,
+                    totalSystemWeight = set.addedWeightKg,
+                    date = set.date,
+                )
+            }
+        }
+
+        _bestSet.value = best ?: BestSetRecord()
     }
 
     private suspend fun calculateWeighted1RM(sets: List<WorkoutSet>) {
@@ -307,12 +350,14 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         for (set in sets) {
             val bodyWeight = repository.getEffectiveBodyWeight(set.date) ?: continue
             val result = calculate1RM(bodyWeight, set.addedWeightKg, set.reps, movementType)
-            val currentTSL = bodyWeight + set.addedWeightKg
 
-            if (bestResult == null || currentTSL > bestResult.basedOnTSL) {
+            val isBetter = bestResult == null ||
+                result.oneRepMaxTSL > bestResult.oneRepMaxTSL ||
+                (result.oneRepMaxTSL == bestResult.oneRepMaxTSL && set.reps < bestResult.basedOnReps)
+
+            if (isBetter) {
                 bestResult = result.copy(
                     basedOnDate = set.date,
-                    basedOnTSL = currentTSL,
                     currentBodyWeight = bodyWeight,
                 )
             }

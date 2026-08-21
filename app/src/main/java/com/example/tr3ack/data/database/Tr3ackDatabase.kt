@@ -74,11 +74,12 @@ abstract class Tr3ackDatabase : RoomDatabase() {
         }
 
         private fun defaultExercises(): List<ExerciseEntity> = listOf(
-            ExerciseEntity(name = "Weighted Pull-Ups", isBodyweightBased = true),
-            ExerciseEntity(name = "Weighted Dips", isBodyweightBased = true),
-            ExerciseEntity(name = "Bicep Curls", isBodyweightBased = false),
-            ExerciseEntity(name = "Hammer Curls", isBodyweightBased = false),
-            ExerciseEntity(name = "Lateral Raises", isBodyweightBased = false),
+            ExerciseEntity(id = 1, name = "Weighted Pull-Ups", isBodyweightBased = true),
+            ExerciseEntity(id = 2, name = "Weighted Dips", isBodyweightBased = true),
+            ExerciseEntity(id = 3, name = "Weighted Chin-Ups", isBodyweightBased = true),
+            ExerciseEntity(id = 4, name = "Bicep Curls", isBodyweightBased = false),
+            ExerciseEntity(id = 5, name = "Hammer Curls", isBodyweightBased = false),
+            ExerciseEntity(id = 6, name = "Lateral Raises", isBodyweightBased = false),
         )
     }
 }
