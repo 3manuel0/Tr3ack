@@ -47,7 +47,16 @@ import androidx.compose.ui.unit.sp
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.ChartPoint
 import com.example.tr3ack.viewmodel.ProgressViewModel
+import kotlin.math.ceil
 import kotlin.math.min
+
+private const val ALL_DAYS = Int.MAX_VALUE
+
+/** Interval between x-axis date labels so crowded charts stay readable (anchored to newest point). */
+private fun xLabelInterval(pointCount: Int, chartWidthPx: Float): Int {
+    if (pointCount <= 1) return 1
+    return maxOf(1, ceil(pointCount * 60f / chartWidthPx.coerceAtLeast(1f)).toInt())
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -270,26 +279,33 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                 // Day count toggle + charts
                 if (displayData.isNotEmpty()) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Column {
                             Text(
                                 text = "Progress",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(
                                     selected = dayCount == 5,
                                     onClick = { dayCount = 5 },
-                                    label = { Text("5 days") }
+                                    label = { Text("5d") }
                                 )
                                 FilterChip(
                                     selected = dayCount == 10,
                                     onClick = { dayCount = 10 },
-                                    label = { Text("10 days") }
+                                    label = { Text("10d") }
+                                )
+                                FilterChip(
+                                    selected = dayCount == 25,
+                                    onClick = { dayCount = 25 },
+                                    label = { Text("25d") }
+                                )
+                                FilterChip(
+                                    selected = dayCount == ALL_DAYS,
+                                    onClick = { dayCount = ALL_DAYS },
+                                    label = { Text("All") }
                                 )
                             }
                         }
@@ -472,7 +488,9 @@ private fun E1RMChart(
                 isAntiAlias = true
                 textAlign = android.graphics.Paint.Align.CENTER
             }
+            val labelEvery = xLabelInterval(data.size, chartWidth)
             for (i in data.indices) {
+                if ((data.lastIndex - i) % labelEvery != 0) continue
                 val x = leftPadding + (if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f)
                 val shortDate = data[i].date.takeLast(5)
                 drawContext.canvas.nativeCanvas.drawText(
@@ -516,12 +534,14 @@ private fun E1RMChart(
             )
         }
 
+        val dotRadius = if (data.size > 30) 4f else 8f
+        val dotCoreRadius = dotRadius / 2f
         data.forEachIndexed { index, point ->
             val x = pointX(index)
             val normalized = (point.estimatedOneRM - yMin) / yRange
             val y = topPadding + chartHeight * (1.0 - normalized).toFloat()
-            drawCircle(color = lineColor, radius = 8f, center = Offset(x, y))
-            drawCircle(color = Color.White, radius = 4f, center = Offset(x, y))
+            drawCircle(color = lineColor, radius = dotRadius, center = Offset(x, y))
+            drawCircle(color = Color.White, radius = dotCoreRadius, center = Offset(x, y))
         }
 
         val unitLabelPaint = android.graphics.Paint().apply {
@@ -601,6 +621,7 @@ private fun TonnageBarChart(
             isAntiAlias = true
             textAlign = android.graphics.Paint.Align.CENTER
         }
+        val labelEvery = xLabelInterval(data.size, chartWidth)
 
         data.forEachIndexed { index, point ->
             val barLeft = leftPadding + gap + index * (barWidth + gap)
@@ -614,14 +635,16 @@ private fun TonnageBarChart(
                 cornerRadius = CornerRadius(6f, 6f)
             )
 
-            val centerX = barLeft + barWidth / 2f
-            val shortDate = point.date.takeLast(5)
-            drawContext.canvas.nativeCanvas.drawText(
-                shortDate,
-                centerX,
-                size.height - 4f,
-                labelPaint
-            )
+            if ((data.lastIndex - index) % labelEvery == 0) {
+                val centerX = barLeft + barWidth / 2f
+                val shortDate = point.date.takeLast(5)
+                drawContext.canvas.nativeCanvas.drawText(
+                    shortDate,
+                    centerX,
+                    size.height - 4f,
+                    labelPaint
+                )
+            }
         }
 
         val unitLabelPaint = android.graphics.Paint().apply {
@@ -701,7 +724,9 @@ private fun BeltVsBodyChart(
             isAntiAlias = true
             textAlign = android.graphics.Paint.Align.CENTER
         }
+        val labelEvery = xLabelInterval(data.size, chartWidth)
         for (i in data.indices) {
+            if ((data.lastIndex - i) % labelEvery != 0) continue
             val x = leftPadding + if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f
             val shortDate = data[i].date.takeLast(5)
             drawContext.canvas.nativeCanvas.drawText(
@@ -733,14 +758,15 @@ private fun BeltVsBodyChart(
             drawPath(path = bodyPath, color = bodyColor, style = Stroke(width = 4f, cap = StrokeCap.Round))
         }
 
+        val dotRadius = if (data.size > 30) 3.5f else 7f
         data.forEachIndexed { index, point ->
             val beltY = pointY(point.beltLoad)
-            drawCircle(color = beltColor, radius = 7f, center = Offset(pointX(index), beltY))
-            drawCircle(color = Color.White, radius = 3.5f, center = Offset(pointX(index), beltY))
+            drawCircle(color = beltColor, radius = dotRadius, center = Offset(pointX(index), beltY))
+            drawCircle(color = Color.White, radius = dotRadius / 2f, center = Offset(pointX(index), beltY))
 
             val bodyY = pointY(point.bodyWeightKg)
-            drawCircle(color = bodyColor, radius = 7f, center = Offset(pointX(index), bodyY))
-            drawCircle(color = Color.White, radius = 3.5f, center = Offset(pointX(index), bodyY))
+            drawCircle(color = bodyColor, radius = dotRadius, center = Offset(pointX(index), bodyY))
+            drawCircle(color = Color.White, radius = dotRadius / 2f, center = Offset(pointX(index), bodyY))
         }
 
         val legendPaint = android.graphics.Paint().apply {
