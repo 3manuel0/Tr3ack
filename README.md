@@ -29,7 +29,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
-- **Achievements** — Gamified progress page: overall level + XP (from training volume and sessions), training streaks, and unlockable badge grid for volume, consistency, and relative-strength milestones (all computed retroactively from your data)
+- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks, and 24 tier-colored achievements for volume, consistency, relative strength, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond)
 - **CSV Export** — Export all workout data as a formatted CSV file from the History screen
 - **JSON Backup & Restore** — Full data backup/restore from the Dashboard overflow menu; exports editable JSON file containing all exercises, sets, and body weight entries
 - **Splash Screen** — Custom branded launch screen with app icon
@@ -85,6 +85,36 @@ E1RM = Weight × (1 + Reps / 30)
 
 - **Session Tonnage** = Sum of (TSL × Reps) across all sets in a session. Tracks total work capacity — useful for identifying overtraining or verifying volume before a deload.
 - **Belt Load vs Body Weight** — Plots added weight (belt load) and body weight on the same axis over time. During a cut, the belt load line rising while body weight drops = improving relative strength.
+
+## Gamification — Achievements Tab
+
+The Goals tab turn your training history into progression, all computed on the fly from existing data (no DB changes).
+
+**Level & XP**
+- XP = `(total kg·reps / 10) + workouts × 50`
+- Level curve grows ×1.4 per level (starts at 100 XP); tiers: Novice → Beginner → Rookie → Apprentice → Trainee → Grinder → Strong → Advanced → Elite → Beast
+
+**Streaks** — current and longest consecutive training-day streaks.
+
+**Achievement tiers** — every achievement is colored by how hard/long it takes to earn:
+
+| Tier | Color | Typical unlock |
+| --- | --- | --- |
+| Iron | Gray | First milestones (10 workouts, 100k tonnage, 16kg curls, 10kg raises) |
+| Copper | Copper | 50 workouts, 500k tonnage, 7-day streak, intermediate curls/raises |
+| Silver | Silver | 30-day streak, 1.25× BW, mid curls/raises |
+| Gold | Gold | 90-day streak, 1.5× BW, advanced curls/raises |
+| Emerald | Green | 1.75× BW, heavy curls/raises |
+| Diamond | Cyan | 1M tonnage, 100 workouts, elite curls/raises |
+
+**Per-exercise strength benchmarks** (unlock by logging a set at that weight for 6+ reps, each ranked through the 6 tiers):
+
+| Exercise | Good+ | Intermediate | Intermediate+ | Advanced | Advanced+ | Elite |
+| --- | --- | --- | --- | --- | --- | --- |
+| Bicep Curls | 16kg | 18kg | 20kg | 22kg | 24kg | 26kg |
+| Lateral Raises | 10kg | 12kg | 14kg | 16kg | 18kg | 20kg |
+
+You can mix-and-match exercises (e.g. sets up to 22kg) to chase the color tiers you want.
 
 ## CSV Export
 
