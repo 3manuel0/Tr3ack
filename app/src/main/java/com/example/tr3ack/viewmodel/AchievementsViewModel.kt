@@ -30,6 +30,7 @@ data class Achievement(
     val title: String,
     val description: String,
     val iconKey: String,
+    val tier: String,
     val unlocked: Boolean,
 )
 
@@ -188,67 +189,59 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
         maxBicepCurlWeight: Double,
         maxLateralRaiseWeight: Double
     ): List<Achievement> {
-        val curlTiers = listOf(
-            Triple(16.0, "Good+", "fitness_center"),
-            Triple(18.0, "Intermediate", "directions_run"),
-            Triple(20.0, "Intermediate+", "bolt"),
-            Triple(22.0, "Advanced", "shield"),
-            Triple(24.0, "Advanced+", "trending_up"),
-            Triple(26.0, "Elite", "rocket_launch")
-        )
-        val latTiers = listOf(
-            Triple(10.0, "Good+", "fitness_center"),
-            Triple(12.0, "Intermediate", "directions_run"),
-            Triple(14.0, "Intermediate+", "bolt"),
-            Triple(16.0, "Advanced", "shield"),
-            Triple(18.0, "Advanced+", "trending_up"),
-            Triple(20.0, "Elite", "rocket_launch")
-        )
+        val colorTiers = listOf("iron", "copper", "silver", "gold", "emerald", "diamond")
 
-        val curlAchievements = curlTiers.map { (weight, tier, icon) ->
+        // Bicep Curls: 16 -> 26 kg across the 6 tiers
+        val curlWeights = listOf(16.0, 18.0, 20.0, 22.0, 24.0, 26.0)
+        val curlTierNames = listOf("Good+", "Intermediate", "Intermediate+", "Advanced", "Advanced+", "Elite")
+        val curlAchievements = curlWeights.mapIndexed { index, weight ->
             Achievement(
                 id = "curl_${weight.toInt()}",
-                title = "Bicep Curls · $tier",
+                title = "Bicep Curls · ${curlTierNames[index]}",
                 description = "Log a ${weight.toInt()}kg set for 6+ reps",
-                iconKey = icon,
+                iconKey = "bicep",
+                tier = colorTiers[index],
                 unlocked = maxBicepCurlWeight >= weight
             )
         }
 
-        val latAchievements = latTiers.map { (weight, tier, icon) ->
+        // Lateral Raises: 10 -> 20 kg across the 6 tiers
+        val latWeights = listOf(10.0, 12.0, 14.0, 16.0, 18.0, 20.0)
+        val latAchievements = latWeights.mapIndexed { index, weight ->
             Achievement(
                 id = "lat_${weight.toInt()}",
-                title = "Lateral Raises · $tier",
+                title = "Lateral Raises · ${curlTierNames[index]}",
                 description = "Log a ${weight.toInt()}kg set for 6+ reps",
-                iconKey = icon,
+                iconKey = "shoulder",
+                tier = colorTiers[index],
                 unlocked = maxLateralRaiseWeight >= weight
             )
         }
 
         return listOf(
-            Achievement("tonnage_100k", "100k Moved", "Move 100,000 kg·reps total", "whatshot",
+            Achievement("tonnage_100k", "Tonnage 100k", "Move 100,000 total kg·reps", "bolt", "iron",
                 totalTonnage >= 100_000),
-            Achievement("tonnage_500k", "500k Moved", "Move 500,000 kg·reps total", "bolt",
+            Achievement("tonnage_500k", "Tonnage 500k", "Move 500,000 total kg·reps", "whatshot", "copper",
                 totalTonnage >= 500_000),
-            Achievement("tonnage_1m", "Million Club", "Move 1,000,000 kg·reps total", "workspace_premium",
+            Achievement("tonnage_1m", "Million Club", "Move 1,000,000 total kg·reps", "workspace_premium", "diamond",
                 totalTonnage >= 1_000_000),
-            Achievement("sessions_10", "Getting Started", "Complete 10 workouts", "fitness_center",
+            Achievement("sessions_10", "Getting Started", "Complete 10 workouts", "check_circle", "iron",
                 totalSessions >= 10),
-            Achievement("sessions_50", "Consistent", "Complete 50 workouts", "directions_run",
+            Achievement("sessions_50", "Consistent", "Complete 50 workouts", "directions_run", "copper",
                 totalSessions >= 50),
-            Achievement("sessions_100", "Century", "Complete 100 workouts", "emoji_events",
+            Achievement("sessions_100", "Century", "Complete 100 workouts", "emoji_events", "diamond",
                 totalSessions >= 100),
-            Achievement("streak_7", "One Week", "Train 7 days in a row", "local_fire_department",
+            Achievement("streak_7", "One Week", "Train 7 days in a row", "local_fire_department", "copper",
                 longestStreak >= 7),
-            Achievement("streak_30", "Full Month", "Train 30 days in a row", "local_fire_department",
+            Achievement("streak_30", "Full Month", "Train 30 days in a row", "local_fire_department", "silver",
                 longestStreak >= 30),
-            Achievement("streak_90", "Grind Mode", "Train 90 days in a row", "shield",
+            Achievement("streak_90", "Grind Mode", "Train 90 days in a row", "shield", "gold",
                 longestStreak >= 90),
-            Achievement("bw_125", "Relative Strength", "Lift 1.25x your bodyweight", "trending_up",
+            Achievement("bw_125", "Relative Strength", "Lift 1.25x your bodyweight", "trending_up", "silver",
                 maxBodyweightRatio >= 1.25),
-            Achievement("bw_150", "Beast Mode", "Lift 1.5x your bodyweight", "barbell",
+            Achievement("bw_150", "Beast Mode", "Lift 1.5x your bodyweight", "military_tech", "gold",
                 maxBodyweightRatio >= 1.5),
-            Achievement("bw_175", "Superhuman", "Lift 1.75x your bodyweight", "rocket_launch",
+            Achievement("bw_175", "Superhuman", "Lift 1.75x your bodyweight", "rocket_launch", "emerald",
                 maxBodyweightRatio >= 1.75),
         ) + curlAchievements + latAchievements
     }

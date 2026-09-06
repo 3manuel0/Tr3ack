@@ -18,16 +18,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,16 +54,31 @@ private fun achievementIcon(key: String): ImageVector = when (key) {
     "whatshot" -> Icons.Default.Whatshot
     "bolt" -> Icons.Default.Bolt
     "workspace_premium" -> Icons.Default.WorkspacePremium
-    "fitness_center" -> Icons.Default.FitnessCenter
     "directions_run" -> Icons.AutoMirrored.Filled.DirectionsRun
     "emoji_events" -> Icons.Default.EmojiEvents
     "local_fire_department" -> Icons.Default.LocalFireDepartment
     "shield" -> Icons.Default.Shield
     "trending_up" -> Icons.AutoMirrored.Filled.TrendingUp
-    "barbell" -> Icons.Default.MonitorWeight
     "rocket_launch" -> Icons.Default.RocketLaunch
+    "check_circle" -> Icons.Default.CheckCircleOutline
+    "military_tech" -> Icons.Default.MilitaryTech
+    "bicep" -> Icons.Default.FitnessCenter
+    "shoulder" -> Icons.Default.Accessibility
     else -> Icons.Default.Star
 }
+
+/** Color assigned to each achievement tier, ranked by how hard/long they take to earn. */
+private fun tierColor(tier: String): Color = when (tier) {
+    "iron" -> Color(0xFF9E9E9E)
+    "copper" -> Color(0xFFB87333)
+    "silver" -> Color(0xFFC0C0C0)
+    "gold" -> Color(0xFFD4AF37)
+    "emerald" -> Color(0xFF2ECC71)
+    "diamond" -> Color(0xFF4FC3F7)
+    else -> Color(0xFF9E9E9E)
+}
+
+private val TIER_ORDER = listOf("iron", "copper", "silver", "gold", "emerald", "diamond")
 
 @Composable
 fun AchievementsScreen(repository: Tr3ackRepository) {
@@ -96,6 +113,9 @@ fun AchievementsScreen(repository: Tr3ackRepository) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 8.dp)
             )
+        }
+        item {
+            TierLegend()
         }
         items(achievements) { achievement ->
             AchievementRow(achievement)
@@ -208,12 +228,39 @@ private fun formatTonnage(tonnage: Double): String {
 }
 
 @Composable
+private fun TierLegend() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TIER_ORDER.forEach { tier ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .background(tierColor(tier), CircleShape)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = tier.replaceFirstChar { it.titlecase() },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun AchievementRow(achievement: Achievement) {
     val icon = achievementIcon(achievement.iconKey)
-    val unlockedColor = MaterialTheme.colorScheme.primary
+    val unlockedColor = tierColor(achievement.tier)
     val lockedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     val bgColor = if (achievement.unlocked) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        unlockedColor.copy(alpha = 0.15f)
     } else {
         MaterialTheme.colorScheme.surfaceVariant
     }
