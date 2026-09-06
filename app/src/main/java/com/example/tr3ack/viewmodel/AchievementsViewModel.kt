@@ -237,11 +237,11 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
                 longestStreak >= 30),
             Achievement("streak_90", "Grind Mode", "Train 90 days in a row", "shield", "gold",
                 longestStreak >= 90),
-            Achievement("bw_125", "Relative Strength", "Lift 1.25x your bodyweight", "trending_up", "silver",
+            Achievement("bw_125", "Relative Strength", "Lift 1.25x your bodyweight", "pullup", "silver",
                 maxBodyweightRatio >= 1.25),
-            Achievement("bw_150", "Beast Mode", "Lift 1.5x your bodyweight", "military_tech", "gold",
+            Achievement("bw_150", "Beast Mode", "Lift 1.5x your bodyweight", "pullup", "gold",
                 maxBodyweightRatio >= 1.5),
-            Achievement("bw_175", "Superhuman", "Lift 1.75x your bodyweight", "rocket_launch", "emerald",
+            Achievement("bw_175", "Superhuman", "Lift 1.75x your bodyweight", "pullup", "emerald",
                 maxBodyweightRatio >= 1.75),
         ) + curlAchievements + latAchievements
     }

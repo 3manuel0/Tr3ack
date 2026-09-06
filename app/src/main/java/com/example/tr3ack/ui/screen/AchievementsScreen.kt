@@ -1,5 +1,6 @@
 package com.example.tr3ack.ui.screen
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,15 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.MilitaryTech
-import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Whatshot
@@ -42,7 +38,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,13 +58,88 @@ private fun achievementIcon(key: String): ImageVector = when (key) {
     "emoji_events" -> Icons.Default.EmojiEvents
     "local_fire_department" -> Icons.Default.LocalFireDepartment
     "shield" -> Icons.Default.Shield
-    "trending_up" -> Icons.AutoMirrored.Filled.TrendingUp
-    "rocket_launch" -> Icons.Default.RocketLaunch
     "check_circle" -> Icons.Default.CheckCircleOutline
-    "military_tech" -> Icons.Default.MilitaryTech
-    "bicep" -> Icons.Default.FitnessCenter
-    "shoulder" -> Icons.Default.Accessibility
     else -> Icons.Default.Star
+}
+
+private val CANVAS_KEYS = setOf("pullup", "bicep", "shoulder")
+
+@Composable
+private fun AchievementIcon(key: String, modifier: Modifier = Modifier, tint: Color = Color.White) {
+    if (key in CANVAS_KEYS) {
+        Canvas(modifier = modifier) {
+            val stroke = size.minDimension * 0.06f
+            when (key) {
+                "pullup" -> drawPullUp(tint, stroke)
+                "bicep" -> drawBicepCurl(tint, stroke)
+                else -> drawLateralRaise(tint, stroke)
+            }
+        }
+    } else {
+        Icon(
+            imageVector = achievementIcon(key),
+            contentDescription = null,
+            tint = tint,
+            modifier = modifier
+        )
+    }
+}
+
+private fun DrawScope.drawLineNorm(
+    color: Color,
+    x1: Float, y1: Float,
+    x2: Float, y2: Float,
+    stroke: Float
+) {
+    drawLine(
+        color = color,
+        start = Offset(x1 * size.width, y1 * size.height),
+        end = Offset(x2 * size.width, y2 * size.height),
+        strokeWidth = stroke,
+        cap = StrokeCap.Round
+    )
+}
+
+private fun DrawScope.drawCircleNorm(color: Color, cx: Float, cy: Float, r: Float, stroke: Float) {
+    drawCircle(
+        color = color,
+        radius = r * size.minDimension,
+        center = Offset(cx * size.width, cy * size.height),
+        style = Stroke(stroke)
+    )
+}
+
+private fun DrawScope.drawPullUp(color: Color, stroke: Float) {
+    drawLineNorm(color, 0.12f, 0.14f, 0.88f, 0.14f, stroke)  // bar
+    drawCircleNorm(color, 0.5f, 0.34f, 0.10f, stroke)        // head
+    drawLineNorm(color, 0.39f, 0.49f, 0.36f, 0.14f, stroke)   // left arm
+    drawLineNorm(color, 0.61f, 0.49f, 0.64f, 0.14f, stroke)   // right arm
+    drawLineNorm(color, 0.5f, 0.49f, 0.5f, 0.74f, stroke)     // torso
+    drawLineNorm(color, 0.5f, 0.74f, 0.36f, 0.91f, stroke)    // left leg
+    drawLineNorm(color, 0.5f, 0.74f, 0.64f, 0.91f, stroke)    // right leg
+}
+
+private fun DrawScope.drawBicepCurl(color: Color, stroke: Float) {
+    drawCircleNorm(color, 0.5f, 0.17f, 0.08f, stroke)          // head
+    drawLineNorm(color, 0.5f, 0.28f, 0.5f, 0.72f, stroke)      // torso
+    drawLineNorm(color, 0.5f, 0.72f, 0.38f, 0.89f, stroke)     // left leg
+    drawLineNorm(color, 0.5f, 0.72f, 0.62f, 0.89f, stroke)     // right leg
+    drawLineNorm(color, 0.48f, 0.34f, 0.64f, 0.30f, stroke)    // upper arm
+    drawLineNorm(color, 0.64f, 0.30f, 0.78f, 0.44f, stroke)    // forearm (curling up)
+    drawLineNorm(color, 0.78f, 0.36f, 0.78f, 0.52f, stroke)    // dumbbell handle
+    drawLineNorm(color, 0.73f, 0.38f, 0.73f, 0.50f, stroke)    // inner plate
+    drawLineNorm(color, 0.83f, 0.38f, 0.83f, 0.50f, stroke)    // outer plate
+}
+
+private fun DrawScope.drawLateralRaise(color: Color, stroke: Float) {
+    drawCircleNorm(color, 0.5f, 0.16f, 0.09f, stroke)          // head
+    drawLineNorm(color, 0.5f, 0.28f, 0.5f, 0.70f, stroke)      // torso
+    drawLineNorm(color, 0.5f, 0.70f, 0.38f, 0.90f, stroke)     // left leg
+    drawLineNorm(color, 0.5f, 0.70f, 0.62f, 0.90f, stroke)     // right leg
+    drawLineNorm(color, 0.5f, 0.34f, 0.14f, 0.34f, stroke)     // left arm out
+    drawLineNorm(color, 0.5f, 0.34f, 0.86f, 0.34f, stroke)     // right arm out
+    drawLineNorm(color, 0.08f, 0.28f, 0.08f, 0.40f, stroke)    // left dumbbell
+    drawLineNorm(color, 0.92f, 0.28f, 0.92f, 0.40f, stroke)    // right dumbbell
 }
 
 /** Color assigned to each achievement tier, ranked by how hard/long they take to earn. */
@@ -256,7 +331,6 @@ private fun TierLegend() {
 
 @Composable
 private fun AchievementRow(achievement: Achievement) {
-    val icon = achievementIcon(achievement.iconKey)
     val unlockedColor = tierColor(achievement.tier)
     val lockedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     val bgColor = if (achievement.unlocked) {
@@ -284,9 +358,8 @@ private fun AchievementRow(achievement: Achievement) {
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
+                AchievementIcon(
+                    key = achievement.iconKey,
                     tint = Color.White,
                     modifier = Modifier.size(26.dp)
                 )
