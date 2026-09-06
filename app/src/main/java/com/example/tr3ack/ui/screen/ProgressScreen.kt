@@ -47,10 +47,9 @@ import androidx.compose.ui.unit.sp
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.ChartPoint
 import com.example.tr3ack.viewmodel.ProgressViewModel
+import java.time.LocalDate
 import kotlin.math.ceil
 import kotlin.math.min
-
-private const val ALL_DAYS = Int.MAX_VALUE
 
 /** Interval between x-axis date labels so crowded charts stay readable (anchored to newest point). */
 private fun xLabelInterval(pointCount: Int, chartWidthPx: Float): Int {
@@ -73,7 +72,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
     val oneRepMax by viewModel.oneRepMax.collectAsState()
 
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
-    var dayCount by remember { mutableIntStateOf(5) }
+    var dayCount by remember { mutableIntStateOf(10) }
 
     val selectedExercise = exercises.find { it.id == selectedExerciseId }
     val displayData = chartData.takeLast(dayCount)
@@ -288,24 +287,19 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(
-                                    selected = dayCount == 5,
-                                    onClick = { dayCount = 5 },
-                                    label = { Text("5d") }
-                                )
-                                FilterChip(
                                     selected = dayCount == 10,
                                     onClick = { dayCount = 10 },
                                     label = { Text("10d") }
                                 )
                                 FilterChip(
-                                    selected = dayCount == 25,
-                                    onClick = { dayCount = 25 },
-                                    label = { Text("25d") }
+                                    selected = dayCount == 30,
+                                    onClick = { dayCount = 30 },
+                                    label = { Text("30d") }
                                 )
                                 FilterChip(
-                                    selected = dayCount == ALL_DAYS,
-                                    onClick = { dayCount = ALL_DAYS },
-                                    label = { Text("All") }
+                                    selected = dayCount == 90,
+                                    onClick = { dayCount = 90 },
+                                    label = { Text("90d") }
                                 )
                             }
                         }
@@ -387,7 +381,8 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                freeWeightData.takeLast(20).reversed().forEach { set ->
+                                val cutoff = LocalDate.now().minusDays(4).toString()
+                                freeWeightData.filter { set -> set.date >= cutoff }.sortedByDescending { it.date }.forEach { set ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
