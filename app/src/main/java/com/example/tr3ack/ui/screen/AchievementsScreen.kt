@@ -6,15 +6,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
@@ -44,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.Achievement
@@ -76,35 +74,33 @@ fun AchievementsScreen(repository: Tr3ackRepository) {
     val totalTonnage by viewModel.totalTonnage.collectAsState()
     val totalSessions by viewModel.totalSessions.collectAsState()
     val achievements by viewModel.achievements.collectAsState()
+    val unlockedCount = achievements.count { it.unlocked }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) {
+        item { Spacer(modifier = Modifier.height(4.dp)) }
+        item {
             LevelCard(level)
         }
-        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) {
+        item {
             StreakCard(streak, totalTonnage, totalSessions)
         }
-        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) {
+        item {
             Text(
-                text = "Achievements",
+                text = "Achievements ($unlockedCount/${achievements.size} unlocked)",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
         items(achievements) { achievement ->
-            AchievementCell(achievement)
+            AchievementRow(achievement)
         }
-        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) {
-            Spacer(modifier = Modifier.height(80.dp))
-        }
+        item { Spacer(modifier = Modifier.height(80.dp)) }
     }
 }
 
@@ -186,7 +182,7 @@ private fun StreakStat(label: String, value: String, unit: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
@@ -212,61 +208,61 @@ private fun formatTonnage(tonnage: Double): String {
 }
 
 @Composable
-private fun AchievementCell(achievement: Achievement) {
+private fun AchievementRow(achievement: Achievement) {
     val icon = achievementIcon(achievement.iconKey)
     val unlockedColor = MaterialTheme.colorScheme.primary
     val lockedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     val bgColor = if (achievement.unlocked) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
     } else {
         MaterialTheme.colorScheme.surfaceVariant
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .background(if (achievement.unlocked) unlockedColor else lockedColor, CircleShape),
+                    .size(48.dp)
+                    .background(
+                        color = if (achievement.unlocked) unlockedColor else lockedColor,
+                        shape = CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = achievement.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = if (achievement.unlocked) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                }
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = if (achievement.unlocked) { "" } else { achievement.description },
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = achievement.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (achievement.unlocked) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = achievement.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
