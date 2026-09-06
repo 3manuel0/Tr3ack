@@ -64,7 +64,7 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
             _totalSessions.value = 0
             _level.value = LevelInfo(xpToNext = 100)
             _streak.value = StreakInfo()
-            _achievements.value = buildAchievements(0.0, 0, 0, 0, 0.0, 0.0)
+            _achievements.value = buildAchievements(0.0, 0, 0, 0, 0.0, 0.0, 0.0)
             return
         }
 
@@ -72,7 +72,8 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
 
         var totalTonnage = 0.0
         var maxBodyweightRatio = 0.0
-        var maxFreeWeightRatio = 0.0
+        var maxBicepCurlWeight = 0.0
+        var maxLateralRaiseWeight = 0.0
         for (set in sets) {
             if (set.reps <= 0) continue
             val exercise = exercises.find { it.id == set.exerciseId }
@@ -86,9 +87,13 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
                 }
             } else {
                 totalTonnage += set.addedWeightKg * set.reps
-                if (bodyWeight != null && bodyWeight > 0 && set.addedWeightKg > 0) {
-                    val ratio = set.addedWeightKg / bodyWeight
-                    if (ratio > maxFreeWeightRatio) maxFreeWeightRatio = ratio
+                if (set.reps >= 6) {
+                    when (exercise?.name) {
+                        "Bicep Curls" ->
+                            if (set.addedWeightKg > maxBicepCurlWeight) maxBicepCurlWeight = set.addedWeightKg
+                        "Lateral Raises" ->
+                            if (set.addedWeightKg > maxLateralRaiseWeight) maxLateralRaiseWeight = set.addedWeightKg
+                    }
                 }
             }
         }
@@ -107,7 +112,8 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
             streak.current,
             streak.longest,
             maxBodyweightRatio,
-            maxFreeWeightRatio
+            maxBicepCurlWeight,
+            maxLateralRaiseWeight
         )
     }
 
@@ -179,8 +185,46 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
         currentStreak: Long,
         longestStreak: Long,
         maxBodyweightRatio: Double,
-        maxFreeWeightRatio: Double
+        maxBicepCurlWeight: Double,
+        maxLateralRaiseWeight: Double
     ): List<Achievement> {
+        val curlTiers = listOf(
+            Triple(16.0, "Good+", "fitness_center"),
+            Triple(18.0, "Intermediate", "directions_run"),
+            Triple(20.0, "Intermediate+", "bolt"),
+            Triple(22.0, "Advanced", "shield"),
+            Triple(24.0, "Advanced+", "trending_up"),
+            Triple(26.0, "Elite", "rocket_launch")
+        )
+        val latTiers = listOf(
+            Triple(10.0, "Good+", "fitness_center"),
+            Triple(12.0, "Intermediate", "directions_run"),
+            Triple(14.0, "Intermediate+", "bolt"),
+            Triple(16.0, "Advanced", "shield"),
+            Triple(18.0, "Advanced+", "trending_up"),
+            Triple(20.0, "Elite", "rocket_launch")
+        )
+
+        val curlAchievements = curlTiers.map { (weight, tier, icon) ->
+            Achievement(
+                id = "curl_${weight.toInt()}",
+                title = "Bicep Curls · $tier",
+                description = "Log a ${weight.toInt()}kg set for 6+ reps",
+                iconKey = icon,
+                unlocked = maxBicepCurlWeight >= weight
+            )
+        }
+
+        val latAchievements = latTiers.map { (weight, tier, icon) ->
+            Achievement(
+                id = "lat_${weight.toInt()}",
+                title = "Lateral Raises · $tier",
+                description = "Log a ${weight.toInt()}kg set for 6+ reps",
+                iconKey = icon,
+                unlocked = maxLateralRaiseWeight >= weight
+            )
+        }
+
         return listOf(
             Achievement("tonnage_100k", "100k Moved", "Move 100,000 kg·reps total", "whatshot",
                 totalTonnage >= 100_000),
@@ -206,9 +250,7 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
                 maxBodyweightRatio >= 1.5),
             Achievement("bw_175", "Superhuman", "Lift 1.75x your bodyweight", "rocket_launch",
                 maxBodyweightRatio >= 1.75),
-            Achievement("fw_050", "Dumbbell Goal", "Curl half your bodyweight in a single hand", "fitness_center",
-                maxFreeWeightRatio >= 0.5),
-        )
+        ) + curlAchievements + latAchievements
     }
 
     class Factory(private val repository: Tr3ackRepository) : ViewModelProvider.Factory {
