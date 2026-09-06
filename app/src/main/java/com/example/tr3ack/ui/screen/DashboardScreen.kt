@@ -59,6 +59,8 @@ fun DashboardScreen(
     val todayBodyWeight by viewModel.todayBodyWeightLive.collectAsState()
     val pullUpsPB by viewModel.pullUpsPB.collectAsState()
     val dipsPB by viewModel.dipsPB.collectAsState()
+    val bicepCurlsPB by viewModel.bicepCurlsPB.collectAsState()
+    val lateralRaisesPB by viewModel.lateralRaisesPB.collectAsState()
     val allSets by viewModel.allSets.collectAsState()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
@@ -120,10 +122,24 @@ fun DashboardScreen(
 
             // Personal Bests
             item {
+                Text(
+                    text = "Personal Bests",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            item {
                 PersonalBestCard(pullUpsPB)
             }
             item {
                 PersonalBestCard(dipsPB)
+            }
+            item {
+                PersonalBestCard(bicepCurlsPB)
+            }
+            item {
+                PersonalBestCard(lateralRaisesPB)
             }
 
             // Today's Sets Header
@@ -327,7 +343,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                 tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Spacer(modifier = Modifier.width(12.dp))
-            if (pb.maxTotalSystemWeight > 0) {
+            if (pb.estimatedOneRM > 0) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = pb.exerciseName,
@@ -337,44 +353,101 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Column {
-                            Text(
-                                text = "%.1f kg".format(pb.maxTotalSystemWeight),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "System Weight",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            )
-                        }
-                        Column {
-                            Text(
-                                text = "${pb.reps}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "reps",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            )
-                        }
-                        Column {
-                            Text(
-                                text = "%.1f%%".format(pb.maxPercentBodyWeight),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "BW",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            )
+                        if (pb.isBodyweightBased) {
+                            Column {
+                                Text(
+                                    text = "%.1f kg".format(pb.maxTotalSystemWeight),
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "System Weight",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "${pb.reps}",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "reps",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "%.1f%%".format(pb.maxPercentBodyWeight),
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "BW",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                        } else {
+                            Column {
+                                Text(
+                                    text = "%.1f kg".format(pb.addedWeight),
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "Weight",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "${pb.reps}",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "reps",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = if (pb.addedWeightPercentBodyWeight > 0)
+                                        "%.1f%%".format(pb.addedWeightPercentBodyWeight)
+                                    else "—",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "of BW",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "%.1f kg".format(pb.estimatedOneRM),
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "e1RM",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
                     if (pb.dateAchieved.isNotEmpty()) {

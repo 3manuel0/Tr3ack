@@ -19,7 +19,11 @@ import java.time.temporal.ChronoUnit
 data class PersonalBest(
     val maxTotalSystemWeight: Double = 0.0,
     val maxPercentBodyWeight: Double = 0.0,
+    val estimatedOneRM: Double = 0.0,
+    val addedWeight: Double = 0.0,
+    val addedWeightPercentBodyWeight: Double = 0.0,
     val reps: Int = 0,
+    val isBodyweightBased: Boolean = true,
     val exerciseName: String = "",
     val dateAchieved: String = ""
 )
@@ -48,6 +52,12 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
 
     private val _dipsPB = MutableStateFlow(PersonalBest())
     val dipsPB: StateFlow<PersonalBest> = _dipsPB.asStateFlow()
+
+    private val _bicepCurlsPB = MutableStateFlow(PersonalBest())
+    val bicepCurlsPB: StateFlow<PersonalBest> = _bicepCurlsPB.asStateFlow()
+
+    private val _lateralRaisesPB = MutableStateFlow(PersonalBest())
+    val lateralRaisesPB: StateFlow<PersonalBest> = _lateralRaisesPB.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -81,34 +91,62 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
 
     fun recalculatePersonalBest() {
         viewModelScope.launch {
-            val bwExercises = exercises.value.filter { it.isBodyweightBased }
-            if (bwExercises.isEmpty()) return@launch
+            val allExercises = exercises.value
+            if (allExercises.isEmpty()) return@launch
 
-            for (exercise in bwExercises) {
+            for (exercise in allExercises) {
                 val exerciseSets = allSets.value.filter { it.exerciseId == exercise.id }
                 var bestSet: WorkoutSet? = null
-                var bestTSW = 0.0
+                var bestE1RM = 0.0
 
                 for (set in exerciseSets) {
-                    val bodyWeight = repository.getEffectiveBodyWeight(set.date) ?: continue
-                    if (bodyWeight <= 0) continue
-                    val tsw = bodyWeight + set.addedWeightKg
-                    if (tsw > bestTSW) {
-                        bestTSW = tsw
+                    if (set.reps <= 0) continue
+                    val e1rm = if (exercise.isBodyweightBased) {
+                        val bodyWeight = repository.getEffectiveBodyWeight(set.date) ?: continue
+                        if (bodyWeight <= 0) continue
+                        (bodyWeight + set.addedWeightKg) *
+                            ProgressViewModel.getMovementFactor(
+                                ProgressViewModel.getMovementType(exercise.name),
+                                set.reps
+                            )
+                    } else {
+                        set.addedWeightKg * (1.0 + set.reps / 30.0)
+                    }
+                    if (e1rm > bestE1RM) {
+                        bestE1RM = e1rm
                         bestSet = set
                     }
                 }
 
-                val pb = if (bestSet != null && bestTSW > 0) {
-                    val bodyWeight = repository.getEffectiveBodyWeight(bestSet.date) ?: 0.0
-                    val pct = if (bodyWeight > 0) (bestTSW / bodyWeight) * 100.0 else 0.0
-                    PersonalBest(
-                        maxTotalSystemWeight = bestTSW,
-                        maxPercentBodyWeight = pct,
-                        reps = bestSet.reps,
-                        exerciseName = exercise.name,
-                        dateAchieved = bestSet.date
-                    )
+                val pb = if (bestSet != null && bestE1RM > 0) {
+                    if (exercise.isBodyweightBased) {
+                        val bodyWeight = repository.getEffectiveBodyWeight(bestSet.date) ?: 0.0
+                        val tsw = bodyWeight + bestSet.addedWeightKg
+                        val pct = if (bodyWeight > 0) (tsw / bodyWeight) * 100.0 else 0.0
+                        PersonalBest(
+                            maxTotalSystemWeight = tsw,
+                            maxPercentBodyWeight = pct,
+                            estimatedOneRM = bestE1RM,
+                            addedWeight = bestSet.addedWeightKg,
+                            reps = bestSet.reps,
+                            isBodyweightBased = true,
+                            exerciseName = exercise.name,
+                            dateAchieved = bestSet.date
+                        )
+                    } else {
+                        val bodyWeight = repository.getEffectiveBodyWeight(bestSet.date) ?: 0.0
+                        val pct = if (bodyWeight > 0) (bestSet.addedWeightKg / bodyWeight) * 100.0 else 0.0
+                        PersonalBest(
+                            maxTotalSystemWeight = bestSet.addedWeightKg,
+                            estimatedOneRM = bestE1RM,
+                            addedWeight = bestSet.addedWeightKg,
+                            addedWeightPercentBodyWeight = pct,
+                            reps = bestSet.reps,
+                            isBodyweightBased = false,
+                            exerciseName = exercise.name,
+                            dateAchieved = bestSet.date
+                        )
+                    }
                 } else {
                     PersonalBest(exerciseName = exercise.name)
                 }
@@ -116,6 +154,9 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                 when (exercise.name) {
                     "Weighted Pull-Ups" -> _pullUpsPB.value = pb
                     "Weighted Dips" -> _dipsPB.value = pb
+                    "Bicep Curls" -> _bicepCurlsPB.value = pb
+                    "Hammer Curls" -> {} // not shown on dashboard
+                    "Lateral Raises" -> _lateralRaisesPB.value = pb
                 }
             }
         }
