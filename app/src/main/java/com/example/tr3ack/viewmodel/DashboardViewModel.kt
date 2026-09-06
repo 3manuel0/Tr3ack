@@ -47,6 +47,9 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
     private val _todayBodyWeight = MutableStateFlow<Double?>(null)
     val todayBodyWeightLive: StateFlow<Double?> = _todayBodyWeight.asStateFlow()
 
+    private val _bodyWeightHistory = MutableStateFlow<List<BodyWeightEntry>>(emptyList())
+    val bodyWeightHistory: StateFlow<List<BodyWeightEntry>> = _bodyWeightHistory.asStateFlow()
+
     private val _pullUpsPB = MutableStateFlow(PersonalBest())
     val pullUpsPB: StateFlow<PersonalBest> = _pullUpsPB.asStateFlow()
 
@@ -62,6 +65,14 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
     init {
         viewModelScope.launch {
             _todayBodyWeight.value = repository.getEffectiveBodyWeight(today)
+        }
+        viewModelScope.launch {
+            repository.allBodyWeightEntries.collect { entries ->
+                val cutoff = LocalDate.now().minusDays(89).toString()
+                _bodyWeightHistory.value = entries
+                    .filter { it.date >= cutoff }
+                    .sortedBy { it.date }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package com.example.tr3ack.ui.screen
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,14 +36,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.tr3ack.data.entity.BodyWeightEntry
 import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.DashboardViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.math.ceil
 
 @Composable
 fun DashboardScreen(
@@ -57,6 +65,7 @@ fun DashboardScreen(
     val todaySets by viewModel.todaySets.collectAsState()
     val exercises by viewModel.exercises.collectAsState()
     val todayBodyWeight by viewModel.todayBodyWeightLive.collectAsState()
+    val bodyWeightHistory by viewModel.bodyWeightHistory.collectAsState()
     val pullUpsPB by viewModel.pullUpsPB.collectAsState()
     val dipsPB by viewModel.dipsPB.collectAsState()
     val bicepCurlsPB by viewModel.bicepCurlsPB.collectAsState()
@@ -115,6 +124,29 @@ fun DashboardScreen(
                             Icons.Default.Edit,
                             contentDescription = "Edit",
                             tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // Body Weight Trend
+            if (bodyWeightHistory.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Body Weight Trend",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        BodyWeightTrendChart(
+                            data = bodyWeightHistory,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .padding(12.dp)
                         )
                     }
                 }
@@ -319,6 +351,108 @@ private fun ExerciseDayCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BodyWeightTrendChart(
+    data: List<BodyWeightEntry>,
+    modifier: Modifier = Modifier
+) {
+    if (data.isEmpty()) return
+
+    val lineColor = MaterialTheme.colorScheme.secondary
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+
+    val values = data.map { it.bodyWeightKg }
+    val maxVal = values.max()
+    val minVal = values.min()
+    val valuePadding = ((maxVal - minVal) * 0.15).coerceAtLeast(2.0)
+    val yMin = (minVal - valuePadding).coerceAtLeast(0.0)
+    val yMax = maxVal + valuePadding
+    val yRange = (yMax - yMin).coerceAtLeast(1.0)
+
+    Canvas(modifier = modifier) {
+        val leftPadding = 48f
+        val rightPadding = 24f
+        val topPadding = 16f
+        val bottomPadding = 28f
+
+        val chartWidth = size.width - leftPadding - rightPadding
+        val chartHeight = size.height - topPadding - bottomPadding
+
+        for (i in 0..4) {
+            val y = topPadding + chartHeight * (i / 4f)
+            drawLine(
+                color = gridColor,
+                start = Offset(leftPadding, y),
+                end = Offset(size.width - rightPadding, y),
+                strokeWidth = 1f
+            )
+        }
+
+        val textPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 22f
+            isAntiAlias = true
+        }
+        for (i in 0..4) {
+            val y = topPadding + chartHeight * (i / 4f)
+            val value = yMax - (yRange * i / 4.0)
+            drawContext.canvas.nativeCanvas.drawText(
+                "%.1f".format(value),
+                4f,
+                y + 8f,
+                textPaint
+            )
+        }
+
+        val stepCount = data.size - 1
+        val labelPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 18f
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        val labelEvery = ceil(data.size * 50f / chartWidth.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
+        for (i in data.indices) {
+            if ((data.lastIndex - i) % labelEvery != 0) continue
+            val x = leftPadding + if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f
+            val shortDate = data[i].date.takeLast(5)
+            drawContext.canvas.nativeCanvas.drawText(
+                shortDate,
+                x,
+                size.height - 4f,
+                labelPaint
+            )
+        }
+
+        fun pointX(index: Int) = leftPadding + if (stepCount > 0) chartWidth * index / stepCount else chartWidth / 2f
+        fun pointY(value: Double) = topPadding + chartHeight * (1.0 - (value - yMin) / yRange).toFloat()
+
+        if (data.size >= 2) {
+            val path = Path()
+            data.forEachIndexed { index, point ->
+                val x = pointX(index)
+                val y = pointY(point.bodyWeightKg)
+                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(
+                path = path,
+                color = lineColor,
+                style = Stroke(width = 3f, cap = StrokeCap.Round)
+            )
+        }
+
+        val dotRadius = if (data.size > 60) 2.5f else 4f
+        data.forEachIndexed { index, point ->
+            drawCircle(
+                color = lineColor,
+                radius = dotRadius,
+                center = Offset(pointX(index), pointY(point.bodyWeightKg))
+            )
         }
     }
 }
