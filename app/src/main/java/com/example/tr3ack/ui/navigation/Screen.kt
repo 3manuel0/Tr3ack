@@ -1,6 +1,7 @@
 package com.example.tr3ack.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
@@ -14,8 +15,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     data object BodyWeight : Screen("body_weight", "Weight", Icons.Default.MonitorWeight)
     data object History : Screen("history", "History", Icons.Default.History)
     data object Progress : Screen("progress", "Stats", Icons.AutoMirrored.Filled.TrendingUp)
+    data object Achievements : Screen("achievements", "Goals", Icons.Default.EmojiEvents)
 
     companion object {
-        val all = listOf(Dashboard, LogWorkout, BodyWeight, History, Progress)
+        val all = listOf(Dashboard, LogWorkout, BodyWeight, History, Progress, Achievements)
     }
 }

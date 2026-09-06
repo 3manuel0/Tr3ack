@@ -29,6 +29,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
+- **Achievements** — Gamified progress page: overall level + XP (from training volume and sessions), training streaks, and unlockable badge grid for volume, consistency, and relative-strength milestones (all computed retroactively from your data)
 - **CSV Export** — Export all workout data as a formatted CSV file from the History screen
 - **JSON Backup & Restore** — Full data backup/restore from the Dashboard overflow menu; exports editable JSON file containing all exercises, sets, and body weight entries
 - **Splash Screen** — Custom branded launch screen with app icon

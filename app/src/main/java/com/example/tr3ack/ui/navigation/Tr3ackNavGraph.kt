@@ -40,6 +40,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.tr3ack.repository.Tr3ackRepository
+import com.example.tr3ack.ui.screen.AchievementsScreen
 import com.example.tr3ack.ui.screen.BodyWeightScreen
 import com.example.tr3ack.ui.screen.DashboardScreen
 import com.example.tr3ack.ui.screen.HistoryScreen
@@ -235,6 +236,9 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
             }
             composable(Screen.Progress.route) {
                 ProgressScreen(repository = repository)
+            }
+            composable(Screen.Achievements.route) {
+                AchievementsScreen(repository = repository)
             }
         }
     }
