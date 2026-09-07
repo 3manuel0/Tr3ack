@@ -264,8 +264,8 @@ private fun StreakCard(
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            StreakStat("Current", "${streak.current}", "days")
-            StreakStat("Longest", "${streak.longest}", "days")
+            StreakStat("Current", "${streak.current}", "weeks")
+            StreakStat("Longest", "${streak.longest}", "weeks")
             StreakStat("Workouts", "$totalSessions", "sessions")
             StreakStat("Volume", formatTonnage(totalTonnage), "kg·r")
         }

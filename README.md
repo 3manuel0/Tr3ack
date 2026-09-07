@@ -29,7 +29,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
-- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks, and 24 tier-colored achievements for volume, consistency, relative strength, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond)
+- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 24 tier-colored achievements for volume, consistency, relative strength, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond)
 - **CSV Export** — Export all workout data as a formatted CSV file from the History screen
 - **JSON Backup & Restore** — Full data backup/restore from the Dashboard overflow menu; exports editable JSON file containing all exercises, sets, and body weight entries
 - **Splash Screen** — Custom branded launch screen with app icon
@@ -101,9 +101,9 @@ The Goals tab turn your training history into progression, all computed on the f
 | Tier | Color | Typical unlock |
 | --- | --- | --- |
 | Iron | Gray | First milestones (10 workouts, 100k tonnage, 16kg curls, 10kg raises) |
-| Copper | Copper | 50 workouts, 500k tonnage, 7-day streak, intermediate curls/raises |
-| Silver | Silver | 30-day streak, 1.25× BW, mid curls/raises |
-| Gold | Gold | 90-day streak, 1.5× BW, advanced curls/raises |
+| Copper | Copper | 50 workouts, 500k tonnage, 4-week streak, intermediate curls/raises |
+| Silver | Silver | 12-week streak, 1.25× BW, mid curls/raises |
+| Gold | Gold | 26-week streak, 1.5× BW, advanced curls/raises |
 | Emerald | Green | 1.75× BW, heavy curls/raises |
 | Diamond | Cyan | 1M tonnage, 100 workouts, elite curls/raises |
 

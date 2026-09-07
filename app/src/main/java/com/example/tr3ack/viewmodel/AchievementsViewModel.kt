@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 data class LevelInfo(
     val level: Int = 1,
@@ -120,33 +122,32 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
 
     private fun computeStreak(sessionDates: List<String>): StreakInfo {
         if (sessionDates.isEmpty()) return StreakInfo()
-        val dateSet = sessionDates.map { LocalDate.parse(it) }.toSet()
-        val today = LocalDate.now()
+
+        // A training week = ISO week (Mon-Sun) containing at least one workout.
+        // The streak breaks only when a full week goes by with no training.
+        val weekStarts = sessionDates
+            .map { LocalDate.parse(it).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
+            .toSet()
 
         var current = 0L
-        var cursor = today
-        if (dateSet.contains(today)) {
-            while (dateSet.contains(cursor)) {
-                current++
-                cursor = cursor.minusDays(1)
-            }
-        } else if (dateSet.contains(today.minusDays(1))) {
-            cursor = today.minusDays(1)
-            while (dateSet.contains(cursor)) {
-                current++
-                cursor = cursor.minusDays(1)
-            }
+        val thisWeek = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        var cursor: LocalDate? = when {
+            weekStarts.contains(thisWeek) -> thisWeek
+            weekStarts.contains(thisWeek.minusWeeks(1)) -> thisWeek.minusWeeks(1)
+            else -> null
+        }
+        while (cursor != null && weekStarts.contains(cursor)) {
+            current++
+            cursor = cursor.minusWeeks(1)
         }
 
         var longest = 0L
-        for (date in dateSet) {
-            var len = 1L
-            var prev = date.minusDays(1)
-            while (dateSet.contains(prev)) {
-                len++
-                prev = prev.minusDays(1)
-            }
-            if (len > longest) longest = len
+        var run = 0L
+        var prev: LocalDate? = null
+        for (start in weekStarts.sorted()) {
+            run = if (prev != null && start == prev.plusWeeks(1)) run + 1 else 1L
+            prev = start
+            if (run > longest) longest = run
         }
 
         return StreakInfo(current = current, longest = longest)
@@ -231,12 +232,12 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
                 totalSessions >= 50),
             Achievement("sessions_100", "Century", "Complete 100 workouts", "emoji_events", "diamond",
                 totalSessions >= 100),
-            Achievement("streak_7", "One Week", "Train 7 days in a row", "local_fire_department", "copper",
-                longestStreak >= 7),
-            Achievement("streak_30", "Full Month", "Train 30 days in a row", "local_fire_department", "silver",
-                longestStreak >= 30),
-            Achievement("streak_90", "Grind Mode", "Train 90 days in a row", "shield", "gold",
-                longestStreak >= 90),
+            Achievement("streak_4", "One Month", "Train at least once a week for 4 weeks in a row", "local_fire_department", "copper",
+                longestStreak >= 4),
+            Achievement("streak_12", "Quarter", "Train at least once a week for 12 weeks in a row", "local_fire_department", "silver",
+                longestStreak >= 12),
+            Achievement("streak_26", "Half Year", "Train at least once a week for 26 weeks in a row", "shield", "gold",
+                longestStreak >= 26),
             Achievement("bw_125", "Relative Strength", "Lift 1.25x your bodyweight", "pullup", "silver",
                 maxBodyweightRatio >= 1.25),
             Achievement("bw_150", "Beast Mode", "Lift 1.5x your bodyweight", "pullup", "gold",
