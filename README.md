@@ -15,6 +15,8 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   <img src="screenshots/history.png" alt="History" width="250"/>
   &nbsp;&nbsp;
   <img src="screenshots/stats.png" alt="Stats" width="250"/>
+  &nbsp;&nbsp;
+  <img src="screenshots/goals.png" alt="Goals" width="250"/>
 </p>
 
 ## Features
@@ -29,10 +31,11 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
-- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 24 tier-colored achievements for volume, consistency, relative strength, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond)
+- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 24 tier-colored achievements for volume, consistency, relative strength, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond). Badges use a consistent custom vector icon set (pull-up, dumbbell, lateral-raise, and Lucide-style glyphs) tinted to their tier color
 - **CSV Export** — Export all workout data as a formatted CSV file from the History screen
 - **JSON Backup & Restore** — Full data backup/restore from the Dashboard overflow menu; exports editable JSON file containing all exercises, sets, and body weight entries
-- **Splash Screen** — Custom branded launch screen with app icon
+- **Splash Screen** — Custom branded launch screen with the same vector dumbbell glyph as the app icon
+- **App Icon** — Adaptive vector launcher icon (stroke-style dumbbell on black) shared with the splash screen
 - **Dark Mode** — Always-on dark theme
 
 ## Exercises

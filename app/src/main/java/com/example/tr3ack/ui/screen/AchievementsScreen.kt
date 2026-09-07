@@ -1,6 +1,6 @@
 package com.example.tr3ack.ui.screen
 
-import androidx.compose.foundation.Canvas
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,16 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.CheckCircleOutline
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Whatshot
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,108 +28,38 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.Achievement
 import com.example.tr3ack.viewmodel.AchievementsViewModel
 
-private fun achievementIcon(key: String): ImageVector = when (key) {
-    "whatshot" -> Icons.Default.Whatshot
-    "bolt" -> Icons.Default.Bolt
-    "workspace_premium" -> Icons.Default.WorkspacePremium
-    "directions_run" -> Icons.AutoMirrored.Filled.DirectionsRun
-    "emoji_events" -> Icons.Default.EmojiEvents
-    "local_fire_department" -> Icons.Default.LocalFireDepartment
-    "shield" -> Icons.Default.Shield
-    "check_circle" -> Icons.Default.CheckCircleOutline
-    else -> Icons.Default.Star
+private fun achievementIcon(key: String): Int = when (key) {
+    "whatshot", "local_fire_department" -> R.drawable.ic_ach_flame
+    "bolt" -> R.drawable.ic_ach_zap
+    "workspace_premium" -> R.drawable.ic_ach_award
+    "check_circle" -> R.drawable.ic_ach_check
+    "directions_run" -> R.drawable.ic_ach_person
+    "emoji_events" -> R.drawable.ic_ach_trophy
+    "shield" -> R.drawable.ic_ach_shield
+    "bicep" -> R.drawable.ic_ach_dumbbell
+    "pullup" -> R.drawable.ic_ach_pullup
+    "shoulder" -> R.drawable.ic_ach_lateral
+    else -> R.drawable.ic_ach_star
 }
-
-private val CANVAS_KEYS = setOf("pullup", "bicep", "shoulder")
 
 @Composable
 private fun AchievementIcon(key: String, modifier: Modifier = Modifier, tint: Color = Color.White) {
-    if (key in CANVAS_KEYS) {
-        Canvas(modifier = modifier) {
-            val stroke = size.minDimension * 0.06f
-            when (key) {
-                "pullup" -> drawPullUp(tint, stroke)
-                "bicep" -> drawBicepCurl(tint, stroke)
-                else -> drawLateralRaise(tint, stroke)
-            }
-        }
-    } else {
-        Icon(
-            imageVector = achievementIcon(key),
-            contentDescription = null,
-            tint = tint,
-            modifier = modifier
-        )
-    }
-}
-
-private fun DrawScope.drawLineNorm(
-    color: Color,
-    x1: Float, y1: Float,
-    x2: Float, y2: Float,
-    stroke: Float
-) {
-    drawLine(
-        color = color,
-        start = Offset(x1 * size.width, y1 * size.height),
-        end = Offset(x2 * size.width, y2 * size.height),
-        strokeWidth = stroke,
-        cap = StrokeCap.Round
+    @DrawableRes val res = achievementIcon(key)
+    Icon(
+        painter = painterResource(res),
+        contentDescription = null,
+        tint = tint,
+        modifier = modifier
     )
-}
-
-private fun DrawScope.drawCircleNorm(color: Color, cx: Float, cy: Float, r: Float, stroke: Float) {
-    drawCircle(
-        color = color,
-        radius = r * size.minDimension,
-        center = Offset(cx * size.width, cy * size.height),
-        style = Stroke(stroke)
-    )
-}
-
-private fun DrawScope.drawPullUp(color: Color, stroke: Float) {
-    drawLineNorm(color, 0.12f, 0.14f, 0.88f, 0.14f, stroke)  // bar
-    drawCircleNorm(color, 0.5f, 0.34f, 0.10f, stroke)        // head
-    drawLineNorm(color, 0.39f, 0.49f, 0.36f, 0.14f, stroke)   // left arm
-    drawLineNorm(color, 0.61f, 0.49f, 0.64f, 0.14f, stroke)   // right arm
-    drawLineNorm(color, 0.5f, 0.49f, 0.5f, 0.74f, stroke)     // torso
-    drawLineNorm(color, 0.5f, 0.74f, 0.36f, 0.91f, stroke)    // left leg
-    drawLineNorm(color, 0.5f, 0.74f, 0.64f, 0.91f, stroke)    // right leg
-}
-
-private fun DrawScope.drawBicepCurl(color: Color, stroke: Float) {
-    drawCircleNorm(color, 0.5f, 0.17f, 0.08f, stroke)          // head
-    drawLineNorm(color, 0.5f, 0.28f, 0.5f, 0.72f, stroke)      // torso
-    drawLineNorm(color, 0.5f, 0.72f, 0.38f, 0.89f, stroke)     // left leg
-    drawLineNorm(color, 0.5f, 0.72f, 0.62f, 0.89f, stroke)     // right leg
-    drawLineNorm(color, 0.48f, 0.34f, 0.64f, 0.30f, stroke)    // upper arm
-    drawLineNorm(color, 0.64f, 0.30f, 0.78f, 0.44f, stroke)    // forearm (curling up)
-    drawLineNorm(color, 0.78f, 0.36f, 0.78f, 0.52f, stroke)    // dumbbell handle
-    drawLineNorm(color, 0.73f, 0.38f, 0.73f, 0.50f, stroke)    // inner plate
-    drawLineNorm(color, 0.83f, 0.38f, 0.83f, 0.50f, stroke)    // outer plate
-}
-
-private fun DrawScope.drawLateralRaise(color: Color, stroke: Float) {
-    drawCircleNorm(color, 0.5f, 0.16f, 0.09f, stroke)          // head
-    drawLineNorm(color, 0.5f, 0.28f, 0.5f, 0.70f, stroke)      // torso
-    drawLineNorm(color, 0.5f, 0.70f, 0.38f, 0.90f, stroke)     // left leg
-    drawLineNorm(color, 0.5f, 0.70f, 0.62f, 0.90f, stroke)     // right leg
-    drawLineNorm(color, 0.5f, 0.34f, 0.14f, 0.34f, stroke)     // left arm out
-    drawLineNorm(color, 0.5f, 0.34f, 0.86f, 0.34f, stroke)     // right arm out
-    drawLineNorm(color, 0.08f, 0.28f, 0.08f, 0.40f, stroke)    // left dumbbell
-    drawLineNorm(color, 0.92f, 0.28f, 0.92f, 0.40f, stroke)    // right dumbbell
 }
 
 /** Color assigned to each achievement tier, ranked by how hard/long they take to earn. */
