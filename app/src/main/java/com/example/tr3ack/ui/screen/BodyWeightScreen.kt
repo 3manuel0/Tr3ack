@@ -31,15 +31,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.BodyWeightViewModel
 import java.time.Instant
@@ -50,13 +53,11 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BodyWeightScreen(repository: Tr3ackRepository) {
-    val viewModel: BodyWeightViewModel = remember {
-        BodyWeightViewModel(repository)
-    }
+    val viewModel: BodyWeightViewModel = viewModel { BodyWeightViewModel(repository) }
 
-    val entries by viewModel.allEntries.collectAsState()
-    val editingDate by viewModel.editingDate.collectAsState()
-    val editingWeight by viewModel.editingWeight.collectAsState()
+    val entries by viewModel.allEntries.collectAsStateWithLifecycle()
+    val editingDate by viewModel.editingDate.collectAsStateWithLifecycle()
+    val editingWeight by viewModel.editingWeight.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var addDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -66,7 +67,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Entry")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_add_entry))
             }
         }
     ) { padding ->
@@ -82,7 +83,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
             if (entries.isEmpty()) {
                 item {
                     Text(
-                        text = "No body weight entries yet. Tap + to add one.",
+                        text = stringResource(R.string.bw_no_entries),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -122,7 +123,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                         IconButton(onClick = { viewModel.deleteEntry(entry) }) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(R.string.content_desc_delete),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -138,7 +139,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
     if (editingDate != null) {
         AlertDialog(
             onDismissRequest = { viewModel.cancelEditing() },
-            title = { Text("Edit Body Weight") },
+            title = { Text(stringResource(R.string.dialog_edit_body_weight)) },
             text = {
                 Column {
                     Text(
@@ -149,19 +150,19 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                     OutlinedTextField(
                         value = editingWeight,
                         onValueChange = { viewModel.setEditingWeight(it) },
-                        label = { Text("Weight (kg)") },
+                        label = { Text(stringResource(R.string.weight_kg_label)) },
                         singleLine = true
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = { viewModel.saveWeight() }) {
-                    Text("Save")
+                    Text(stringResource(R.string.action_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelEditing() }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -201,7 +202,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                             }
                         }
                     }) {
-                        Text("Next")
+                        Text(stringResource(R.string.action_next))
                     }
                 },
                 dismissButton = {
@@ -211,7 +212,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                         addWeight = ""
                         addDateError = false
                     }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.action_cancel))
                     }
                 }
             ) {
@@ -219,7 +220,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                     DatePicker(state = datePickerState)
                     if (addDateError) {
                         Text(
-                            text = "An entry already exists for this date. Tap it to edit.",
+                            text = stringResource(R.string.bw_entry_exists),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -235,7 +236,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                     addWeight = ""
                     addDateError = false
                 },
-                title = { Text("Add Body Weight") },
+                title = { Text(stringResource(R.string.dialog_add_body_weight)) },
                 text = {
                     Column {
                         Text(
@@ -246,7 +247,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                         OutlinedTextField(
                             value = addWeight,
                             onValueChange = { addWeight = it.filter { c -> c.isDigit() || c == '.' } },
-                            label = { Text("Weight (kg)") },
+                            label = { Text(stringResource(R.string.weight_kg_label)) },
                             singleLine = true
                         )
                     }
@@ -264,7 +265,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                             }
                         }
                     }) {
-                        Text("Save")
+                        Text(stringResource(R.string.action_save))
                     }
                 },
                 dismissButton = {
@@ -274,7 +275,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                         addWeight = ""
                         addDateError = false
                     }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.action_cancel))
                     }
                 }
             )

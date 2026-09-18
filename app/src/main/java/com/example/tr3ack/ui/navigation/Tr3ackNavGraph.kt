@@ -30,15 +30,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.ui.screen.AchievementsScreen
 import com.example.tr3ack.ui.screen.BodyWeightScreen
@@ -63,8 +64,9 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
     val isHistory = currentDestination?.hierarchy?.any { it.route == Screen.History.route } == true
     val context = LocalContext.current
 
-    val historyViewModel: HistoryViewModel = remember { HistoryViewModel(repository) }
+    val historyViewModel: HistoryViewModel = viewModel { HistoryViewModel(repository) }
     val exportCsv by historyViewModel.exportCsv.collectAsState()
+    val csvExportedMessage = stringResource(R.string.toast_csv_exported)
 
     val csvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -73,19 +75,22 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
             context.contentResolver.openOutputStream(it)?.use { os ->
                 os.write(exportCsv?.toByteArray() ?: return@let)
             }
-            Toast.makeText(context, "CSV exported!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, csvExportedMessage, Toast.LENGTH_SHORT).show()
             historyViewModel.consumeCsv()
         }
     }
 
+    val exportCsvFileName = stringResource(R.string.export_file_csv, LocalDate.now())
+
     LaunchedEffect(exportCsv) {
         exportCsv?.let {
-            csvLauncher.launch("Tr3ack_Export_${LocalDate.now()}.csv")
+            csvLauncher.launch(exportCsvFileName)
         }
     }
 
     val exportJson by historyViewModel.exportJson.collectAsState()
     val importResult by historyViewModel.importResult.collectAsState()
+    val backupExportedMessage = stringResource(R.string.toast_backup_exported)
 
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showImportConfirmDialog by remember { mutableStateOf(false) }
@@ -98,7 +103,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
             context.contentResolver.openOutputStream(it)?.use { os ->
                 os.write(exportJson?.toByteArray() ?: return@let)
             }
-            Toast.makeText(context, "Backup exported!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, backupExportedMessage, Toast.LENGTH_SHORT).show()
             historyViewModel.consumeJson()
         }
     }
@@ -115,9 +120,11 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
         }
     }
 
+    val exportJsonFileName = stringResource(R.string.export_file_json, LocalDate.now())
+
     LaunchedEffect(exportJson) {
         exportJson?.let {
-            jsonExportLauncher.launch("Tr3ack_Backup_${LocalDate.now()}.json")
+            jsonExportLauncher.launch(exportJsonFileName)
         }
     }
 
@@ -132,16 +139,16 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
         topBar = {
             val title = Screen.all.find { screen ->
                 currentDestination?.hierarchy?.any { it.route == screen.route } == true
-            }?.title ?: "Tr3ack"
+            }?.titleRes ?: R.string.app_name
 
             val canNavigateBack = currentDestination?.route != Screen.Dashboard.route
 
             TopAppBar(
-                title = { Text(title) },
+                title = { Text(stringResource(title)) },
                 navigationIcon = {
                     if (canNavigateBack) {
                         IconButton(onClick = { navController.navigateUp() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                         }
                     }
                 },
@@ -150,7 +157,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                         IconButton(onClick = { historyViewModel.generateCsv() }) {
                             Icon(
                                 Icons.Default.FileDownload,
-                                contentDescription = "Export CSV"
+                                contentDescription = stringResource(R.string.action_export_csv)
                             )
                         }
                     }
@@ -158,7 +165,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                         IconButton(onClick = { showOverflowMenu = true }) {
                             Icon(
                                 Icons.Default.MoreVert,
-                                contentDescription = "More options"
+                                contentDescription = stringResource(R.string.action_more_options)
                             )
                         }
                         DropdownMenu(
@@ -166,7 +173,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                             onDismissRequest = { showOverflowMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Export Backup") },
+                                text = { Text(stringResource(R.string.menu_export_backup)) },
                                 onClick = {
                                     showOverflowMenu = false
                                     historyViewModel.generateBackupJson()
@@ -176,7 +183,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Import Backup") },
+                                text = { Text(stringResource(R.string.menu_import_backup)) },
                                 onClick = {
                                     showOverflowMenu = false
                                     jsonImportLauncher.launch(arrayOf("application/json"))
@@ -194,9 +201,10 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
             if (showBottomBar) {
                 NavigationBar {
                     Screen.all.forEach { screen ->
+                        val label = stringResource(screen.titleRes)
                         NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
+                            icon = { Icon(screen.icon, contentDescription = label) },
+                            label = { Text(label) },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
                                 navController.navigate(screen.route) {
@@ -232,7 +240,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                 BodyWeightScreen(repository = repository)
             }
             composable(Screen.History.route) {
-                HistoryScreen(repository = repository, viewModel = historyViewModel)
+                HistoryScreen(viewModel = historyViewModel)
             }
             composable(Screen.Progress.route) {
                 ProgressScreen(repository = repository)
@@ -249,15 +257,15 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                 showImportConfirmDialog = false
                 pendingImportJson = null
             },
-            title = { Text("Import Backup") },
-            text = { Text("This will replace ALL current data with the backup. This cannot be undone. Continue?") },
+            title = { Text(stringResource(R.string.dialog_import_backup_title)) },
+            text = { Text(stringResource(R.string.dialog_import_backup_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     historyViewModel.importBackupJson(pendingImportJson!!)
                     showImportConfirmDialog = false
                     pendingImportJson = null
                 }) {
-                    Text("Import")
+                    Text(stringResource(R.string.action_import))
                 }
             },
             dismissButton = {
@@ -265,7 +273,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                     showImportConfirmDialog = false
                     pendingImportJson = null
                 }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )

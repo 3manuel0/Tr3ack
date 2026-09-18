@@ -1,14 +1,15 @@
 package com.example.tr3ack.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.tr3ack.data.entity.BodyWeightEntity
 import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.ExerciseEntity
+import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.data.entity.WorkoutSetEntity
 import com.example.tr3ack.repository.Tr3ackRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +23,7 @@ import java.time.LocalDate
 
 class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
-    val allDates: StateFlow<List<String>> = repository.allWorkoutDates
+    val allDates: StateFlow<List<String>> = repository.workoutDatesCached
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val exercises: StateFlow<List<Exercise>> = repository.allExercises
@@ -43,9 +44,12 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     private val _importResult = MutableStateFlow<String?>(null)
     val importResult: StateFlow<String?> = _importResult.asStateFlow()
 
+    private var selectionJob: Job? = null
+
     fun selectDate(date: LocalDate) {
         _selectedDate.value = date
-        viewModelScope.launch {
+        selectionJob?.cancel()
+        selectionJob = viewModelScope.launch {
             repository.getSetsForDate(date.toString()).collect { _selectedDateSets.value = it }
         }
     }
@@ -54,18 +58,6 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
         viewModelScope.launch {
             repository.deleteWorkoutSet(set)
         }
-    }
-
-    fun getExerciseName(exerciseId: Long): String {
-        return exercises.value.find { it.id == exerciseId }?.name ?: "Unknown"
-    }
-
-    fun isBodyweightExercise(exerciseId: Long): Boolean {
-        return exercises.value.find { it.id == exerciseId }?.isBodyweightBased ?: false
-    }
-
-    fun getEffectiveBodyWeight(date: String): Double? {
-        return null
     }
 
     fun generateCsv() {
@@ -190,6 +182,14 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
         _exportJson.value = null
     }
 
+    private val knownExerciseIds = setOf(
+        ExerciseIds.WEIGHTED_PULL_UPS,
+        ExerciseIds.WEIGHTED_DIPS,
+        ExerciseIds.WEIGHTED_CHIN_UPS,
+        ExerciseIds.BICEP_CURLS,
+        ExerciseIds.LATERAL_RAISES
+    )
+
     fun importBackupJson(jsonString: String) {
         viewModelScope.launch {
             try {
@@ -202,8 +202,10 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
                 val exercises = mutableListOf<ExerciseEntity>()
                 for (i in 0 until exercisesArr.length()) {
                     val obj = exercisesArr.getJSONObject(i)
+                    val id = obj.getLong("id")
+                    if (id !in knownExerciseIds) continue
                     exercises.add(ExerciseEntity(
-                        id = obj.getLong("id"),
+                        id = id,
                         name = obj.getString("name"),
                         isBodyweightBased = obj.getBoolean("isBodyweightBased")
                     ))
@@ -212,9 +214,11 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
                 val sets = mutableListOf<WorkoutSetEntity>()
                 for (i in 0 until setsArr.length()) {
                     val obj = setsArr.getJSONObject(i)
+                    val exerciseId = obj.getLong("exerciseId")
+                    if (exerciseId !in knownExerciseIds) continue
                     sets.add(WorkoutSetEntity(
                         id = obj.getLong("id"),
-                        exerciseId = obj.getLong("exerciseId"),
+                        exerciseId = exerciseId,
                         date = obj.getString("date"),
                         addedWeightKg = obj.getDouble("addedWeightKg"),
                         reps = obj.getInt("reps"),
@@ -232,10 +236,7 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
                     ))
                 }
 
-                repository.deleteAllData()
-                repository.restoreExercises(exercises)
-                repository.restoreWorkoutSets(sets)
-                repository.restoreBodyWeightEntries(bwEntries)
+                repository.replaceAllData(exercises, sets, bwEntries)
 
                 _importResult.value = "Restored ${exercises.size} exercises, ${sets.size} sets, ${bwEntries.size} weight entries"
             } catch (e: Exception) {
@@ -246,15 +247,5 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
     fun consumeImportResult() {
         _importResult.value = null
-    }
-
-    class Factory(private val repository: Tr3ackRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(HistoryViewModel::class.java)) {
-                return HistoryViewModel(repository) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
     }
 }

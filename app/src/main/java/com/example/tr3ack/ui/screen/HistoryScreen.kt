@@ -31,16 +31,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.tr3ack.repository.Tr3ackRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.tr3ack.R
 import com.example.tr3ack.viewmodel.HistoryViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -50,19 +51,19 @@ import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(repository: Tr3ackRepository, viewModel: HistoryViewModel) {
+fun HistoryScreen(viewModel: HistoryViewModel) {
 
-    val allDates by viewModel.allDates.collectAsState()
-    val selectedDate by viewModel.selectedDate.collectAsState()
-    val selectedDateSets by viewModel.selectedDateSets.collectAsState()
-    val exercises by viewModel.exercises.collectAsState()
+    val allDates by viewModel.allDates.collectAsStateWithLifecycle()
+    val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
+    val selectedDateSets by viewModel.selectedDateSets.collectAsStateWithLifecycle()
+    val exercises by viewModel.exercises.collectAsStateWithLifecycle()
 
     var showAddPastWorkout by remember { mutableStateOf(false) }
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddPastWorkout = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Past Workout")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_add_past_workout))
             }
         }
     ) { padding ->
@@ -78,7 +79,7 @@ fun HistoryScreen(repository: Tr3ackRepository, viewModel: HistoryViewModel) {
             if (allDates.isEmpty()) {
                 item {
                     Text(
-                        text = "No workout history yet.",
+                        text = stringResource(R.string.history_no_history),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -119,7 +120,13 @@ fun HistoryScreen(repository: Tr3ackRepository, viewModel: HistoryViewModel) {
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = if (daysAgo == 0L) "Today" else if (daysAgo == 1L) "Yesterday" else "$daysAgo days ago",
+                                    text = if (daysAgo == 0L) {
+                                        stringResource(R.string.history_today)
+                                    } else if (daysAgo == 1L) {
+                                        stringResource(R.string.history_yesterday)
+                                    } else {
+                                        stringResource(R.string.history_days_ago, daysAgo)
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -141,7 +148,7 @@ fun HistoryScreen(repository: Tr3ackRepository, viewModel: HistoryViewModel) {
                             selectedDateSets.groupBy { it.exerciseId }.forEach { (exerciseId, sets) ->
                                 val exercise = exercises.find { it.id == exerciseId }
                                 Text(
-                                    text = exercise?.name ?: "Unknown",
+                                    text = exercise?.name ?: stringResource(R.string.history_unknown_exercise),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(top = 8.dp)
@@ -154,12 +161,16 @@ fun HistoryScreen(repository: Tr3ackRepository, viewModel: HistoryViewModel) {
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = "${set.reps} reps",
+                                            text = stringResource(R.string.reps_count, set.reps),
                                             style = MaterialTheme.typography.bodyMedium
                                         )
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
-                                                text = if (set.addedWeightKg > 0) "${set.addedWeightKg}kg" else "BW",
+                                                text = if (set.addedWeightKg > 0) {
+                                                    stringResource(R.string.history_added_weight, set.addedWeightKg)
+                                                } else {
+                                                    stringResource(R.string.history_bodyweight_only)
+                                                },
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.primary
                                             )
@@ -170,7 +181,7 @@ fun HistoryScreen(repository: Tr3ackRepository, viewModel: HistoryViewModel) {
                                             ) {
                                                 Icon(
                                                     Icons.Default.Delete,
-                                                    contentDescription = "Delete",
+                                                    contentDescription = stringResource(R.string.content_desc_delete),
                                                     tint = MaterialTheme.colorScheme.error
                                                 )
                                             }
@@ -206,12 +217,12 @@ fun HistoryScreen(repository: Tr3ackRepository, viewModel: HistoryViewModel) {
                         }
                         showAddPastWorkout = false
                     }) {
-                        Text("OK")
+                        Text(stringResource(R.string.action_ok))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showAddPastWorkout = false }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.action_cancel))
                     }
                 }
             ) {

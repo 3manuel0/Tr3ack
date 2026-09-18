@@ -1,7 +1,6 @@
 package com.example.tr3ack.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.tr3ack.data.entity.BodyWeightEntry
 import com.example.tr3ack.repository.Tr3ackRepository
@@ -78,15 +77,5 @@ class BodyWeightViewModel(private val repository: Tr3ackRepository) : ViewModel(
 
     fun getWeightForDate(date: LocalDate): Double? {
         return allEntries.value.find { it.date == date.toString() }?.bodyWeightKg
-    }
-
-    class Factory(private val repository: Tr3ackRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(BodyWeightViewModel::class.java)) {
-                return BodyWeightViewModel(repository) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
     }
 }

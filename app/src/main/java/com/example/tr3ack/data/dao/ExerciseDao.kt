@@ -17,6 +17,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises WHERE id = :id")
     suspend fun getExerciseById(id: Long): ExerciseEntity?
 
+    @Query("SELECT * FROM exercises ORDER BY id ASC")
+    suspend fun getAllExercisesSync(): List<ExerciseEntity>
+
     @Query("SELECT * FROM exercises WHERE isBodyweightBased = 1")
     fun getBodyweightExercises(): Flow<List<ExerciseEntity>>
 

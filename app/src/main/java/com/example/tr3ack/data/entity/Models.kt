@@ -1,5 +1,14 @@
 package com.example.tr3ack.data.entity
 
+/** Stable IDs of the built-in seeded exercises. Keep in sync with Tr3ackDatabase seeding. */
+object ExerciseIds {
+    const val WEIGHTED_PULL_UPS = 1L
+    const val WEIGHTED_DIPS = 2L
+    const val WEIGHTED_CHIN_UPS = 3L
+    const val BICEP_CURLS = 4L
+    const val LATERAL_RAISES = 6L
+}
+
 data class Exercise(
     val id: Long,
     val name: String,
@@ -19,10 +28,7 @@ data class WorkoutSet(
     val addedWeightKg: Double,
     val reps: Int,
     val timestamp: Long
-) {
-    val totalSystemWeight: Double? = null
-    val percentOfBodyWeight: Double? = null
-}
+)
 
 fun ExerciseEntity.toDomain() = Exercise(
     id = id,

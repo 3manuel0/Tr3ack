@@ -17,6 +17,12 @@ interface WorkoutSetDao {
     @Query("SELECT * FROM workout_sets WHERE date = :date ORDER BY timestamp ASC")
     fun getSetsForDate(date: String): Flow<List<WorkoutSetEntity>>
 
+    @Query("SELECT * FROM workout_sets ORDER BY timestamp ASC")
+    suspend fun getAllSetsSync(): List<WorkoutSetEntity>
+
+    @Query("SELECT * FROM workout_sets WHERE exerciseId = :exerciseId ORDER BY timestamp ASC")
+    suspend fun getSetsForExerciseSync(exerciseId: Long): List<WorkoutSetEntity>
+
     @Query("SELECT * FROM workout_sets WHERE exerciseId = :exerciseId ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLastSetForExercise(exerciseId: Long): WorkoutSetEntity?
 
@@ -34,6 +40,9 @@ interface WorkoutSetDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(set: WorkoutSetEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(sets: List<WorkoutSetEntity>)
 
     @Update
     suspend fun update(set: WorkoutSetEntity)

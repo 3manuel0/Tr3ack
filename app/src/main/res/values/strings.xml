@@ -1,3 +1,203 @@
 <resources>
     <string name="app_name">Tr3ack</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_log">Log</string>
+    <string name="nav_weight">Weight</string>
+    <string name="nav_history">History</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_goals">Goals</string>
+
+    <!-- Common -->
+    <string name="action_back">Back</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_ok">OK</string>
+    <string name="action_next">Next</string>
+    <string name="action_import">Import</string>
+    <string name="content_desc_delete">Delete</string>
+    <string name="content_desc_edit">Edit</string>
+    <string name="select_exercise">Select Exercise</string>
+    <string name="label_exercise">Exercise</string>
+    <string name="label_date">Date</string>
+    <string name="label_reps">Reps</string>
+    <string name="weight_kg_label">Weight (kg)</string>
+    <string name="added_weight_kg_label">Added Weight (kg)</string>
+    <string name="weighted_bodyweight">Weighted Bodyweight</string>
+    <string name="unknown_exercise">Unknown Exercise</string>
+    <string name="reps_literal">reps</string>
+
+    <!-- Top app bar -->
+    <string name="action_export_csv">Export CSV</string>
+    <string name="action_more_options">More options</string>
+    <string name="menu_export_backup">Export Backup</string>
+    <string name="menu_import_backup">Import Backup</string>
+    <string name="dialog_import_backup_title">Import Backup</string>
+    <string name="dialog_import_backup_message">This will replace ALL current data with the backup. This cannot be undone. Continue?</string>
+    <string name="toast_csv_exported">CSV exported!</string>
+    <string name="toast_backup_exported">Backup exported!</string>
+    <string name="export_file_csv">Tr3ack_Export_%1$s</string>
+    <string name="export_file_json">Tr3ack_Backup_%1$s</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_today_body_weight">Today\'s Body Weight</string>
+    <string name="dashboard_weight_not_logged">Not logged</string>
+    <string name="dashboard_body_weight_trend">Body Weight Trend</string>
+    <string name="dashboard_personal_bests">Personal Bests</string>
+    <string name="dashboard_todays_sets">Today\'s Sets</string>
+    <string name="dashboard_no_sets_today">No sets logged today. Tap + to get started!</string>
+    <string name="dashboard_training_log">Training Log</string>
+    <string name="dashboard_today">Today</string>
+    <string name="dashboard_never">Never</string>
+    <string name="dashboard_days_ago">%1$d days ago</string>
+    <string name="dashboard_sets_count">%1$d sets</string>
+    <string name="dashboard_set_reps">Set %1$d: %2$d reps</string>
+    <string name="dashboard_daily_volume">Daily Volume</string>
+    <string name="content_desc_log_set">Log a Set</string>
+    <string name="pb_system_weight">System Weight</string>
+    <string name="pb_body_weight_pct">BW</string>
+    <string name="pb_weight">Weight</string>
+    <string name="pb_of_body_weight">of BW</string>
+    <string name="pb_e1rm">e1RM</string>
+    <string name="pb_no_sets_logged">No sets logged yet</string>
+    <string name="pb_set_today">Set today</string>
+    <string name="pb_set_days_ago">Set %1$d days ago</string>
+
+    <!-- Log Workout -->
+    <string name="content_desc_save_set">Save Set</string>
+    <string name="snackbar_set_saved">Set saved!</string>
+    <string name="body_weight">Body Weight</string>
+    <string name="no_body_weight_logged">No body weight logged</string>
+    <string name="last_used_weight">Last: %1$s</string>
+    <string name="live_metrics">Live Metrics</string>
+    <string name="total_system_weight">Total System Weight</string>
+    <string name="percent_body_weight">% of Body Weight</string>
+    <string name="daily_volume_sets">Daily Volume (%1$d sets)</string>
+    <string name="sets_logged_today">Sets Logged Today</string>
+
+    <!-- Body Weight -->
+    <string name="content_desc_add_entry">Add Entry</string>
+    <string name="bw_no_entries">No body weight entries yet. Tap + to add one.</string>
+    <string name="dialog_edit_body_weight">Edit Body Weight</string>
+    <string name="bw_entry_exists">An entry already exists for this date. Tap it to edit.</string>
+    <string name="dialog_add_body_weight">Add Body Weight</string>
+
+    <!-- History -->
+    <string name="content_desc_add_past_workout">Add Past Workout</string>
+    <string name="history_no_history">No workout history yet.</string>
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
+    <string name="history_days_ago">%1$d days ago</string>
+    <string name="history_unknown_exercise">Unknown exercise</string>
+    <string name="history_added_weight">%1$.1f kg</string>
+    <string name="reps_count">%1$d reps</string>
+    <string name="history_bodyweight_only">BW</string>
+
+    <!-- Progress -->
+    <string name="progress_select_prompt">Select an exercise to view progress</string>
+    <string name="progress_personal_record">Personal Record</string>
+    <string name="progress_best_set">Best Set</string>
+    <string name="progress_estimated_1rm_caption">estimated 1RM</string>
+    <string name="progress_set_label">Set</string>
+    <string name="progress_set_value">%1$.1f kg × %2$d reps</string>
+    <string name="progress_total_system_load">Total System Load</string>
+    <string name="progress_pct_body_weight">% Body Weight</string>
+    <string name="progress_date">Date</string>
+    <string name="progress_estimated_1rm">Estimated 1RM</string>
+    <string name="progress_1rm_tsl">1RM Total System Load</string>
+    <string name="progress_1rm_added_weight">1RM Added Weight</string>
+    <string name="progress_based_on">Based on</string>
+    <string name="progress_based_on_value">%1$.1f kg TSL x %2$d reps</string>
+    <string name="progress_set_date">Set Date</string>
+    <string name="progress_relative_strength">Relative Strength</string>
+    <string name="progress_bw_multiplier">BW Multiplier</string>
+    <string name="progress_bw_multiplier_value">%1$.2fx BW</string>
+    <string name="progress_added_as_pct_bw">Added as % BW</string>
+    <string name="progress_working_loads">Working Loads</string>
+    <string name="progress_working_85">85% 1RM</string>
+    <string name="progress_working_80">80% 1RM</string>
+    <string name="progress_working_75">75% 1RM</string>
+    <string name="progress_working_value">%1$.1f kg TSL</string>
+    <string name="progress_at_current_bw">At Current BW (%1$.1f kg)</string>
+    <string name="progress_added_weight_needed">Added Weight Needed</string>
+    <string name="progress_title">Progress</string>
+    <string name="progress_chip_10d">10d</string>
+    <string name="progress_chip_30d">30d</string>
+    <string name="progress_chip_90d">90d</string>
+    <string name="progress_e1rm_chart">Estimated 1RM (kg)</string>
+    <string name="progress_tonnage_chart">Session Tonnage (kg·reps)</string>
+    <string name="progress_belt_vs_bw">Belt Load vs Body Weight</string>
+    <string name="progress_sets_over_time">Sets Over Time</string>
+    <string name="progress_reps_at_weight">%1$d reps @ %2$s</string>
+    <string name="progress_empty">Log some sets to see your progress chart</string>
+    <string name="chart_legend_belt_load">Belt Load</string>
+    <string name="chart_legend_body_weight">Body Weight</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_kg_reps">kg·reps</string>
+
+    <!-- Goals / Achievements -->
+    <string name="goals_header">Achievements (%1$d/%2$d unlocked)</string>
+    <string name="goals_level">Level</string>
+    <string name="goals_xp_to_level">%1$s XP to Level %2$d</string>
+    <string name="goals_current">Current</string>
+    <string name="goals_longest">Longest</string>
+    <string name="goals_workouts">Workouts</string>
+    <string name="goals_sessions">sessions</string>
+    <string name="goals_weeks">weeks</string>
+    <string name="goals_volume">Volume</string>
+    <string name="goals_volume_unit">kg·r</string>
+    <string name="tier_iron">Iron</string>
+    <string name="tier_copper">Copper</string>
+    <string name="tier_silver">Silver</string>
+    <string name="tier_gold">Gold</string>
+    <string name="tier_emerald">Emerald</string>
+    <string name="tier_diamond">Diamond</string>
+
+    <!-- Goal level names -->
+    <string name="level_name_novice">Novice</string>
+    <string name="level_name_beginner">Beginner</string>
+    <string name="level_name_rookie">Rookie</string>
+    <string name="level_name_apprentice">Apprentice</string>
+    <string name="level_name_trainee">Trainee</string>
+    <string name="level_name_grinder">Grinder</string>
+    <string name="level_name_strong">Strong</string>
+    <string name="level_name_advanced">Advanced</string>
+    <string name="level_name_elite">Elite</string>
+    <string name="level_name_beast">Beast</string>
+
+    <!-- Achievement ranks / titles / descriptions -->
+    <string name="ach_rank_good_plus">Good+</string>
+    <string name="ach_rank_intermediate">Intermediate</string>
+    <string name="ach_rank_intermediate_plus">Intermediate+</string>
+    <string name="ach_rank_advanced">Advanced</string>
+    <string name="ach_rank_advanced_plus">Advanced+</string>
+    <string name="ach_rank_elite">Elite</string>
+    <string name="ach_curl_title">Bicep Curls · %1$s</string>
+    <string name="ach_lat_title">Lateral Raises · %1$s</string>
+    <string name="ach_target_desc">Log a %1$dkg set for 6+ reps</string>
+    <string name="ach_tonnage_100k_title">Tonnage 100k</string>
+    <string name="ach_tonnage_100k_desc">Move 100,000 total kg·reps</string>
+    <string name="ach_tonnage_500k_title">Tonnage 500k</string>
+    <string name="ach_tonnage_500k_desc">Move 500,000 total kg·reps</string>
+    <string name="ach_tonnage_1m_title">Million Club</string>
+    <string name="ach_tonnage_1m_desc">Move 1,000,000 total kg·reps</string>
+    <string name="ach_sessions_10_title">Getting Started</string>
+    <string name="ach_sessions_10_desc">Complete 10 workouts</string>
+    <string name="ach_sessions_50_title">Consistent</string>
+    <string name="ach_sessions_50_desc">Complete 50 workouts</string>
+    <string name="ach_sessions_100_title">Century</string>
+    <string name="ach_sessions_100_desc">Complete 100 workouts</string>
+    <string name="ach_streak_4_title">One Month</string>
+    <string name="ach_streak_4_desc">Train at least once a week for 4 weeks in a row</string>
+    <string name="ach_streak_12_title">Quarter</string>
+    <string name="ach_streak_12_desc">Train at least once a week for 12 weeks in a row</string>
+    <string name="ach_streak_26_title">Half Year</string>
+    <string name="ach_streak_26_desc">Train at least once a week for 26 weeks in a row</string>
+    <string name="ach_bw_125_title">Relative Strength</string>
+    <string name="ach_bw_125_desc">Lift 1.25x your bodyweight</string>
+    <string name="ach_bw_150_title">Beast Mode</string>
+    <string name="ach_bw_150_desc">Lift 1.5x your bodyweight</string>
+    <string name="ach_bw_175_title">Superhuman</string>
+    <string name="ach_bw_175_desc">Lift 1.75x your bodyweight</string>
 </resources>

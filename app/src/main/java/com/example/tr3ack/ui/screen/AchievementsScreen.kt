@@ -1,6 +1,7 @@
 package com.example.tr3ack.ui.screen
 
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,15 +24,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.Achievement
@@ -75,17 +77,26 @@ private fun tierColor(tier: String): Color = when (tier) {
 
 private val TIER_ORDER = listOf("iron", "copper", "silver", "gold", "emerald", "diamond")
 
+@StringRes
+private fun tierLabel(tier: String): Int = when (tier) {
+    "iron" -> R.string.tier_iron
+    "copper" -> R.string.tier_copper
+    "silver" -> R.string.tier_silver
+    "gold" -> R.string.tier_gold
+    "emerald" -> R.string.tier_emerald
+    "diamond" -> R.string.tier_diamond
+    else -> R.string.tier_iron
+}
+
 @Composable
 fun AchievementsScreen(repository: Tr3ackRepository) {
-    val viewModel: AchievementsViewModel = remember {
-        AchievementsViewModel(repository)
-    }
+    val viewModel: AchievementsViewModel = viewModel { AchievementsViewModel(repository) }
 
-    val level by viewModel.level.collectAsState()
-    val streak by viewModel.streak.collectAsState()
-    val totalTonnage by viewModel.totalTonnage.collectAsState()
-    val totalSessions by viewModel.totalSessions.collectAsState()
-    val achievements by viewModel.achievements.collectAsState()
+    val level by viewModel.level.collectAsStateWithLifecycle()
+    val streak by viewModel.streak.collectAsStateWithLifecycle()
+    val totalTonnage by viewModel.totalTonnage.collectAsStateWithLifecycle()
+    val totalSessions by viewModel.totalSessions.collectAsStateWithLifecycle()
+    val achievements by viewModel.achievements.collectAsStateWithLifecycle()
     val unlockedCount = achievements.count { it.unlocked }
 
     LazyColumn(
@@ -103,7 +114,7 @@ fun AchievementsScreen(repository: Tr3ackRepository) {
         }
         item {
             Text(
-                text = "Achievements ($unlockedCount/${achievements.size} unlocked)",
+                text = stringResource(R.string.goals_header, unlockedCount, achievements.size),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 8.dp)
@@ -134,7 +145,7 @@ private fun LevelCard(level: com.example.tr3ack.viewmodel.LevelInfo) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Level",
+                text = stringResource(R.string.goals_level),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
@@ -154,16 +165,16 @@ private fun LevelCard(level: com.example.tr3ack.viewmodel.LevelInfo) {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-                    Text(
-                        text = level.levelName,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+Text(
+                text = stringResource(level.levelNameRes),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "${level.currentXp} XP to Level ${level.level + 1}",
+                text = stringResource(R.string.goals_xp_to_level, level.currentXp, level.level + 1),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
@@ -184,10 +195,10 @@ private fun StreakCard(
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            StreakStat("Current", "${streak.current}", "weeks")
-            StreakStat("Longest", "${streak.longest}", "weeks")
-            StreakStat("Workouts", "$totalSessions", "sessions")
-            StreakStat("Volume", formatTonnage(totalTonnage), "kg·r")
+            StreakStat(stringResource(R.string.goals_current), "${streak.current}", stringResource(R.string.goals_weeks))
+            StreakStat(stringResource(R.string.goals_longest), "${streak.longest}", stringResource(R.string.goals_weeks))
+            StreakStat(stringResource(R.string.goals_workouts), "$totalSessions", stringResource(R.string.goals_sessions))
+            StreakStat(stringResource(R.string.goals_volume), formatTonnage(totalTonnage), stringResource(R.string.goals_volume_unit))
         }
     }
 }
@@ -240,7 +251,7 @@ private fun TierLegend() {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = tier.replaceFirstChar { it.titlecase() },
+                    text = stringResource(tierLabel(tier)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -286,8 +297,19 @@ private fun AchievementRow(achievement: Achievement) {
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
+                val titleArg = achievement.titleArgRes?.let { stringResource(it) }
+                val title = if (titleArg != null) {
+                    stringResource(achievement.titleRes, titleArg)
+                } else {
+                    stringResource(achievement.titleRes)
+                }
+                val description = if (achievement.descriptionArg != null) {
+                    stringResource(achievement.descriptionRes, achievement.descriptionArg)
+                } else {
+                    stringResource(achievement.descriptionRes)
+                }
                 Text(
-                    text = achievement.title,
+                    text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = if (achievement.unlocked) {
@@ -298,7 +320,7 @@ private fun AchievementRow(achievement: Achievement) {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = achievement.description,
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

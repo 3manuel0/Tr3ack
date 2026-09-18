@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
@@ -35,7 +38,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,8 +45,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.tr3ack.R
 import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.LogWorkoutViewModel
@@ -56,36 +65,37 @@ import java.time.ZoneId
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogWorkoutScreen(repository: Tr3ackRepository) {
-    val viewModel: LogWorkoutViewModel = remember {
-        LogWorkoutViewModel(repository)
-    }
+    val viewModel: LogWorkoutViewModel = viewModel { LogWorkoutViewModel(repository) }
 
-    val exercises by viewModel.exercises.collectAsState()
-    val selectedExerciseId by viewModel.selectedExerciseId.collectAsState()
-    val reps by viewModel.reps.collectAsState()
-    val addedWeight by viewModel.addedWeight.collectAsState()
-    val selectedDate by viewModel.selectedDate.collectAsState()
-    val bodyWeight by viewModel.bodyWeight.collectAsState()
-    val savedSets by viewModel.savedSets.collectAsState()
-    val saveSuccess by viewModel.saveSuccess.collectAsState()
-    val lastUsedWeight by viewModel.lastUsedWeight.collectAsState()
+    val exercises by viewModel.exercises.collectAsStateWithLifecycle()
+    val selectedExerciseId by viewModel.selectedExerciseId.collectAsStateWithLifecycle()
+    val reps by viewModel.reps.collectAsStateWithLifecycle()
+    val addedWeight by viewModel.addedWeight.collectAsStateWithLifecycle()
+    val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
+    val bodyWeight by viewModel.bodyWeight.collectAsStateWithLifecycle()
+    val savedSets by viewModel.savedSets.collectAsStateWithLifecycle()
+    val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
+    val lastUsedWeight by viewModel.lastUsedWeight.collectAsStateWithLifecycle()
 
     var showDatePicker by remember { mutableStateOf(false) }
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val setSavedMessage = stringResource(R.string.snackbar_set_saved)
 
     LaunchedEffect(saveSuccess) {
         if (saveSuccess) {
             scope.launch {
-                snackbarHostState.showSnackbar("Set saved!")
+                snackbarHostState.showSnackbar(setSavedMessage)
             }
             viewModel.resetSaveSuccess()
         }
     }
 
     Scaffold(
+        modifier = Modifier.imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
@@ -95,7 +105,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     }
                 }
             ) {
-                Icon(Icons.Default.Check, contentDescription = "Save Set")
+                Icon(Icons.Default.Check, contentDescription = stringResource(R.string.content_desc_save_set))
             }
         }
     ) { padding ->
@@ -115,10 +125,10 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     onExpandedChange = { exerciseMenuExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = exercises.find { it.id == selectedExerciseId }?.name ?: "Select Exercise",
+                        value = exercises.find { it.id == selectedExerciseId }?.name ?: stringResource(R.string.select_exercise),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Exercise") },
+                        label = { Text(stringResource(R.string.label_exercise)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = exerciseMenuExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -135,7 +145,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                                         Text(exercise.name)
                                         if (exercise.isBodyweightBased) {
                                             Text(
-                                                "Weighted Bodyweight",
+                                                stringResource(R.string.weighted_bodyweight),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -158,7 +168,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     value = selectedDate.toString(),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Date") },
+                    label = { Text(stringResource(R.string.label_date)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { showDatePicker = true },
@@ -178,12 +188,12 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Body Weight",
+                                text = stringResource(R.string.body_weight),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             Text(
-                                text = bodyWeight?.let { "%.1f kg".format(it) } ?: "No body weight logged",
+                                text = bodyWeight?.let { "%.1f kg".format(it) } ?: stringResource(R.string.no_body_weight_logged),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -200,14 +210,18 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     onValueChange = { viewModel.setAddedWeight(it) },
                     label = {
                         Text(
-                            if (selectedExercise?.isBodyweightBased == true)
-                                "Added Weight (kg)"
-                            else
-                                "Weight (kg)"
+                            stringResource(
+                                if (selectedExercise?.isBodyweightBased == true)
+                                    R.string.added_weight_kg_label
+                                else
+                                    R.string.weight_kg_label
+                            )
                         )
                     },
-                    suffix = { lastUsedWeight?.let { Text("Last: ${it}kg") } },
+                    suffix = { lastUsedWeight?.let { Text(stringResource(R.string.last_used_weight, "${it}kg")) } },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -217,8 +231,10 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                 OutlinedTextField(
                     value = reps,
                     onValueChange = { viewModel.setReps(it) },
-                    label = { Text("Reps") },
+                    label = { Text(stringResource(R.string.label_reps)) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -231,7 +247,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Live Metrics",
+                                text = stringResource(R.string.live_metrics),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -241,7 +257,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Total System Weight")
+                                    Text(stringResource(R.string.total_system_weight))
                                     Text(
                                         "%.1f kg".format(tsw),
                                         fontWeight = FontWeight.Bold,
@@ -254,7 +270,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("% of Body Weight")
+                                    Text(stringResource(R.string.percent_body_weight))
                                     Text(
                                         "%.1f%%".format(pct),
                                         fontWeight = FontWeight.Bold,
@@ -286,7 +302,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Daily Volume (${savedSets.size} sets)",
+                                    text = stringResource(R.string.daily_volume_sets, savedSets.size),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
@@ -306,7 +322,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
             if (savedSets.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Sets Logged Today",
+                        text = stringResource(R.string.sets_logged_today),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 8.dp)
@@ -322,7 +338,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${set.reps} reps",
+                                text = stringResource(R.string.reps_count, set.reps),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             if (selectedExercise?.isBodyweightBased == true && bodyWeight != null) {
@@ -366,12 +382,12 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     }
                     showDatePicker = false
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.action_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         ) {

@@ -24,7 +24,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,9 +40,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.ChartPoint
 import com.example.tr3ack.viewmodel.ProgressViewModel
@@ -60,16 +63,14 @@ private fun xLabelInterval(pointCount: Int, chartWidthPx: Float): Int {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgressScreen(repository: Tr3ackRepository) {
-    val viewModel: ProgressViewModel = remember {
-        ProgressViewModel(repository)
-    }
+    val viewModel: ProgressViewModel = viewModel { ProgressViewModel(repository) }
 
-    val exercises by viewModel.exercises.collectAsState()
-    val selectedExerciseId by viewModel.selectedExerciseId.collectAsState()
-    val chartData by viewModel.chartData.collectAsState()
-    val freeWeightData by viewModel.freeWeightData.collectAsState()
-    val personalRecords by viewModel.bestSet.collectAsState()
-    val oneRepMax by viewModel.oneRepMax.collectAsState()
+    val exercises by viewModel.exercises.collectAsStateWithLifecycle()
+    val selectedExerciseId by viewModel.selectedExerciseId.collectAsStateWithLifecycle()
+    val chartData by viewModel.chartData.collectAsStateWithLifecycle()
+    val freeWeightData by viewModel.freeWeightData.collectAsStateWithLifecycle()
+    val personalRecords by viewModel.bestSet.collectAsStateWithLifecycle()
+    val oneRepMax by viewModel.oneRepMax.collectAsStateWithLifecycle()
 
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
     var dayCount by remember { mutableIntStateOf(10) }
@@ -94,10 +95,10 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     onExpandedChange = { exerciseMenuExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedExercise?.name ?: "Select Exercise",
+                        value = selectedExercise?.name ?: stringResource(R.string.select_exercise),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Exercise") },
+                        label = { Text(stringResource(R.string.label_exercise)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = exerciseMenuExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -114,7 +115,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                                         Text(exercise.name)
                                         if (exercise.isBodyweightBased) {
                                             Text(
-                                                "Weighted Bodyweight",
+                                                stringResource(R.string.weighted_bodyweight),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -134,7 +135,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
             if (selectedExercise == null) {
                 item {
                     Text(
-                        text = "Select an exercise to view progress",
+                        text = stringResource(R.string.progress_select_prompt),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -146,7 +147,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                 if (personalRecords.estimatedOneRM > 0) {
                     item {
                         Text(
-                            text = "Personal Record",
+                            text = stringResource(R.string.progress_personal_record),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -156,7 +157,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Best Set",
+                                    text = stringResource(R.string.progress_best_set),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -168,26 +169,26 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "estimated 1RM",
+                                    text = stringResource(R.string.progress_estimated_1rm_caption),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 PRRow(
-                                    "Set",
-                                    "%.1f kg × %d reps".format(personalRecords.addedWeight, personalRecords.reps)
+                                    stringResource(R.string.progress_set_label),
+                                    stringResource(R.string.progress_set_value, personalRecords.addedWeight, personalRecords.reps)
                                 )
                                 if (selectedExercise.isBodyweightBased) {
                                     PRRow(
-                                        "Total System Load",
+                                        stringResource(R.string.progress_total_system_load),
                                         "%.1f kg".format(personalRecords.totalSystemWeight)
                                     )
                                     PRRow(
-                                        "% Body Weight",
+                                        stringResource(R.string.progress_pct_body_weight),
                                         "%.1f%%".format(personalRecords.percentBodyWeight)
                                     )
                                 }
-                                PRRow("Date", personalRecords.date)
+                                PRRow(stringResource(R.string.progress_date), personalRecords.date)
                             }
                         }
                     }
@@ -204,69 +205,69 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Estimated 1RM",
+                                    text = stringResource(R.string.progress_estimated_1rm),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 PRRow(
-                                    "1RM Total System Load",
+                                    stringResource(R.string.progress_1rm_tsl),
                                     "%.1f kg".format(oneRepMax!!.oneRepMaxTSL)
                                 )
                                 PRRow(
-                                    "1RM Added Weight",
+                                    stringResource(R.string.progress_1rm_added_weight),
                                     "%.1f kg".format(oneRepMax!!.oneRepMaxAddedWeight)
                                 )
                                 PRRow(
-                                    "Based on",
-                                    "%.1f kg TSL x %d reps".format(oneRepMax!!.basedOnTSL, oneRepMax!!.basedOnReps)
+                                    stringResource(R.string.progress_based_on),
+                                    stringResource(R.string.progress_based_on_value, oneRepMax!!.basedOnTSL, oneRepMax!!.basedOnReps)
                                 )
                                 PRRow(
-                                    "Set Date",
+                                    stringResource(R.string.progress_set_date),
                                     oneRepMax!!.basedOnDate
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Relative Strength",
+                                    text = stringResource(R.string.progress_relative_strength),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 PRRow(
-                                    "BW Multiplier",
-                                    "%.2fx BW".format(oneRepMax!!.strengthMultiplier)
+                                    stringResource(R.string.progress_bw_multiplier),
+                                    stringResource(R.string.progress_bw_multiplier_value, oneRepMax!!.strengthMultiplier)
                                 )
                                 PRRow(
-                                    "Added as % BW",
+                                    stringResource(R.string.progress_added_as_pct_bw),
                                     "%.1f%%".format(oneRepMax!!.bodyweightPercentage)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Working Loads",
+                                    text = stringResource(R.string.progress_working_loads),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 PRRow(
-                                    "85% 1RM",
-                                    "%.1f kg TSL".format(oneRepMax!!.workingLoad85)
+                                    stringResource(R.string.progress_working_85),
+                                    stringResource(R.string.progress_working_value, oneRepMax!!.workingLoad85)
                                 )
                                 PRRow(
-                                    "80% 1RM",
-                                    "%.1f kg TSL".format(oneRepMax!!.workingLoad80)
+                                    stringResource(R.string.progress_working_80),
+                                    stringResource(R.string.progress_working_value, oneRepMax!!.workingLoad80)
                                 )
                                 PRRow(
-                                    "75% 1RM",
-                                    "%.1f kg TSL".format(oneRepMax!!.workingLoad75)
+                                    stringResource(R.string.progress_working_75),
+                                    stringResource(R.string.progress_working_value, oneRepMax!!.workingLoad75)
                                 )
                                 if (oneRepMax!!.currentBodyWeight > 0) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "At Current BW (%.1f kg)".format(oneRepMax!!.currentBodyWeight),
+                                        text = stringResource(R.string.progress_at_current_bw, oneRepMax!!.currentBodyWeight),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     PRRow(
-                                        "Added Weight Needed",
+                                        stringResource(R.string.progress_added_weight_needed),
                                         "%.1f kg".format(oneRepMax!!.oneRepMaxAddedWeight)
                                     )
                                 }
@@ -280,7 +281,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     item {
                         Column {
                             Text(
-                                text = "Progress",
+                                text = stringResource(R.string.progress_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -289,17 +290,17 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                                 FilterChip(
                                     selected = dayCount == 10,
                                     onClick = { dayCount = 10 },
-                                    label = { Text("10d") }
+                                    label = { Text(stringResource(R.string.progress_chip_10d)) }
                                 )
                                 FilterChip(
                                     selected = dayCount == 30,
                                     onClick = { dayCount = 30 },
-                                    label = { Text("30d") }
+                                    label = { Text(stringResource(R.string.progress_chip_30d)) }
                                 )
                                 FilterChip(
                                     selected = dayCount == 90,
                                     onClick = { dayCount = 90 },
-                                    label = { Text("90d") }
+                                    label = { Text(stringResource(R.string.progress_chip_90d)) }
                                 )
                             }
                         }
@@ -308,7 +309,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     // E1RM chart
                     item {
                         Text(
-                            text = "Estimated 1RM (kg)",
+                            text = stringResource(R.string.progress_e1rm_chart),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -328,7 +329,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Session Tonnage (kg·reps)",
+                            text = stringResource(R.string.progress_tonnage_chart),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -349,7 +350,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Belt Load vs Body Weight",
+                                text = stringResource(R.string.progress_belt_vs_bw),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -371,7 +372,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                 if (!selectedExercise.isBodyweightBased && freeWeightData.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Sets Over Time",
+                            text = stringResource(R.string.progress_sets_over_time),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(top = 8.dp)
@@ -395,7 +396,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            text = "${set.reps} reps @ ${set.addedWeightKg}kg",
+                                            text = stringResource(R.string.progress_reps_at_weight, set.reps, "${set.addedWeightKg}kg"),
                                             style = MaterialTheme.typography.bodySmall
                                         )
                                     }
@@ -408,7 +409,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                 if (displayData.isEmpty() && freeWeightData.isEmpty()) {
                     item {
                         Text(
-                            text = "Log some sets to see your progress chart",
+                            text = stringResource(R.string.progress_empty),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -431,6 +432,7 @@ private fun E1RMChart(
     val lineColor = MaterialTheme.colorScheme.primary
     val textColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val kgLabel = stringResource(R.string.unit_kg)
 
     val e1rmValues = data.map { it.estimatedOneRM }
     val maxE1RM = e1rmValues.max()
@@ -546,7 +548,7 @@ private fun E1RMChart(
             textAlign = android.graphics.Paint.Align.RIGHT
         }
         drawContext.canvas.nativeCanvas.drawText(
-            "kg",
+            kgLabel,
             size.width - rightPadding,
             topPadding - 2f,
             unitLabelPaint
@@ -564,6 +566,7 @@ private fun TonnageBarChart(
     val barColor = MaterialTheme.colorScheme.tertiary
     val textColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val kgRepsLabel = stringResource(R.string.unit_kg_reps)
 
     val tonnageValues = data.map { it.sessionTonnage }
     val maxTonnage = tonnageValues.max()
@@ -649,7 +652,7 @@ private fun TonnageBarChart(
             textAlign = android.graphics.Paint.Align.RIGHT
         }
         drawContext.canvas.nativeCanvas.drawText(
-            "kg·reps",
+            kgRepsLabel,
             size.width - rightPadding,
             topPadding - 2f,
             unitLabelPaint
@@ -668,6 +671,8 @@ private fun BeltVsBodyChart(
     val bodyColor = MaterialTheme.colorScheme.secondary
     val textColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val beltLabel = stringResource(R.string.chart_legend_belt_load)
+    val bodyWeightLabel = stringResource(R.string.chart_legend_body_weight)
 
     val allValues = data.flatMap { listOf(it.beltLoad, it.bodyWeightKg) }
     val maxVal = allValues.max()
@@ -773,11 +778,11 @@ private fun BeltVsBodyChart(
         var legendX = leftPadding + 8f
 
         drawCircle(color = beltColor, radius = 6f, center = Offset(legendX, legendY))
-        drawContext.canvas.nativeCanvas.drawText("Belt Load", legendX + 14f, legendY + 6f, legendPaint)
+        drawContext.canvas.nativeCanvas.drawText(beltLabel, legendX + 14f, legendY + 6f, legendPaint)
         legendX += 110f
 
         drawCircle(color = bodyColor, radius = 6f, center = Offset(legendX, legendY))
-        drawContext.canvas.nativeCanvas.drawText("Body Weight", legendX + 14f, legendY + 6f, legendPaint)
+        drawContext.canvas.nativeCanvas.drawText(bodyWeightLabel, legendX + 14f, legendY + 6f, legendPaint)
     }
 }
 

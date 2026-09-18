@@ -1,14 +1,17 @@
 package com.example.tr3ack.viewmodel
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.tr3ack.data.entity.WorkoutSet
+import com.example.tr3ack.R
+import com.example.tr3ack.data.entity.ExerciseIds
+import com.example.tr3ack.data.entity.ExerciseStatsEntity
+import com.example.tr3ack.data.entity.WorkoutDayEntity
 import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -16,7 +19,7 @@ import java.time.temporal.TemporalAdjusters
 
 data class LevelInfo(
     val level: Int = 1,
-    val levelName: String = "Novice",
+    @StringRes val levelNameRes: Int = R.string.level_name_novice,
     val currentXp: Long = 0,
     val xpToNext: Long = 0,
     val progress: Float = 0f,
@@ -29,8 +32,10 @@ data class StreakInfo(
 
 data class Achievement(
     val id: String,
-    val title: String,
-    val description: String,
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int,
+    @StringRes val titleArgRes: Int? = null,
+    val descriptionArg: Any? = null,
     val iconKey: String,
     val tier: String,
     val unlocked: Boolean,
@@ -55,14 +60,14 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
 
     init {
         viewModelScope.launch {
-            repository.allWorkoutSets.collect { sets ->
-                compute(sets)
-            }
+            combine(repository.workoutDays, repository.exerciseStats) { days, stats ->
+                compute(days, stats)
+            }.collect { }
         }
     }
 
-    private suspend fun compute(sets: List<WorkoutSet>) {
-        if (sets.isEmpty()) {
+    private fun compute(workoutDays: List<WorkoutDayEntity>, exerciseStats: List<ExerciseStatsEntity>) {
+        if (workoutDays.isEmpty()) {
             _totalTonnage.value = 0.0
             _totalSessions.value = 0
             _level.value = LevelInfo(xpToNext = 100)
@@ -71,39 +76,18 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
             return
         }
 
-        val exercises = repository.allExercises.first()
-
-        var totalTonnage = 0.0
-        var maxBodyweightRatio = 0.0
-        var maxBicepCurlWeight = 0.0
-        var maxLateralRaiseWeight = 0.0
-        for (set in sets) {
-            if (set.reps <= 0) continue
-            val exercise = exercises.find { it.id == set.exerciseId }
-            val bodyWeight = repository.getEffectiveBodyWeight(set.date)
-            if (exercise?.isBodyweightBased == true) {
-                if (bodyWeight != null && bodyWeight > 0) {
-                    val tsl = bodyWeight + set.addedWeightKg
-                    totalTonnage += tsl * set.reps
-                    val ratio = tsl / bodyWeight
-                    if (ratio > maxBodyweightRatio) maxBodyweightRatio = ratio
-                }
-            } else {
-                totalTonnage += set.addedWeightKg * set.reps
-                if (set.reps >= 6) {
-                    when (exercise?.name) {
-                        "Bicep Curls" ->
-                            if (set.addedWeightKg > maxBicepCurlWeight) maxBicepCurlWeight = set.addedWeightKg
-                        "Lateral Raises" ->
-                            if (set.addedWeightKg > maxLateralRaiseWeight) maxLateralRaiseWeight = set.addedWeightKg
-                    }
-                }
-            }
-        }
-
-        val sessionDates = sets.map { it.date }.distinct().sorted()
-        val totalSessions = sessionDates.size
+        val sessionDates = workoutDays.map { it.date }.sorted()
+        val totalTonnage = workoutDays.sumOf { it.tonnage }
+        val totalSessions = workoutDays.size
         val streak = computeStreak(sessionDates)
+
+        val maxBodyweightRatio = exerciseStats
+            .filter { it.isBodyweightBased }
+            .maxOfOrNull { it.maxBodyweightRatio } ?: 0.0
+        val maxBicepCurlWeight = exerciseStats
+            .find { it.exerciseId == ExerciseIds.BICEP_CURLS }?.maxAddedWeightGte6 ?: 0.0
+        val maxLateralRaiseWeight = exerciseStats
+            .find { it.exerciseId == ExerciseIds.LATERAL_RAISES }?.maxAddedWeightGte6 ?: 0.0
 
         _totalTonnage.value = totalTonnage
         _totalSessions.value = totalSessions
@@ -165,21 +149,39 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
             needed = (needed * 1.4).toLong()
         }
 
-        val names = listOf(
-            "Novice", "Beginner", "Rookie", "Apprentice", "Trainee",
-            "Grinder", "Strong", "Advanced", "Elite", "Beast"
-        )
-        val name = names.getOrElse(level - 1) { "Beast" }
+        val nameRes = when {
+            level <= 1 -> R.string.level_name_novice
+            level == 2 -> R.string.level_name_beginner
+            level == 3 -> R.string.level_name_rookie
+            level == 4 -> R.string.level_name_apprentice
+            level == 5 -> R.string.level_name_trainee
+            level == 6 -> R.string.level_name_grinder
+            level == 7 -> R.string.level_name_strong
+            level == 8 -> R.string.level_name_advanced
+            level == 9 -> R.string.level_name_elite
+            else -> R.string.level_name_beast
+        }
         val progress = if (needed > 0) (remaining.toFloat() / needed.toFloat()).coerceIn(0f, 1f) else 0f
 
         return LevelInfo(
             level = level,
-            levelName = name,
+            levelNameRes = nameRes,
             currentXp = remaining,
             xpToNext = needed,
             progress = progress
         )
     }
+
+    private val rankRes = listOf(
+        R.string.ach_rank_good_plus,
+        R.string.ach_rank_intermediate,
+        R.string.ach_rank_intermediate_plus,
+        R.string.ach_rank_advanced,
+        R.string.ach_rank_advanced_plus,
+        R.string.ach_rank_elite
+    )
+
+    private val colorTiers = listOf("iron", "copper", "silver", "gold", "emerald", "diamond")
 
     private fun buildAchievements(
         totalTonnage: Double,
@@ -190,16 +192,15 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
         maxBicepCurlWeight: Double,
         maxLateralRaiseWeight: Double
     ): List<Achievement> {
-        val colorTiers = listOf("iron", "copper", "silver", "gold", "emerald", "diamond")
-
         // Bicep Curls: 16 -> 26 kg across the 6 tiers
         val curlWeights = listOf(16.0, 18.0, 20.0, 22.0, 24.0, 26.0)
-        val curlTierNames = listOf("Good+", "Intermediate", "Intermediate+", "Advanced", "Advanced+", "Elite")
         val curlAchievements = curlWeights.mapIndexed { index, weight ->
             Achievement(
                 id = "curl_${weight.toInt()}",
-                title = "Bicep Curls · ${curlTierNames[index]}",
-                description = "Log a ${weight.toInt()}kg set for 6+ reps",
+                titleRes = R.string.ach_curl_title,
+                descriptionRes = R.string.ach_target_desc,
+                titleArgRes = rankRes[index],
+                descriptionArg = weight.toInt(),
                 iconKey = "bicep",
                 tier = colorTiers[index],
                 unlocked = maxBicepCurlWeight >= weight
@@ -211,8 +212,10 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
         val latAchievements = latWeights.mapIndexed { index, weight ->
             Achievement(
                 id = "lat_${weight.toInt()}",
-                title = "Lateral Raises · ${curlTierNames[index]}",
-                description = "Log a ${weight.toInt()}kg set for 6+ reps",
+                titleRes = R.string.ach_lat_title,
+                descriptionRes = R.string.ach_target_desc,
+                titleArgRes = rankRes[index],
+                descriptionArg = weight.toInt(),
                 iconKey = "shoulder",
                 tier = colorTiers[index],
                 unlocked = maxLateralRaiseWeight >= weight
@@ -220,40 +223,30 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
         }
 
         return listOf(
-            Achievement("tonnage_100k", "Tonnage 100k", "Move 100,000 total kg·reps", "bolt", "iron",
-                totalTonnage >= 100_000),
-            Achievement("tonnage_500k", "Tonnage 500k", "Move 500,000 total kg·reps", "whatshot", "copper",
-                totalTonnage >= 500_000),
-            Achievement("tonnage_1m", "Million Club", "Move 1,000,000 total kg·reps", "workspace_premium", "diamond",
-                totalTonnage >= 1_000_000),
-            Achievement("sessions_10", "Getting Started", "Complete 10 workouts", "check_circle", "iron",
-                totalSessions >= 10),
-            Achievement("sessions_50", "Consistent", "Complete 50 workouts", "directions_run", "copper",
-                totalSessions >= 50),
-            Achievement("sessions_100", "Century", "Complete 100 workouts", "emoji_events", "diamond",
-                totalSessions >= 100),
-            Achievement("streak_4", "One Month", "Train at least once a week for 4 weeks in a row", "local_fire_department", "copper",
-                longestStreak >= 4),
-            Achievement("streak_12", "Quarter", "Train at least once a week for 12 weeks in a row", "local_fire_department", "silver",
-                longestStreak >= 12),
-            Achievement("streak_26", "Half Year", "Train at least once a week for 26 weeks in a row", "shield", "gold",
-                longestStreak >= 26),
-            Achievement("bw_125", "Relative Strength", "Lift 1.25x your bodyweight", "pullup", "silver",
-                maxBodyweightRatio >= 1.25),
-            Achievement("bw_150", "Beast Mode", "Lift 1.5x your bodyweight", "pullup", "gold",
-                maxBodyweightRatio >= 1.5),
-            Achievement("bw_175", "Superhuman", "Lift 1.75x your bodyweight", "pullup", "emerald",
-                maxBodyweightRatio >= 1.75),
+            Achievement(id = "tonnage_100k", titleRes = R.string.ach_tonnage_100k_title, descriptionRes = R.string.ach_tonnage_100k_desc, iconKey = "bolt", tier = "iron",
+                unlocked = totalTonnage >= 100_000),
+            Achievement(id = "tonnage_500k", titleRes = R.string.ach_tonnage_500k_title, descriptionRes = R.string.ach_tonnage_500k_desc, iconKey = "whatshot", tier = "copper",
+                unlocked = totalTonnage >= 500_000),
+            Achievement(id = "tonnage_1m", titleRes = R.string.ach_tonnage_1m_title, descriptionRes = R.string.ach_tonnage_1m_desc, iconKey = "workspace_premium", tier = "diamond",
+                unlocked = totalTonnage >= 1_000_000),
+            Achievement(id = "sessions_10", titleRes = R.string.ach_sessions_10_title, descriptionRes = R.string.ach_sessions_10_desc, iconKey = "check_circle", tier = "iron",
+                unlocked = totalSessions >= 10),
+            Achievement(id = "sessions_50", titleRes = R.string.ach_sessions_50_title, descriptionRes = R.string.ach_sessions_50_desc, iconKey = "directions_run", tier = "copper",
+                unlocked = totalSessions >= 50),
+            Achievement(id = "sessions_100", titleRes = R.string.ach_sessions_100_title, descriptionRes = R.string.ach_sessions_100_desc, iconKey = "emoji_events", tier = "diamond",
+                unlocked = totalSessions >= 100),
+            Achievement(id = "streak_4", titleRes = R.string.ach_streak_4_title, descriptionRes = R.string.ach_streak_4_desc, iconKey = "local_fire_department", tier = "copper",
+                unlocked = longestStreak >= 4),
+            Achievement(id = "streak_12", titleRes = R.string.ach_streak_12_title, descriptionRes = R.string.ach_streak_12_desc, iconKey = "local_fire_department", tier = "silver",
+                unlocked = longestStreak >= 12),
+            Achievement(id = "streak_26", titleRes = R.string.ach_streak_26_title, descriptionRes = R.string.ach_streak_26_desc, iconKey = "shield", tier = "gold",
+                unlocked = longestStreak >= 26),
+            Achievement(id = "bw_125", titleRes = R.string.ach_bw_125_title, descriptionRes = R.string.ach_bw_125_desc, iconKey = "pullup", tier = "silver",
+                unlocked = maxBodyweightRatio >= 1.25),
+            Achievement(id = "bw_150", titleRes = R.string.ach_bw_150_title, descriptionRes = R.string.ach_bw_150_desc, iconKey = "pullup", tier = "gold",
+                unlocked = maxBodyweightRatio >= 1.5),
+            Achievement(id = "bw_175", titleRes = R.string.ach_bw_175_title, descriptionRes = R.string.ach_bw_175_desc, iconKey = "pullup", tier = "emerald",
+                unlocked = maxBodyweightRatio >= 1.75),
         ) + curlAchievements + latAchievements
-    }
-
-    class Factory(private val repository: Tr3ackRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(AchievementsViewModel::class.java)) {
-                return AchievementsViewModel(repository) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
     }
 }

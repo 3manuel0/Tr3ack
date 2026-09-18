@@ -1,16 +1,18 @@
 package com.example.tr3ack.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.tr3ack.data.entity.BodyWeightEntry
 import com.example.tr3ack.data.entity.Exercise
+import com.example.tr3ack.data.entity.ExerciseIds
+import com.example.tr3ack.data.entity.ExerciseStatsEntity
 import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -38,12 +40,6 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
     val todaySets: StateFlow<List<WorkoutSet>> = repository.getSetsForDate(today)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allWorkoutDates: StateFlow<List<String>> = repository.allWorkoutDates
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val allSets: StateFlow<List<WorkoutSet>> = repository.allWorkoutSets
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     private val _todayBodyWeight = MutableStateFlow<Double?>(null)
     val todayBodyWeightLive: StateFlow<Double?> = _todayBodyWeight.asStateFlow()
 
@@ -62,6 +58,11 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
     private val _lateralRaisesPB = MutableStateFlow(PersonalBest())
     val lateralRaisesPB: StateFlow<PersonalBest> = _lateralRaisesPB.asStateFlow()
 
+    private val _lastLoggedDateByExercise = MutableStateFlow<Map<Long, String>>(emptyMap())
+    val lastLoggedDateByExercise: StateFlow<Map<Long, String>> = _lastLoggedDateByExercise.asStateFlow()
+
+    private val _lastSessionDate = MutableStateFlow<String?>(null)
+
     init {
         viewModelScope.launch {
             _todayBodyWeight.value = repository.getEffectiveBodyWeight(today)
@@ -73,6 +74,54 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                     .filter { it.date >= cutoff }
                     .sortedBy { it.date }
             }
+        }
+        viewModelScope.launch {
+            combine(repository.exerciseStats, exercises) { stats, current -> stats to current }.collect { (stats, current) ->
+                _lastLoggedDateByExercise.value = stats.associate { it.exerciseId to it.lastLoggedDate }
+                val byId = stats.associateBy { it.exerciseId }
+                _pullUpsPB.value = buildPersonalBest(byId[ExerciseIds.WEIGHTED_PULL_UPS], current)
+                _dipsPB.value = buildPersonalBest(byId[ExerciseIds.WEIGHTED_DIPS], current)
+                _bicepCurlsPB.value = buildPersonalBest(byId[ExerciseIds.BICEP_CURLS], current)
+                _lateralRaisesPB.value = buildPersonalBest(byId[ExerciseIds.LATERAL_RAISES], current)
+            }
+        }
+        viewModelScope.launch {
+            repository.workoutDays.collect { days ->
+                _lastSessionDate.value = days.maxOfOrNull { it.date }
+            }
+        }
+    }
+
+    private fun buildPersonalBest(
+        stats: ExerciseStatsEntity?,
+        allExercises: List<Exercise>
+    ): PersonalBest {
+        val exercise = allExercises.find { it.id == stats?.exerciseId }
+        if (stats == null || !stats.hasData || stats.bestE1RM <= 0.0) {
+            return PersonalBest(exerciseName = exercise?.name ?: "")
+        }
+        return if (stats.isBodyweightBased) {
+            PersonalBest(
+                maxTotalSystemWeight = stats.bestE1RMTotalSystemWeight,
+                maxPercentBodyWeight = stats.bestE1RMPercentBodyWeight,
+                estimatedOneRM = stats.bestE1RM,
+                addedWeight = stats.bestE1RMAddedWeight,
+                reps = stats.bestE1RMReps,
+                isBodyweightBased = true,
+                exerciseName = exercise?.name ?: "",
+                dateAchieved = stats.bestE1RMDate
+            )
+        } else {
+            PersonalBest(
+                maxTotalSystemWeight = stats.bestE1RMTotalSystemWeight,
+                estimatedOneRM = stats.bestE1RM,
+                addedWeight = stats.bestE1RMAddedWeight,
+                addedWeightPercentBodyWeight = stats.bestE1RMPercentBodyWeight,
+                reps = stats.bestE1RMReps,
+                isBodyweightBased = false,
+                exerciseName = exercise?.name ?: "",
+                dateAchieved = stats.bestE1RMDate
+            )
         }
     }
 
@@ -100,101 +149,14 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
         }
     }
 
-    fun recalculatePersonalBest() {
-        viewModelScope.launch {
-            val allExercises = exercises.value
-            if (allExercises.isEmpty()) return@launch
-
-            for (exercise in allExercises) {
-                val exerciseSets = allSets.value.filter { it.exerciseId == exercise.id }
-                var bestSet: WorkoutSet? = null
-                var bestE1RM = 0.0
-
-                for (set in exerciseSets) {
-                    if (set.reps <= 0) continue
-                    val e1rm = if (exercise.isBodyweightBased) {
-                        val bodyWeight = repository.getEffectiveBodyWeight(set.date) ?: continue
-                        if (bodyWeight <= 0) continue
-                        (bodyWeight + set.addedWeightKg) *
-                            ProgressViewModel.getMovementFactor(
-                                ProgressViewModel.getMovementType(exercise.name),
-                                set.reps
-                            )
-                    } else {
-                        set.addedWeightKg * (1.0 + set.reps / 30.0)
-                    }
-                    if (e1rm > bestE1RM) {
-                        bestE1RM = e1rm
-                        bestSet = set
-                    }
-                }
-
-                val pb = if (bestSet != null && bestE1RM > 0) {
-                    if (exercise.isBodyweightBased) {
-                        val bodyWeight = repository.getEffectiveBodyWeight(bestSet.date) ?: 0.0
-                        val tsw = bodyWeight + bestSet.addedWeightKg
-                        val pct = if (bodyWeight > 0) (tsw / bodyWeight) * 100.0 else 0.0
-                        PersonalBest(
-                            maxTotalSystemWeight = tsw,
-                            maxPercentBodyWeight = pct,
-                            estimatedOneRM = bestE1RM,
-                            addedWeight = bestSet.addedWeightKg,
-                            reps = bestSet.reps,
-                            isBodyweightBased = true,
-                            exerciseName = exercise.name,
-                            dateAchieved = bestSet.date
-                        )
-                    } else {
-                        val bodyWeight = repository.getEffectiveBodyWeight(bestSet.date) ?: 0.0
-                        val pct = if (bodyWeight > 0) (bestSet.addedWeightKg / bodyWeight) * 100.0 else 0.0
-                        PersonalBest(
-                            maxTotalSystemWeight = bestSet.addedWeightKg,
-                            estimatedOneRM = bestE1RM,
-                            addedWeight = bestSet.addedWeightKg,
-                            addedWeightPercentBodyWeight = pct,
-                            reps = bestSet.reps,
-                            isBodyweightBased = false,
-                            exerciseName = exercise.name,
-                            dateAchieved = bestSet.date
-                        )
-                    }
-                } else {
-                    PersonalBest(exerciseName = exercise.name)
-                }
-
-                when (exercise.name) {
-                    "Weighted Pull-Ups" -> _pullUpsPB.value = pb
-                    "Weighted Dips" -> _dipsPB.value = pb
-                    "Bicep Curls" -> _bicepCurlsPB.value = pb
-                    "Hammer Curls" -> {} // not shown on dashboard
-                    "Lateral Raises" -> _lateralRaisesPB.value = pb
-                }
-            }
-        }
-    }
-
     fun daysSinceLastSession(): Long {
-        val dates = allWorkoutDates.value.sortedDescending()
-        if (dates.isEmpty()) return -1
-        val lastDate = LocalDate.parse(dates.first())
-        return ChronoUnit.DAYS.between(lastDate, LocalDate.now())
+        val last = _lastSessionDate.value ?: return -1
+        return ChronoUnit.DAYS.between(LocalDate.parse(last), LocalDate.now())
     }
 
     fun lastLoggedForExercise(exerciseId: Long): Long? {
-        val sets = allSets.value.filter { it.exerciseId == exerciseId }
-        if (sets.isEmpty()) return null
-        val mostRecent = sets.maxByOrNull { it.date } ?: return null
-        val lastDate = LocalDate.parse(mostRecent.date)
+        val last = _lastLoggedDateByExercise.value[exerciseId] ?: return null
+        val lastDate = LocalDate.parse(last)
         return ChronoUnit.DAYS.between(lastDate, LocalDate.now())
-    }
-
-    class Factory(private val repository: Tr3ackRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
-                return DashboardViewModel(repository) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
     }
 }

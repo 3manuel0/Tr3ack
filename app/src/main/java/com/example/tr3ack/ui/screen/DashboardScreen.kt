@@ -28,8 +28,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,8 +39,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.tr3ack.R
 import com.example.tr3ack.data.entity.BodyWeightEntry
 import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.WorkoutSet
@@ -58,30 +60,23 @@ fun DashboardScreen(
     onNavigateToLog: () -> Unit,
     onNavigateToBodyWeight: () -> Unit
 ) {
-    val viewModel: DashboardViewModel = remember {
-        DashboardViewModel(repository)
-    }
+    val viewModel: DashboardViewModel = viewModel { DashboardViewModel(repository) }
 
-    val todaySets by viewModel.todaySets.collectAsState()
-    val exercises by viewModel.exercises.collectAsState()
-    val todayBodyWeight by viewModel.todayBodyWeightLive.collectAsState()
-    val bodyWeightHistory by viewModel.bodyWeightHistory.collectAsState()
-    val pullUpsPB by viewModel.pullUpsPB.collectAsState()
-    val dipsPB by viewModel.dipsPB.collectAsState()
-    val bicepCurlsPB by viewModel.bicepCurlsPB.collectAsState()
-    val lateralRaisesPB by viewModel.lateralRaisesPB.collectAsState()
-    val allSets by viewModel.allSets.collectAsState()
+    val todaySets by viewModel.todaySets.collectAsStateWithLifecycle()
+    val exercises by viewModel.exercises.collectAsStateWithLifecycle()
+    val todayBodyWeight by viewModel.todayBodyWeightLive.collectAsStateWithLifecycle()
+    val bodyWeightHistory by viewModel.bodyWeightHistory.collectAsStateWithLifecycle()
+    val pullUpsPB by viewModel.pullUpsPB.collectAsStateWithLifecycle()
+    val dipsPB by viewModel.dipsPB.collectAsStateWithLifecycle()
+    val bicepCurlsPB by viewModel.bicepCurlsPB.collectAsStateWithLifecycle()
+    val lateralRaisesPB by viewModel.lateralRaisesPB.collectAsStateWithLifecycle()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
-
-    LaunchedEffect(allSets, exercises) {
-        viewModel.recalculatePersonalBest()
-    }
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = onNavigateToLog) {
-                Icon(Icons.Default.Add, contentDescription = "Log a Set")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_log_set))
             }
         }
     ) { padding ->
@@ -109,20 +104,20 @@ fun DashboardScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Today's Body Weight",
+                                text = stringResource(R.string.dashboard_today_body_weight),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = todayBodyWeight?.let { "%.1f kg".format(it) } ?: "Not logged",
+                                text = todayBodyWeight?.let { "%.1f kg".format(it) } ?: stringResource(R.string.dashboard_weight_not_logged),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = "Edit",
+                            contentDescription = stringResource(R.string.content_desc_edit),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -133,7 +128,7 @@ fun DashboardScreen(
             if (bodyWeightHistory.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Body Weight Trend",
+                        text = stringResource(R.string.dashboard_body_weight_trend),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 8.dp)
@@ -155,7 +150,7 @@ fun DashboardScreen(
             // Personal Bests
             item {
                 Text(
-                    text = "Personal Bests",
+                    text = stringResource(R.string.dashboard_personal_bests),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 8.dp)
@@ -177,7 +172,7 @@ fun DashboardScreen(
             // Today's Sets Header
             item {
                 Text(
-                    text = "Today's Sets",
+                    text = stringResource(R.string.dashboard_todays_sets),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 8.dp)
@@ -187,7 +182,7 @@ fun DashboardScreen(
             if (todaySets.isEmpty()) {
                 item {
                     Text(
-                        text = "No sets logged today. Tap + to get started!",
+                        text = stringResource(R.string.dashboard_no_sets_today),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -209,7 +204,7 @@ fun DashboardScreen(
             if (exercises.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Training Log",
+                        text = stringResource(R.string.dashboard_training_log),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 8.dp)
@@ -229,8 +224,8 @@ fun DashboardScreen(
                         )
                         Text(
                             text = daysAgo?.let {
-                                if (it == 0L) "Today" else "$it days ago"
-                            } ?: "Never",
+                                if (it == 0L) stringResource(R.string.dashboard_today) else stringResource(R.string.dashboard_days_ago, it)
+                            } ?: stringResource(R.string.dashboard_never),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -245,12 +240,12 @@ fun DashboardScreen(
     if (showWeightDialog) {
         AlertDialog(
             onDismissRequest = { showWeightDialog = false },
-            title = { Text("Today's Body Weight") },
+            title = { Text(stringResource(R.string.dashboard_today_body_weight)) },
             text = {
                 OutlinedTextField(
                     value = weightInput,
                     onValueChange = { weightInput = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Weight (kg)") },
+                    label = { Text(stringResource(R.string.weight_kg_label)) },
                     singleLine = true
                 )
             },
@@ -262,12 +257,12 @@ fun DashboardScreen(
                         weightInput = ""
                     }
                 }) {
-                    Text("Save")
+                    Text(stringResource(R.string.action_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showWeightDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -288,12 +283,12 @@ private fun ExerciseDayCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = exercise?.name ?: "Unknown Exercise",
+                    text = exercise?.name ?: stringResource(R.string.unknown_exercise),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${sets.size} sets",
+                    text = stringResource(R.string.dashboard_sets_count, sets.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -309,7 +304,7 @@ private fun ExerciseDayCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Set ${index + 1}: ${set.reps} reps",
+                        text = stringResource(R.string.dashboard_set_reps, index + 1, set.reps),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     if (exercise?.isBodyweightBased == true && todayBodyWeight != null) {
@@ -339,7 +334,7 @@ private fun ExerciseDayCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Daily Volume",
+                        text = stringResource(R.string.dashboard_daily_volume),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -496,7 +491,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "System Weight",
+                                    text = stringResource(R.string.pb_system_weight),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -509,7 +504,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "reps",
+                                    text = stringResource(R.string.reps_literal),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -522,7 +517,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "BW",
+                                    text = stringResource(R.string.pb_body_weight_pct),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -536,7 +531,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "Weight",
+                                    text = stringResource(R.string.pb_weight),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -549,7 +544,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "reps",
+                                    text = stringResource(R.string.reps_literal),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -564,7 +559,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "of BW",
+                                    text = stringResource(R.string.pb_of_body_weight),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -577,7 +572,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "e1RM",
+                                    text = stringResource(R.string.pb_e1rm),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -589,7 +584,11 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                         val pbDate = LocalDate.parse(pb.dateAchieved)
                         val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(pbDate, LocalDate.now())
                         Text(
-                            text = "Set ${if (daysAgo == 0L) "today" else "$daysAgo days ago"}",
+                            text = if (daysAgo == 0L) {
+                                stringResource(R.string.pb_set_today)
+                            } else {
+                                stringResource(R.string.pb_set_days_ago, daysAgo)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         )
@@ -604,7 +603,7 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = "No sets logged yet",
+                        text = stringResource(R.string.pb_no_sets_logged),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                     )
