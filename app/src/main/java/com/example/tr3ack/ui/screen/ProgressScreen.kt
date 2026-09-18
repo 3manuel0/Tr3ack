@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
@@ -49,6 +50,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.ChartPoint
+import com.example.tr3ack.viewmodel.ExerciseTrend
 import com.example.tr3ack.viewmodel.ProgressViewModel
 import java.time.LocalDate
 import kotlin.math.ceil
@@ -71,9 +73,11 @@ fun ProgressScreen(repository: Tr3ackRepository) {
     val freeWeightData by viewModel.freeWeightData.collectAsStateWithLifecycle()
     val personalRecords by viewModel.bestSet.collectAsStateWithLifecycle()
     val oneRepMax by viewModel.oneRepMax.collectAsStateWithLifecycle()
+    val exerciseTrends by viewModel.exerciseTrends.collectAsStateWithLifecycle()
 
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
     var dayCount by remember { mutableIntStateOf(10) }
+    var overviewMode by remember { mutableStateOf(false) }
 
     val selectedExercise = exercises.find { it.id == selectedExerciseId }
     val displayData = chartData.takeLast(dayCount)
@@ -87,6 +91,70 @@ fun ProgressScreen(repository: Tr3ackRepository) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
+
+            // View mode switcher
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = !overviewMode,
+                        onClick = { overviewMode = false },
+                        label = { Text(stringResource(R.string.progress_mode_by_exercise)) }
+                    )
+                    FilterChip(
+                        selected = overviewMode,
+                        onClick = { overviewMode = true },
+                        label = { Text(stringResource(R.string.progress_mode_all_exercises)) }
+                    )
+                }
+            }
+
+            if (overviewMode) {
+                if (exerciseTrends.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.progress_all_e1rm_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = dayCount == 10,
+                                onClick = { dayCount = 10 },
+                                label = { Text(stringResource(R.string.progress_chip_10d)) }
+                            )
+                            FilterChip(
+                                selected = dayCount == 30,
+                                onClick = { dayCount = 30 },
+                                label = { Text(stringResource(R.string.progress_chip_30d)) }
+                            )
+                            FilterChip(
+                                selected = dayCount == 90,
+                                onClick = { dayCount = 90 },
+                                label = { Text(stringResource(R.string.progress_chip_90d)) }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                CombinedE1RMChart(
+                                    trends = exerciseTrends,
+                                    dayCount = dayCount
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        Text(
+                            text = stringResource(R.string.progress_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
 
             // Exercise selector
             item {
@@ -416,6 +484,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     }
                 }
             }
+            }
 
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
@@ -552,6 +621,176 @@ private fun E1RMChart(
             size.width - rightPadding,
             topPadding - 2f,
             unitLabelPaint
+        )
+    }
+}
+
+@Composable
+private fun CombinedE1RMChart(
+    trends: List<ExerciseTrend>,
+    dayCount: Int,
+    modifier: Modifier = Modifier
+) {
+    if (trends.isEmpty()) return
+
+    val allDates = trends.flatMap { it.series.keys }.distinct().sorted()
+    val dates = allDates.takeLast(dayCount)
+    if (dates.isEmpty()) return
+
+    val valuesBySeries = trends.map { trend -> dates.map { trend.series[it] } }
+    val allValues = valuesBySeries.flatten().filterNotNull()
+    if (allValues.isEmpty()) return
+
+    val minVal = allValues.min()
+    val maxVal = allValues.max()
+    val padding = ((maxVal - minVal) * 0.15).coerceAtLeast(5.0)
+    val yMin = (minVal - padding).coerceAtLeast(0.0)
+    val yMax = maxVal + padding
+    val yRange = (yMax - yMin).coerceAtLeast(1.0)
+
+    val palette = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.error,
+        Color(0xFF00A896),
+        Color(0xFFF77F00),
+    )
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val kgLabel = stringResource(R.string.unit_kg)
+
+    Column(modifier = modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            trends.forEachIndexed { index, trend ->
+                TrendLegendRow(
+                    name = trend.name,
+                    color = palette[index % palette.size]
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Canvas(modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+        ) {
+            val leftPadding = 56f
+            val rightPadding = 24f
+            val topPadding = 16f
+            val bottomPadding = 36f
+
+            val chartWidth = size.width - leftPadding - rightPadding
+            val chartHeight = size.height - topPadding - bottomPadding
+            val stepCount = dates.size - 1
+
+            for (i in 0..4) {
+                val y = topPadding + chartHeight * (i / 4f)
+                drawLine(
+                    color = gridColor,
+                    start = Offset(leftPadding, y),
+                    end = Offset(size.width - rightPadding, y),
+                    strokeWidth = 1f
+                )
+            }
+
+            val textPaint = android.graphics.Paint().apply {
+                color = textColor.hashCode()
+                textSize = 24f
+                isAntiAlias = true
+            }
+            for (i in 0..4) {
+                val y = topPadding + chartHeight * (i / 4f)
+                val value = yMax - (yRange * i / 4.0)
+                drawContext.canvas.nativeCanvas.drawText(
+                    "%.0f".format(value),
+                    4f,
+                    y + 8f,
+                    textPaint
+                )
+            }
+
+            if (stepCount >= 0) {
+                val labelPaint = android.graphics.Paint().apply {
+                    color = textColor.hashCode()
+                    textSize = 20f
+                    isAntiAlias = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                }
+                val labelEvery = xLabelInterval(dates.size, chartWidth)
+                for (i in dates.indices) {
+                    if ((dates.lastIndex - i) % labelEvery != 0) continue
+                    val x = leftPadding + (if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f)
+                    val shortDate = dates[i].takeLast(5)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        shortDate,
+                        x,
+                        size.height - 4f,
+                        labelPaint
+                    )
+                }
+            }
+
+            fun xPos(index: Int) = leftPadding + if (stepCount > 0) chartWidth * index / stepCount else chartWidth / 2f
+            fun yOf(value: Double) = topPadding + chartHeight * (1.0 - (value - yMin) / yRange).toFloat()
+
+            valuesBySeries.forEachIndexed { seriesIndex, values ->
+                val color = palette[seriesIndex % palette.size]
+                val path = Path()
+                var previousIndex: Int? = null
+                val points = mutableListOf<Offset>()
+                for (i in dates.indices) {
+                    val value = values[i]
+                    if (value == null) {
+                        previousIndex = null
+                        continue
+                    }
+                    val point = Offset(xPos(i), yOf(value))
+                    points.add(point)
+                    val prev = previousIndex
+                    if (prev != null && i == prev + 1) {
+                        path.lineTo(point.x, point.y)
+                    } else {
+                        path.moveTo(point.x, point.y)
+                    }
+                    previousIndex = i
+                }
+                drawPath(
+                    path = path,
+                    color = color,
+                    style = Stroke(width = 3f, cap = StrokeCap.Round)
+                )
+                val dotRadius = if (dates.size > 30) 3f else 3.5f
+                points.forEach { point ->
+                    drawCircle(color = color, radius = dotRadius, center = point)
+                }
+            }
+
+            val unitLabelPaint = android.graphics.Paint().apply {
+                color = textColor.hashCode()
+                textSize = 20f
+                isAntiAlias = true
+                textAlign = android.graphics.Paint.Align.RIGHT
+            }
+            drawContext.canvas.nativeCanvas.drawText(
+                kgLabel,
+                size.width - rightPadding,
+                topPadding - 2f,
+                unitLabelPaint
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrendLegendRow(name: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Canvas(modifier = Modifier.size(10.dp)) {
+            drawCircle(color = color)
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodySmall
         )
     }
 }
