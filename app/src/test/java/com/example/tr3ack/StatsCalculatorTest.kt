@@ -75,13 +75,17 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun exerciseStats_bodyweightWithoutBodyWeightEntry_recordsDateButNoE1rm() {
+    fun exerciseStats_bodyweightBeforeFirstWeightEntry_usesNearestFallback() {
         val stats = StatsCalculator.computeExerciseStats(
             pullUps, listOf(set(1, "2020-01-01", 20.0, 8, 1)), effectiveBodyWeight
         )
 
-        assertEquals(0.0, stats.bestE1RM, 1e-9)
+        assertEquals(111.6, stats.bestE1RM, 1e-6)           // (70 + 20) * 1.240
+        assertEquals(90.0, stats.bestE1RMTotalSystemWeight, 1e-9)
+        assertEquals(90.0 / 70.0 * 100.0, stats.bestE1RMPercentBodyWeight, 1e-6)
+        assertEquals(70.0, stats.bestE1RMBodyWeightKg, 1e-9)
         assertEquals("2020-01-01", stats.lastLoggedDate)
+        assertTrue(stats.hasData)
     }
 
     @Test
@@ -112,8 +116,36 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun dailyStats_bodyweightWithoutBodyWeightAtDate_returnsNull() {
-        assertNull(StatsCalculator.computeDailyStats(pullUps, "2020-01-01", demoPullSets, effectiveBodyWeight))
+    fun dailyStats_bodyweightBeforeFirstWeightEntry_usesNearestFallback() {
+        // No weight on/before 2020-01-01; the nearest known entry (2026-08-21, 70 kg) is used.
+        val daily = StatsCalculator.computeDailyStats(pullUps, "2020-01-01", demoPullSets, effectiveBodyWeight)!!
+
+        assertEquals(102.0, daily.firstSetTSW, 1e-9)
+        assertEquals(126.48, daily.e1rm, 1e-6)
+        assertEquals(1036.0, daily.tonnage, 1e-9)
+        assertEquals(70.0, daily.bodyWeightKg, 1e-9)
+    }
+
+    @Test
+    fun dailyStats_bodyweightWithNoWeightRecordAtAll_returnsNull() {
+        val never: (String) -> Double? = { null }
+        assertNull(StatsCalculator.computeDailyStats(pullUps, "2020-01-01", demoPullSets, never))
+    }
+
+    @Test
+    fun effectiveBodyWeight_picksNearestKnownEntry() {
+        val weights = TreeMap<String, Double>().apply {
+            this["2026-08-10"] = 69.0
+            this["2026-08-21"] = 70.0
+            this["2026-08-30"] = 71.0
+        }
+
+        assertEquals(70.0, StatsCalculator.effectiveBodyWeight(weights, "2026-08-21")!!, 1e-9) // exact
+        assertEquals(69.0, StatsCalculator.effectiveBodyWeight(weights, "2026-08-15")!!, 1e-9) // floor 5d, ceil 15d
+        assertEquals(71.0, StatsCalculator.effectiveBodyWeight(weights, "2026-08-28")!!, 1e-9) // ceil 2d, floor 18d
+        assertEquals(71.0, StatsCalculator.effectiveBodyWeight(weights, "2026-09-10")!!, 1e-9) // floor only
+        assertEquals(69.0, StatsCalculator.effectiveBodyWeight(weights, "2026-07-01")!!, 1e-9) // ceil only
+        assertNull(StatsCalculator.effectiveBodyWeight(TreeMap(), "2026-08-21"))
     }
 
     @Test
@@ -136,7 +168,7 @@ class StatsCalculatorTest {
 
         assertTrue(stats.hasData)
         assertEquals(40.0, stats.bestE1RM, 1e-6)
-        assertEquals(0.0, stats.bestE1RMPercentBodyWeight, 1e-9)
-        assertEquals(0.0, stats.bestE1RMBodyWeightKg, 1e-9)
+        assertEquals(30.0 / 70.0 * 100.0, stats.bestE1RMPercentBodyWeight, 1e-6) // nearest weight now used
+        assertEquals(70.0, stats.bestE1RMBodyWeightKg, 1e-9)
     }
 }

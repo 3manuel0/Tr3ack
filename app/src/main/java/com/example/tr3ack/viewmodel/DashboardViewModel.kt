@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tr3ack.data.entity.BodyWeightEntry
 import com.example.tr3ack.data.entity.Exercise
+import com.example.tr3ack.data.entity.ExerciseDailyStatsEntity
 import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.ExerciseStatsEntity
 import com.example.tr3ack.data.entity.WorkoutSet
@@ -29,6 +30,13 @@ data class PersonalBest(
     val isBodyweightBased: Boolean = true,
     val exerciseName: String = "",
     val dateAchieved: String = ""
+)
+
+enum class TrendDirection { UP, DOWN, FLAT }
+
+data class TrendNote(
+    val pctChange: Double,
+    val direction: TrendDirection
 )
 
 class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel() {
@@ -62,6 +70,9 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
 
     private val _exerciseTrends = MutableStateFlow<Map<Long, List<Double>>>(emptyMap())
     val exerciseTrends: StateFlow<Map<Long, List<Double>>> = _exerciseTrends.asStateFlow()
+
+    private val _exerciseTrendNotes = MutableStateFlow<Map<Long, TrendNote>>(emptyMap())
+    val exerciseTrendNotes: StateFlow<Map<Long, TrendNote>> = _exerciseTrendNotes.asStateFlow()
 
     private val _lastLoggedDateByExercise = MutableStateFlow<Map<Long, String>>(emptyMap())
     val lastLoggedDateByExercise: StateFlow<Map<Long, String>> = _lastLoggedDateByExercise.asStateFlow()
@@ -103,11 +114,32 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                 ExerciseIds.LATERAL_RAISES
             ).forEach { exerciseId ->
                 repository.getDailyStatsForExercise(exerciseId).collect { daily ->
-                    val series = daily.filter { it.e1rm > 0.0 }.map { it.e1rm }.takeLast(30)
+                    val e1rms = daily.filter { it.e1rm > 0.0 }
+                    val series = e1rms.map { it.e1rm }.takeLast(30)
                     _exerciseTrends.value = _exerciseTrends.value + (exerciseId to series)
+                    val note = buildTrendNote(e1rms)
+                    _exerciseTrendNotes.value = if (note != null) {
+                        _exerciseTrendNotes.value + (exerciseId to note)
+                    } else {
+                        _exerciseTrendNotes.value - exerciseId
+                    }
                 }
             }
         }
+    }
+
+    private fun buildTrendNote(singles: List<ExerciseDailyStatsEntity>): TrendNote? {
+        if (singles.size < 2) return null
+        val prev = singles[singles.size - 2].e1rm
+        val latest = singles.last().e1rm
+        if (prev <= 0.0) return null
+        val pctChange = (latest - prev) / prev * 100.0
+        val direction = when {
+            latest > prev -> TrendDirection.UP
+            latest < prev -> TrendDirection.DOWN
+            else -> TrendDirection.FLAT
+        }
+        return TrendNote(pctChange, direction)
     }
 
     private fun buildPersonalBest(

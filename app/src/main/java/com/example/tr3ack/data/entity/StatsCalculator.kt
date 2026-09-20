@@ -1,5 +1,6 @@
 package com.example.tr3ack.data.entity
 
+import java.time.LocalDate
 import java.util.TreeMap
 
 /**
@@ -10,8 +11,23 @@ import java.util.TreeMap
  */
 object StatsCalculator {
 
-    fun effectiveBodyWeight(bwByDate: TreeMap<String, Double>, date: String): Double? =
-        bwByDate.floorEntry(date)?.value?.takeIf { it > 0 }
+    /**
+     * Best-known body weight for a date. Prefers an entry on/before the date;
+     * when none exists (e.g. workouts back-filled before the first weight was
+     * logged) falls back to the nearest entry after it, choosing whichever of the
+     * two known entries is closer in time.
+     */
+    fun effectiveBodyWeight(bwByDate: TreeMap<String, Double>, date: String): Double? {
+        val floor = bwByDate.floorEntry(date)
+        val ceil = bwByDate.ceilingEntry(date)
+        if (floor != null && ceil != null) {
+            val targetEpoch = LocalDate.parse(date).toEpochDay()
+            val floorDistance = targetEpoch - LocalDate.parse(floor.key).toEpochDay()
+            val ceilDistance = LocalDate.parse(ceil.key).toEpochDay() - targetEpoch
+            return (if (floorDistance <= ceilDistance) floor else ceil).value.takeIf { it > 0 }
+        }
+        return (floor ?: ceil)?.value?.takeIf { it > 0 }
+    }
 
     fun computeExerciseStats(
         exercise: ExerciseEntity,

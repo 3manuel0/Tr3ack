@@ -20,6 +20,7 @@ import com.example.tr3ack.data.entity.toDomain
 import com.example.tr3ack.data.entity.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 import java.util.TreeMap
 
 class Tr3ackRepository(
@@ -84,7 +85,15 @@ class Tr3ackRepository(
     suspend fun getEffectiveBodyWeight(date: String): Double? {
         val direct = getBodyWeightForDate(date)
         if (direct != null) return direct
-        return getMostRecentBodyWeightOnOrBefore(date)
+        val before = bodyWeightDao.getMostRecentEntryOnOrBefore(date)
+        val after = bodyWeightDao.getOldestEntryOnOrAfter(date)
+        if (before != null && after != null) {
+            val targetEpoch = LocalDate.parse(date).toEpochDay()
+            val beforeDistance = targetEpoch - LocalDate.parse(before.date).toEpochDay()
+            val afterDistance = LocalDate.parse(after.date).toEpochDay() - targetEpoch
+            return (if (beforeDistance <= afterDistance) before else after).bodyWeightKg
+        }
+        return (before ?: after)?.bodyWeightKg
     }
 
     suspend fun getWorkoutDatesOnOrBefore(date: String): List<String> =

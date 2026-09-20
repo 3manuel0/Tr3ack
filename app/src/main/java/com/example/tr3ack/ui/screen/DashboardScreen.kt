@@ -57,6 +57,8 @@ import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.DashboardViewModel
+import com.example.tr3ack.viewmodel.TrendDirection
+import com.example.tr3ack.viewmodel.TrendNote
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.ceil
@@ -78,6 +80,7 @@ fun DashboardScreen(
     val bicepCurlsPB by viewModel.bicepCurlsPB.collectAsStateWithLifecycle()
     val lateralRaisesPB by viewModel.lateralRaisesPB.collectAsStateWithLifecycle()
     val exerciseTrends by viewModel.exerciseTrends.collectAsStateWithLifecycle()
+    val exerciseTrendNotes by viewModel.exerciseTrendNotes.collectAsStateWithLifecycle()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
 
@@ -178,25 +181,29 @@ fun DashboardScreen(
             item {
                 PersonalBestCard(
                     pb = pullUpsPB,
-                    trend = exerciseTrends[ExerciseIds.WEIGHTED_PULL_UPS].orEmpty()
+                    trend = exerciseTrends[ExerciseIds.WEIGHTED_PULL_UPS].orEmpty(),
+                    trendNote = exerciseTrendNotes[ExerciseIds.WEIGHTED_PULL_UPS]
                 )
             }
             item {
                 PersonalBestCard(
                     pb = dipsPB,
-                    trend = exerciseTrends[ExerciseIds.WEIGHTED_DIPS].orEmpty()
+                    trend = exerciseTrends[ExerciseIds.WEIGHTED_DIPS].orEmpty(),
+                    trendNote = exerciseTrendNotes[ExerciseIds.WEIGHTED_DIPS]
                 )
             }
             item {
                 PersonalBestCard(
                     pb = bicepCurlsPB,
-                    trend = exerciseTrends[ExerciseIds.BICEP_CURLS].orEmpty()
+                    trend = exerciseTrends[ExerciseIds.BICEP_CURLS].orEmpty(),
+                    trendNote = exerciseTrendNotes[ExerciseIds.BICEP_CURLS]
                 )
             }
             item {
                 PersonalBestCard(
                     pb = lateralRaisesPB,
-                    trend = exerciseTrends[ExerciseIds.LATERAL_RAISES].orEmpty()
+                    trend = exerciseTrends[ExerciseIds.LATERAL_RAISES].orEmpty(),
+                    trendNote = exerciseTrendNotes[ExerciseIds.LATERAL_RAISES]
                 )
             }
 
@@ -484,7 +491,11 @@ private fun BodyWeightTrendChart(
 }
 
 @Composable
-private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest, trend: List<Double>) {
+private fun PersonalBestCard(
+    pb: com.example.tr3ack.viewmodel.PersonalBest,
+    trend: List<Double>,
+    trendNote: TrendNote? = null
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -642,12 +653,35 @@ private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest, tren
             }
             if (pb.estimatedOneRM > 0 && trend.size >= 2) {
                 Spacer(modifier = Modifier.height(8.dp))
-                MiniTrendChart(
-                    values = trend,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MiniTrendChart(
+                        values = trend,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    )
+                    if (trendNote != null) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        val noteColor = when (trendNote.direction) {
+                            TrendDirection.UP -> Color(0xFF66BB6A)
+                            TrendDirection.DOWN -> MaterialTheme.colorScheme.error
+                            TrendDirection.FLAT -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        Text(
+                            text = when (trendNote.direction) {
+                                TrendDirection.UP -> "▲ %.1f%%".format(trendNote.pctChange)
+                                TrendDirection.DOWN -> "▼ %.1f%%".format(-trendNote.pctChange)
+                                TrendDirection.FLAT -> "• %.1f%%".format(trendNote.pctChange)
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = noteColor
+                        )
+                    }
+                }
             }
         }
     }
