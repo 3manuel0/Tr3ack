@@ -113,15 +113,17 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                 ExerciseIds.BICEP_CURLS,
                 ExerciseIds.LATERAL_RAISES
             ).forEach { exerciseId ->
-                repository.getDailyStatsForExercise(exerciseId).collect { daily ->
-                    val e1rms = daily.filter { it.e1rm > 0.0 }
-                    val series = e1rms.map { it.e1rm }.takeLast(30)
-                    _exerciseTrends.value = _exerciseTrends.value + (exerciseId to series)
-                    val note = buildTrendNote(e1rms)
-                    _exerciseTrendNotes.value = if (note != null) {
-                        _exerciseTrendNotes.value + (exerciseId to note)
-                    } else {
-                        _exerciseTrendNotes.value - exerciseId
+                viewModelScope.launch {
+                    repository.getDailyStatsForExercise(exerciseId).collect { daily ->
+                        val e1rms = daily.filter { it.e1rm > 0.0 }
+                        val series = e1rms.map { it.e1rm }.takeLast(30)
+                        _exerciseTrends.value = _exerciseTrends.value + (exerciseId to series)
+                        val note = buildTrendNote(e1rms)
+                        _exerciseTrendNotes.value = if (note != null) {
+                            _exerciseTrendNotes.value + (exerciseId to note)
+                        } else {
+                            _exerciseTrendNotes.value - exerciseId
+                        }
                     }
                 }
             }
