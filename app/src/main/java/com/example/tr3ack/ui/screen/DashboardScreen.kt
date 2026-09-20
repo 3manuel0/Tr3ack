@@ -28,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,18 +36,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tr3ack.R
 import com.example.tr3ack.data.entity.BodyWeightEntry
 import com.example.tr3ack.data.entity.Exercise
+import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.DashboardViewModel
@@ -70,8 +77,20 @@ fun DashboardScreen(
     val dipsPB by viewModel.dipsPB.collectAsStateWithLifecycle()
     val bicepCurlsPB by viewModel.bicepCurlsPB.collectAsStateWithLifecycle()
     val lateralRaisesPB by viewModel.lateralRaisesPB.collectAsStateWithLifecycle()
+    val exerciseTrends by viewModel.exerciseTrends.collectAsStateWithLifecycle()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshToday()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -157,16 +176,28 @@ fun DashboardScreen(
                 )
             }
             item {
-                PersonalBestCard(pullUpsPB)
+                PersonalBestCard(
+                    pb = pullUpsPB,
+                    trend = exerciseTrends[ExerciseIds.WEIGHTED_PULL_UPS].orEmpty()
+                )
             }
             item {
-                PersonalBestCard(dipsPB)
+                PersonalBestCard(
+                    pb = dipsPB,
+                    trend = exerciseTrends[ExerciseIds.WEIGHTED_DIPS].orEmpty()
+                )
             }
             item {
-                PersonalBestCard(bicepCurlsPB)
+                PersonalBestCard(
+                    pb = bicepCurlsPB,
+                    trend = exerciseTrends[ExerciseIds.BICEP_CURLS].orEmpty()
+                )
             }
             item {
-                PersonalBestCard(lateralRaisesPB)
+                PersonalBestCard(
+                    pb = lateralRaisesPB,
+                    trend = exerciseTrends[ExerciseIds.LATERAL_RAISES].orEmpty()
+                )
             }
 
             // Today's Sets Header
@@ -453,162 +484,222 @@ private fun BodyWeightTrendChart(
 }
 
 @Composable
-private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest) {
+private fun PersonalBestCard(pb: com.example.tr3ack.viewmodel.PersonalBest, trend: List<Double>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.EmojiEvents,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            if (pb.estimatedOneRM > 0) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = pb.exerciseName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        if (pb.isBodyweightBased) {
-                            Column {
-                                Text(
-                                    text = "%.1f kg".format(pb.maxTotalSystemWeight),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.pb_system_weight),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "${pb.reps}",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.reps_literal),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "%.1f%%".format(pb.maxPercentBodyWeight),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.pb_body_weight_pct),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                        } else {
-                            Column {
-                                Text(
-                                    text = "%.1f kg".format(pb.addedWeight),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.pb_weight),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "${pb.reps}",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.reps_literal),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = if (pb.addedWeightPercentBodyWeight > 0)
-                                        "%.1f%%".format(pb.addedWeightPercentBodyWeight)
-                                    else "—",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.pb_of_body_weight),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "%.1f kg".format(pb.estimatedOneRM),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.pb_e1rm),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                if (pb.estimatedOneRM > 0) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = pb.exerciseName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            if (pb.isBodyweightBased) {
+                                Column {
+                                    Text(
+                                        text = "%.1f kg".format(pb.maxTotalSystemWeight),
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.pb_system_weight),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "${pb.reps}",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.reps_literal),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "%.1f%%".format(pb.maxPercentBodyWeight),
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.pb_body_weight_pct),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                            } else {
+                                Column {
+                                    Text(
+                                        text = "%.1f kg".format(pb.addedWeight),
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.pb_weight),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "${pb.reps}",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.reps_literal),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = if (pb.addedWeightPercentBodyWeight > 0)
+                                            "%.1f%%".format(pb.addedWeightPercentBodyWeight)
+                                        else "—",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.pb_of_body_weight),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "%.1f kg".format(pb.estimatedOneRM),
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.pb_e1rm),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
                         }
+                        if (pb.dateAchieved.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val pbDate = LocalDate.parse(pb.dateAchieved)
+                            val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(pbDate, LocalDate.now())
+                            Text(
+                                text = if (daysAgo == 0L) {
+                                    stringResource(R.string.pb_set_today)
+                                } else {
+                                    stringResource(R.string.pb_set_days_ago, daysAgo)
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
                     }
-                    if (pb.dateAchieved.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        val pbDate = LocalDate.parse(pb.dateAchieved)
-                        val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(pbDate, LocalDate.now())
+                } else {
+                    Column {
                         Text(
-                            text = if (daysAgo == 0L) {
-                                stringResource(R.string.pb_set_today)
-                            } else {
-                                stringResource(R.string.pb_set_days_ago, daysAgo)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
+                            text = pb.exerciseName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = stringResource(R.string.pb_no_sets_logged),
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         )
                     }
                 }
-            } else {
-                Column {
-                    Text(
-                        text = pb.exerciseName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = stringResource(R.string.pb_no_sets_logged),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                }
             }
+            if (pb.estimatedOneRM > 0 && trend.size >= 2) {
+                Spacer(modifier = Modifier.height(8.dp))
+                MiniTrendChart(
+                    values = trend,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniTrendChart(
+    values: List<Double>,
+    modifier: Modifier = Modifier
+) {
+    if (values.size < 2) return
+
+    val minVal = values.min()
+    val maxVal = values.max()
+    val range = (maxVal - minVal).coerceAtLeast(1.0)
+    val stepCount = values.size - 1
+
+    val rising = values.last() >= values.first()
+    val lineColor = if (rising) Color(0xFF66BB6A) else MaterialTheme.colorScheme.error
+
+    Canvas(modifier = modifier) {
+        fun pointY(value: Double) = size.height * (1f - ((value - minVal) / range).toFloat())
+        fun pointX(index: Int) = if (stepCount > 0) size.width * index / stepCount else size.width / 2f
+
+        val path = Path()
+        values.forEachIndexed { index, value ->
+            val x = pointX(index)
+            val y = pointY(value)
+            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(
+            path = path,
+            color = lineColor,
+            style = Stroke(width = 3f, cap = StrokeCap.Round)
+        )
+
+        val fillPath = Path().apply {
+            addPath(path)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(lineColor.copy(alpha = 0.25f), Color.Transparent),
+                endY = size.height
+            )
+        )
+
+        values.forEachIndexed { index, value ->
+            drawCircle(color = lineColor, radius = 2.5f, center = Offset(pointX(index), pointY(value)))
         }
     }
 }

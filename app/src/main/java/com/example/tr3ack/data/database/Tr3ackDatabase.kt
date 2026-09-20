@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
         ExerciseDailyStatsEntity::class,
         WorkoutDayEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class Tr3ackDatabase : RoomDatabase() {
@@ -109,6 +109,19 @@ abstract class Tr3ackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v4 -> v5: add index-only columns so date/exercise lookups stop doing
+         * full-table scans as logs grow. Index names match Room's auto-generated
+         * naming (index_{table}_{column}) so schema validation passes.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_sets_date ON workout_sets(date)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_workout_sets_exerciseId ON workout_sets(exerciseId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_body_weight_entries_date ON body_weight_entries(date)")
+            }
+        }
+
         fun getDatabase(context: Context): Tr3ackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -116,7 +129,7 @@ abstract class Tr3ackDatabase : RoomDatabase() {
                     Tr3ackDatabase::class.java,
                     "tr3ack_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -32,12 +33,13 @@ data class PersonalBest(
 
 class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
-    private val today = LocalDate.now().toString()
+    private val _today = MutableStateFlow(LocalDate.now().toString())
 
     val exercises: StateFlow<List<Exercise>> = repository.allExercises
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val todaySets: StateFlow<List<WorkoutSet>> = repository.getSetsForDate(today)
+    val todaySets: StateFlow<List<WorkoutSet>> = _today
+        .flatMapLatest { date -> repository.getSetsForDate(date) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _todayBodyWeight = MutableStateFlow<Double?>(null)
@@ -58,6 +60,9 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
     private val _lateralRaisesPB = MutableStateFlow(PersonalBest())
     val lateralRaisesPB: StateFlow<PersonalBest> = _lateralRaisesPB.asStateFlow()
 
+    private val _exerciseTrends = MutableStateFlow<Map<Long, List<Double>>>(emptyMap())
+    val exerciseTrends: StateFlow<Map<Long, List<Double>>> = _exerciseTrends.asStateFlow()
+
     private val _lastLoggedDateByExercise = MutableStateFlow<Map<Long, String>>(emptyMap())
     val lastLoggedDateByExercise: StateFlow<Map<Long, String>> = _lastLoggedDateByExercise.asStateFlow()
 
@@ -65,7 +70,7 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
 
     init {
         viewModelScope.launch {
-            _todayBodyWeight.value = repository.getEffectiveBodyWeight(today)
+            _todayBodyWeight.value = repository.getEffectiveBodyWeight(_today.value)
         }
         viewModelScope.launch {
             repository.allBodyWeightEntries.collect { entries ->
@@ -88,6 +93,19 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
         viewModelScope.launch {
             repository.workoutDays.collect { days ->
                 _lastSessionDate.value = days.maxOfOrNull { it.date }
+            }
+        }
+        viewModelScope.launch {
+            listOf(
+                ExerciseIds.WEIGHTED_PULL_UPS,
+                ExerciseIds.WEIGHTED_DIPS,
+                ExerciseIds.BICEP_CURLS,
+                ExerciseIds.LATERAL_RAISES
+            ).forEach { exerciseId ->
+                repository.getDailyStatsForExercise(exerciseId).collect { daily ->
+                    val series = daily.filter { it.e1rm > 0.0 }.map { it.e1rm }.takeLast(30)
+                    _exerciseTrends.value = _exerciseTrends.value + (exerciseId to series)
+                }
             }
         }
     }
@@ -127,6 +145,7 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
 
     fun saveBodyWeight(weightKg: Double) {
         viewModelScope.launch {
+            val today = _today.value
             val existing = repository.getTodayBodyWeightEntry(today)
             if (existing != null) {
                 repository.updateBodyWeight(
@@ -146,6 +165,16 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                 )
             }
             _todayBodyWeight.value = weightKg
+        }
+    }
+
+    fun refreshToday() {
+        viewModelScope.launch {
+            val now = LocalDate.now().toString()
+            if (now != _today.value) {
+                _today.value = now
+            }
+            _todayBodyWeight.value = repository.getEffectiveBodyWeight(now)
         }
     }
 

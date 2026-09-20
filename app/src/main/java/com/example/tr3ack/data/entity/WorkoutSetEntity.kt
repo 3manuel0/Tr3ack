@@ -1,9 +1,16 @@
 package com.example.tr3ack.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "workout_sets")
+@Entity(
+    tableName = "workout_sets",
+    indices = [
+        Index("date"),
+        Index("exerciseId")
+    ]
+)
 data class WorkoutSetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val exerciseId: Long,

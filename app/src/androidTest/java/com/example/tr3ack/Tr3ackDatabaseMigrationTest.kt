@@ -106,6 +106,36 @@ class Tr3ackDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate4to5_addsQueryIndices() {
+        helper.createDatabase("test", 4).close()
+        val db = helper.runMigrationsAndValidate(
+            "test", 5, true,
+            Tr3ackDatabase.MIGRATION_4_5
+        )
+
+        val expectedIndexes = setOf(
+            "index_workout_sets_date",
+            "index_workout_sets_exerciseId",
+            "index_body_weight_entries_date"
+        )
+        val cursor = db.query(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name IN " +
+                "('index_workout_sets_date','index_workout_sets_exerciseId','index_body_weight_entries_date')"
+        )
+        val found = mutableSetOf<String>()
+        while (cursor.moveToNext()) found.add(cursor.getString(0))
+        cursor.close()
+        assertEquals(expectedIndexes, found)
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(5, version.getInt(0))
+        version.close()
+
+        db.close()
+    }
+
+    @Test
     fun migrateChain_toV4_succeeds() {
         // Start from empty v1 schema; apply every migration in sequence
         helper.createDatabase("test", 1).close()

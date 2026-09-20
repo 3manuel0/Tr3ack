@@ -46,6 +46,8 @@ class LogWorkoutViewModel(private val repository: Tr3ackRepository) : ViewModel(
 
     private var savedSetsJob: Job? = null
 
+    private var userEditedDate = false
+
     fun selectExercise(exerciseId: Long) {
         _selectedExerciseId.value = exerciseId
         viewModelScope.launch {
@@ -71,6 +73,7 @@ class LogWorkoutViewModel(private val repository: Tr3ackRepository) : ViewModel(
     }
 
     fun setDate(date: LocalDate) {
+        userEditedDate = true
         _selectedDate.value = date
         loadBodyWeight()
         loadSavedSets()
@@ -118,6 +121,16 @@ class LogWorkoutViewModel(private val repository: Tr3ackRepository) : ViewModel(
 
     fun resetSaveSuccess() {
         _saveSuccess.value = false
+    }
+
+    fun refreshDefaultDate() {
+        if (userEditedDate) return
+        val today = LocalDate.now()
+        if (today != _selectedDate.value) {
+            _selectedDate.value = today
+            loadBodyWeight()
+            loadSavedSets()
+        }
     }
 
     fun getTotalSystemWeight(): Double? {

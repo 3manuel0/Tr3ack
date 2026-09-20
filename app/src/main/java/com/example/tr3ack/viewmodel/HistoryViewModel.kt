@@ -9,6 +9,7 @@ import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.data.entity.WorkoutSetEntity
 import com.example.tr3ack.repository.Tr3ackRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -61,7 +62,7 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     }
 
     fun generateCsv() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             val allSets = repository.allWorkoutSets.first()
             val allExercises = repository.allExercises.first()
             val allBodyWeight = repository.allBodyWeightEntries.first()
@@ -127,7 +128,7 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     }
 
     fun generateBackupJson() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             val allExercises = repository.allExercises.first()
             val allSets = repository.allWorkoutSets.first()
             val allBodyWeight = repository.allBodyWeightEntries.first()
@@ -191,7 +192,7 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     )
 
     fun importBackupJson(jsonString: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             try {
                 val root = JSONObject(jsonString)
 

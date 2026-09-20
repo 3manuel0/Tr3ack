@@ -1,6 +1,7 @@
 package com.example.tr3ack
 
 import android.app.Application
+import android.content.Context
 import com.example.tr3ack.data.database.Tr3ackDatabase
 import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.CoroutineScope
@@ -22,10 +23,16 @@ class Tr3ackApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Backfill / rebuild the stats caches so screens only ever read materialized data.
-        // Opening the DB here may run MIGRATION_3_4 on existing installs.
+        // Rebuild the stats caches once per schema version (fresh install or right
+        // after a migration). The caches are kept in sync on every write, so a full
+        // rebuild on each launch would be wasted I/O.
+        val prefs = getSharedPreferences("tr3ack", Context.MODE_PRIVATE)
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            repository.refreshStatsCache()
+            val version = database.openHelper.readableDatabase.version
+            val cacheKey = "stats_cache_built_v$version"
+            if (prefs.getBoolean(cacheKey, false)) return@launch
+            runCatching { repository.refreshStatsCache() }
+                .onSuccess { prefs.edit().putBoolean(cacheKey, true).apply() }
         }
     }
 }

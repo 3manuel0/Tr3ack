@@ -54,20 +54,10 @@ data class ChartPoint(
     val bodyWeightKg: Double = 0.0,
 )
 
-/** Per-exercise E1RM history (date -> e1RM) for the cross-exercise comparison chart. */
-data class ExerciseTrend(
-    val exerciseId: Long,
-    val name: String,
-    val series: Map<String, Double>,
-)
-
 class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
     val exercises: StateFlow<List<Exercise>> = repository.allExercises
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    private val _exerciseTrends = MutableStateFlow<List<ExerciseTrend>>(emptyList())
-    val exerciseTrends: StateFlow<List<ExerciseTrend>> = _exerciseTrends.asStateFlow()
 
     private val _selectedExerciseId = MutableStateFlow<Long?>(null)
     val selectedExerciseId: StateFlow<Long?> = _selectedExerciseId.asStateFlow()
@@ -85,20 +75,6 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
     val oneRepMax: StateFlow<OneRepMax?> = _oneRepMax.asStateFlow()
 
     private var selectionJob: kotlinx.coroutines.Job? = null
-
-    init {
-        viewModelScope.launch {
-            repository.allExercises.collect { exercises ->
-                _exerciseTrends.value = exercises.mapNotNull { exercise ->
-                    val daily = repository.getDailyStatsForExercise(exercise.id).first()
-                    val series = daily
-                        .filter { it.e1rm > 0.0 }
-                        .associate { it.date to it.e1rm }
-                    if (series.isEmpty()) null else ExerciseTrend(exercise.id, exercise.name, series)
-                }
-            }
-        }
-    }
 
     fun selectExercise(exerciseId: Long) {
         _selectedExerciseId.value = exerciseId
