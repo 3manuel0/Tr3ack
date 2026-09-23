@@ -180,3 +180,7 @@ Transfer `app/build/outputs/apk/debug/app-debug.apk` to your phone and open it.
 ## Min SDK
 
 26 (Android 8.0)
+
+## AI Assistance
+
+This project was developed with the assistance of AI.
