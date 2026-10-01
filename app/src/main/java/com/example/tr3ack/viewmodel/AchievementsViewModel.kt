@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tr3ack.R
+import com.example.tr3ack.data.entity.BodyWeightEntry
 import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.ExerciseStatsEntity
 import com.example.tr3ack.data.entity.WorkoutDayEntity
@@ -57,22 +58,17 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
 
     init {
         viewModelScope.launch {
-            combine(repository.workoutDays, repository.exerciseStats) { days, stats ->
-                compute(days, stats)
+            combine(repository.workoutDays, repository.exerciseStats, repository.allBodyWeightEntries) { days, stats, bodyWeightEntries ->
+                compute(days, stats, bodyWeightEntries)
             }.collect { }
         }
     }
 
-    private fun compute(workoutDays: List<WorkoutDayEntity>, exerciseStats: List<ExerciseStatsEntity>) {
-        if (workoutDays.isEmpty()) {
-            _totalTonnage.value = 0.0
-            _totalSessions.value = 0
-            _level.value = LevelInfo(xpToNext = 100)
-            _streak.value = StreakInfo()
-            _achievements.value = AchievementRules.buildAchievements(0.0, 0, 0, 0, 0.0, 0.0, 0.0)
-            return
-        }
-
+    private fun compute(
+        workoutDays: List<WorkoutDayEntity>,
+        exerciseStats: List<ExerciseStatsEntity>,
+        bodyWeightEntries: List<BodyWeightEntry>
+    ) {
         val sessionDates = workoutDays.map { it.date }.sorted()
         val totalTonnage = workoutDays.sumOf { it.tonnage }
         val totalSessions = workoutDays.size
@@ -85,6 +81,12 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
             .find { it.exerciseId == ExerciseIds.BICEP_CURLS }?.maxAddedWeightGte6 ?: 0.0
         val maxLateralRaiseWeight = exerciseStats
             .find { it.exerciseId == ExerciseIds.LATERAL_RAISES }?.maxAddedWeightGte6 ?: 0.0
+        val prExerciseCount = exerciseStats.count { it.hasData && it.bestE1RM > 0.0 }
+        val bodyWeightCheckins = bodyWeightEntries
+            .filter { it.bodyWeightKg > 0.0 }
+            .map { it.date }
+            .distinct()
+            .size
 
         _totalTonnage.value = totalTonnage
         _totalSessions.value = totalSessions
@@ -97,7 +99,9 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
             streak.longest,
             maxBodyweightRatio,
             maxBicepCurlWeight,
-            maxLateralRaiseWeight
+            maxLateralRaiseWeight,
+            prExerciseCount,
+            bodyWeightCheckins
         )
     }
 }

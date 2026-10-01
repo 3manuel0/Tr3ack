@@ -26,12 +26,12 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 - **Body Weight Tracking** — One entry per day, editable, with fallback lookup for workout days without a log
 - **Personal Record Card** — Single best-set record per exercise, selected by highest estimated 1RM across all logged sets; shows e1RM, set, total system load, % BW, and date achieved
 - **Estimated 1RM Card** — Calculated from the set with the highest estimated 1RM using movement-specific coefficients; includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
-- **3 Progress Charts** (10/30/90 trained-day window):
+- **3 Progress Charts** (30/90 trained-day window):
   - **Estimated 1RM** — Line chart with gradient fill showing strength trend over time
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
-- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 24 tier-colored achievements for volume, consistency, relative strength, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond). Badges use a consistent custom vector icon set (pull-up, dumbbell, lateral-raise, and Lucide-style glyphs) tinted to their tier color
+- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 30 tier-colored achievements for volume, consistency, relative strength, PR coverage, body-weight tracking, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond). Badges use a consistent custom vector icon set (pull-up, dumbbell, lateral-raise, and Lucide-style glyphs) tinted to their tier color
 - **CSV Export** — Export all workout data as a formatted CSV file from the History screen
 - **JSON Backup & Restore** — Full data backup/restore from the Dashboard overflow menu; exports editable JSON file containing all exercises, sets, and body weight entries
 - **Splash Screen** — Custom branded launch screen with the same vector dumbbell glyph as the app icon

@@ -71,7 +71,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
     val oneRepMax by viewModel.oneRepMax.collectAsStateWithLifecycle()
 
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
-    var dayCount by remember { mutableIntStateOf(10) }
+    var dayCount by remember { mutableIntStateOf(30) }
 
     val selectedExercise = exercises.find { it.id == selectedExerciseId }
     val displayData = chartData.takeLast(dayCount)
@@ -285,11 +285,6 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(
-                                    selected = dayCount == 10,
-                                    onClick = { dayCount = 10 },
-                                    label = { Text(stringResource(R.string.progress_chip_10d)) }
-                                )
                                 FilterChip(
                                     selected = dayCount == 30,
                                     onClick = { dayCount = 30 },

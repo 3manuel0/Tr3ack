@@ -122,7 +122,6 @@
     <string name="progress_at_current_bw">At Current BW (%1$.1f kg)</string>
     <string name="progress_added_weight_needed">Added Weight Needed</string>
     <string name="progress_title">Progress</string>
-    <string name="progress_chip_10d">10d</string>
     <string name="progress_chip_30d">30d</string>
     <string name="progress_chip_90d">90d</string>
     <string name="progress_e1rm_chart">Estimated 1RM (kg)</string>
@@ -200,4 +199,16 @@
     <string name="ach_bw_150_desc">Lift 1.5x your bodyweight</string>
     <string name="ach_bw_175_title">Superhuman</string>
     <string name="ach_bw_175_desc">Lift 1.75x your bodyweight</string>
+    <string name="ach_pr_1_title">First PR</string>
+    <string name="ach_pr_1_desc">Set a personal best in 1 exercise</string>
+    <string name="ach_pr_3_title">PR Explorer</string>
+    <string name="ach_pr_3_desc">Set personal bests in 3 exercises</string>
+    <string name="ach_pr_5_title">PR Master</string>
+    <string name="ach_pr_5_desc">Set personal bests in 5 exercises</string>
+    <string name="ach_bodyweight_30_title">30 Check-ins</string>
+    <string name="ach_bodyweight_30_desc">Record 30 body-weight check-ins</string>
+    <string name="ach_bodyweight_90_title">90 Check-ins</string>
+    <string name="ach_bodyweight_90_desc">Record 90 body-weight check-ins</string>
+    <string name="ach_bodyweight_365_title">Year of Tracking</string>
+    <string name="ach_bodyweight_365_desc">Record 365 body-weight check-ins</string>
 </resources>

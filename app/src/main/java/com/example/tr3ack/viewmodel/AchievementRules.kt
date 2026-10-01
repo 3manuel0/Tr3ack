@@ -98,7 +98,9 @@ object AchievementRules {
         longestStreak: Long,
         maxBodyweightRatio: Double,
         maxBicepCurlWeight: Double,
-        maxLateralRaiseWeight: Double
+        maxLateralRaiseWeight: Double,
+        prExerciseCount: Int,
+        bodyWeightCheckins: Int
     ): List<Achievement> {
         // Bicep Curls: 16 -> 26 kg across the 6 tiers
         val curlWeights = listOf<Double>(16.0, 18.0, 20.0, 22.0, 24.0, 26.0)
@@ -155,6 +157,18 @@ object AchievementRules {
                 unlocked = maxBodyweightRatio >= 1.5),
             Achievement(id = "bw_175", titleRes = R.string.ach_bw_175_title, descriptionRes = R.string.ach_bw_175_desc, iconKey = "pullup", tier = "emerald",
                 unlocked = maxBodyweightRatio >= 1.75),
+            Achievement(id = "pr_exercises_1", titleRes = R.string.ach_pr_1_title, descriptionRes = R.string.ach_pr_1_desc, iconKey = "pullup", tier = "iron",
+                unlocked = prExerciseCount >= 1),
+            Achievement(id = "pr_exercises_3", titleRes = R.string.ach_pr_3_title, descriptionRes = R.string.ach_pr_3_desc, iconKey = "pullup", tier = "copper",
+                unlocked = prExerciseCount >= 3),
+            Achievement(id = "pr_exercises_5", titleRes = R.string.ach_pr_5_title, descriptionRes = R.string.ach_pr_5_desc, iconKey = "pullup", tier = "silver",
+                unlocked = prExerciseCount >= 5),
+            Achievement(id = "bodyweight_checkins_30", titleRes = R.string.ach_bodyweight_30_title, descriptionRes = R.string.ach_bodyweight_30_desc, iconKey = "check_circle", tier = "iron",
+                unlocked = bodyWeightCheckins >= 30),
+            Achievement(id = "bodyweight_checkins_90", titleRes = R.string.ach_bodyweight_90_title, descriptionRes = R.string.ach_bodyweight_90_desc, iconKey = "check_circle", tier = "copper",
+                unlocked = bodyWeightCheckins >= 90),
+            Achievement(id = "bodyweight_checkins_365", titleRes = R.string.ach_bodyweight_365_title, descriptionRes = R.string.ach_bodyweight_365_desc, iconKey = "check_circle", tier = "gold",
+                unlocked = bodyWeightCheckins >= 365),
         ) + curlAchievements + latAchievements
     }
 }

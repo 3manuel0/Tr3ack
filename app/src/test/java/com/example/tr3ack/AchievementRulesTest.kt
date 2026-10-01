@@ -98,9 +98,19 @@ class AchievementRulesTest {
     }
 
     @Test
-    fun achievements_defaultTo24BadgesAllLocked() {
-        val ach = AchievementRules.buildAchievements(0.0, 0, 0, 0, 0.0, 0.0, 0.0)
-        assertEquals(24, ach.size)
+    fun achievements_defaultTo30BadgesAllLocked() {
+        val ach = AchievementRules.buildAchievements(
+            totalTonnage = 0.0,
+            totalSessions = 0,
+            currentStreak = 0,
+            longestStreak = 0,
+            maxBodyweightRatio = 0.0,
+            maxBicepCurlWeight = 0.0,
+            maxLateralRaiseWeight = 0.0,
+            prExerciseCount = 0,
+            bodyWeightCheckins = 0
+        )
+        assertEquals(30, ach.size)
         assertTrue(ach.all { !it.unlocked })
     }
 
@@ -114,6 +124,8 @@ class AchievementRulesTest {
             maxBodyweightRatio = 1.6,
             maxBicepCurlWeight = 30.0,
             maxLateralRaiseWeight = 18.0,
+            prExerciseCount = 5,
+            bodyWeightCheckins = 365,
         )
         val byId = ach.associateBy { it.id }
         val unlockedIds = ach.filter { it.unlocked }.map { it.id }.toSet()
@@ -124,7 +136,9 @@ class AchievementRulesTest {
         assertEquals(2, ach.count { it.id.startsWith("bw") && it.unlocked })
         assertEquals(6, ach.count { it.id.startsWith("curl") && it.unlocked })
         assertEquals(5, ach.count { it.id.startsWith("lat") && it.unlocked })
-        assertEquals(22, unlockedIds.size)
+        assertEquals(3, ach.count { it.id.startsWith("pr_exercises") && it.unlocked })
+        assertEquals(3, ach.count { it.id.startsWith("bodyweight_checkins") && it.unlocked })
+        assertEquals(28, unlockedIds.size)
 
         // Tier mapping: lower tiers unlock before higher ones.
         assertTrue(byId.getValue("curl_16").tier == "iron" && byId.getValue("curl_26").tier == "diamond")
@@ -137,8 +151,35 @@ class AchievementRulesTest {
     }
 
     @Test
-    fun achievements_orderBodyweightFirstThenCurlsThenLatRaises() {
-        val ids = AchievementRules.buildAchievements(0.0, 0, 0, 0, 0.0, 0.0, 0.0).map { it.id }
+    fun achievements_unlockPrAndBodyweightThresholds() {
+        val ach = AchievementRules.buildAchievements(
+            totalTonnage = 0.0,
+            totalSessions = 0,
+            currentStreak = 0,
+            longestStreak = 0,
+            maxBodyweightRatio = 0.0,
+            maxBicepCurlWeight = 0.0,
+            maxLateralRaiseWeight = 0.0,
+            prExerciseCount = 1,
+            bodyWeightCheckins = 30
+        )
+        val byId = ach.associateBy { it.id }
+
+        assertTrue(byId.getValue("pr_exercises_1").unlocked)
+        assertFalse(byId.getValue("pr_exercises_3").unlocked)
+        assertFalse(byId.getValue("pr_exercises_5").unlocked)
+        assertTrue(byId.getValue("bodyweight_checkins_30").unlocked)
+        assertFalse(byId.getValue("bodyweight_checkins_90").unlocked)
+        assertFalse(byId.getValue("bodyweight_checkins_365").unlocked)
+    }
+
+    @Test
+    fun achievements_orderPrBodyweightThenCurlsThenLatRaises() {
+        val ids = AchievementRules.buildAchievements(0.0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0).map { it.id }
+        assertEquals(
+            listOf("pr_exercises_1", "pr_exercises_3", "pr_exercises_5", "bodyweight_checkins_30", "bodyweight_checkins_90", "bodyweight_checkins_365"),
+            ids.drop(12).take(6)
+        )
         assertEquals(listOf("curl_16", "curl_18", "curl_20", "curl_22", "curl_24", "curl_26"), ids.takeLast(12).take(6))
         assertEquals(listOf("lat_10", "lat_12", "lat_14", "lat_16", "lat_18", "lat_20"), ids.takeLast(6))
     }
