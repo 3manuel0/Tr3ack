@@ -27,7 +27,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 - **Personal Record Card** — Single best-set record per exercise, selected by highest estimated 1RM across all logged sets; shows e1RM, set, total system load, % BW, and date achieved
 - **Estimated 1RM Card** — Calculated from the set with the highest estimated 1RM using movement-specific coefficients; includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
 - **3 Progress Charts** (30/90 trained-day window):
-  - **Estimated 1RM** — Line chart with gradient fill showing strength trend over time
+  - **Estimated 1RM** — Line chart with gradient fill, a dashed rolling-average trend line, and rings marking sessions that set a new all-time PR
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
@@ -76,6 +76,8 @@ Where `TSL = Body Weight + Added Weight` and the coefficient varies by exercise 
 
 Chin-up coefficients are higher than pull-ups because the bicep provides a leverage advantage, allowing more load at the same rep count.
 
+Above 10 reps the curve continues with the table's final slope, then caps at 12 reps (`MAX_E1RM_REPS`); sets above the cap still count toward tonnage.
+
 ### Free Weight Exercises
 
 Uses the Epley formula:
@@ -83,6 +85,12 @@ Uses the Epley formula:
 ```
 E1RM = Weight × (1 + Reps / 30)
 ```
+
+A true single (1 rep) returns the weight unchanged (no 3.3% inflation).
+
+### Reps in Reserve (RIR)
+
+Each set stores reps in reserve. E1RM uses `reps + RIR` (clamped to 12), so a set taken to failure (`RIR = 0`) scores exactly as before.
 
 ## Stats — Other Charts
 
