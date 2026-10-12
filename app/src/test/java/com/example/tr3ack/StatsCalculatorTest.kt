@@ -262,6 +262,48 @@ class StatsCalculatorTest {
     }
 
     @Test
+    fun bodyweightSingleRep_usesBaselineCoefficient() {
+        val stats = StatsCalculator.computeExerciseStats(
+            pullUps, listOf(set(1, "2026-08-21", 20.0, 1, 1)), effectiveBodyWeight
+        )
+        assertEquals(90.0, stats.bestE1RM, 1e-9) // TSW 90 * 1.000 (1-rep coefficient)
+        assertEquals(1, stats.bestE1RMReps)
+    }
+
+    @Test
+    fun bestSet_sameE1RM_fewerRepsWins() {
+        val sets = listOf(
+            set(4, "2026-08-21", 6.0, 10, 1), // 6 * (1 + 10/30) = 8.0
+            set(4, "2026-08-21", 8.0, 1, 2),  // 8.0
+        )
+        val stats = StatsCalculator.computeExerciseStats(bicepCurls, sets, effectiveBodyWeight)
+        assertEquals(8.0, stats.bestE1RM, 1e-9)
+        assertEquals(1, stats.bestE1RMReps)
+        assertEquals(8.0, stats.bestE1RMAddedWeight, 1e-9)
+
+        // Order-independent: the few-rep set wins whichever comes first.
+        val reversed = StatsCalculator.computeExerciseStats(bicepCurls, sets.reversed(), effectiveBodyWeight)
+        assertEquals(1, reversed.bestE1RMReps)
+    }
+
+    @Test
+    fun effectiveBodyWeight_coversAllLookupCases() {
+        val onTheDay = TreeMap<String, Double>().apply { this["2026-08-21"] = 70.0 }
+        assertEquals(70.0, StatsCalculator.effectiveBodyWeight(onTheDay, "2026-08-21")!!, 1e-9)
+
+        val earlierEntry = TreeMap<String, Double>().apply {
+            this["2026-08-10"] = 69.0
+            this["2026-08-30"] = 71.0
+        }
+        assertEquals(69.0, StatsCalculator.effectiveBodyWeight(earlierEntry, "2026-08-12")!!, 1e-9)
+
+        val onlyLaterEntry = TreeMap<String, Double>().apply { this["2026-09-01"] = 72.0 }
+        assertEquals(72.0, StatsCalculator.effectiveBodyWeight(onlyLaterEntry, "2026-08-21")!!, 1e-9)
+
+        assertNull(StatsCalculator.effectiveBodyWeight(TreeMap(), "2026-08-21"))
+    }
+
+    @Test
     fun freeWeightWithNoBodyWeightEntry_stillComputes() {
         val stats = StatsCalculator.computeExerciseStats(
             bicepCurls,
