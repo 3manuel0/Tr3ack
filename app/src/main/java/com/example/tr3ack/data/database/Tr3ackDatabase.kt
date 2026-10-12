@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
         ExerciseDailyStatsEntity::class,
         WorkoutDayEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class Tr3ackDatabase : RoomDatabase() {
@@ -122,6 +122,17 @@ abstract class Tr3ackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v5 -> v6: store reps-in-reserve on each logged set so E1RM can use the
+         * effective rep count (reps + RIR). Defaults to 0, which leaves every
+         * previously logged set's E1RM unchanged.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE workout_sets ADD COLUMN rir INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): Tr3ackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -129,7 +140,7 @@ abstract class Tr3ackDatabase : RoomDatabase() {
                     Tr3ackDatabase::class.java,
                     "tr3ack_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

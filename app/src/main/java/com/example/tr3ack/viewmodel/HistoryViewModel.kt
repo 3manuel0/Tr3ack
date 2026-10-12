@@ -161,6 +161,7 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
                     put("addedWeightKg", set.addedWeightKg)
                     put("reps", set.reps)
                     put("timestamp", set.timestamp)
+                    put("rir", set.rir)
                 })
             }
             root.put("workoutSets", setsArr)
@@ -223,7 +224,8 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
                         date = obj.getString("date"),
                         addedWeightKg = obj.getDouble("addedWeightKg"),
                         reps = obj.getInt("reps"),
-                        timestamp = obj.getLong("timestamp")
+                        timestamp = obj.getLong("timestamp"),
+                        rir = obj.optInt("rir", 0)
                     ))
                 }
 

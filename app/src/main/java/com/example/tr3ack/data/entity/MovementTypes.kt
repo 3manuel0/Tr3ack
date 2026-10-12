@@ -47,6 +47,13 @@ object MovementFactors {
         }
     }
 
+    /**
+     * Reps used for E1RM: logged reps plus reps-in-reserve, clamped to
+     * 1..[MAX_E1RM_REPS]. A set taken to failure (rir == 0) is unchanged.
+     */
+    fun effectiveReps(reps: Int, rir: Int = 0): Int =
+        (reps + rir).coerceIn(1, MAX_E1RM_REPS)
+
     fun getMovementFactor(movementType: MovementType, reps: Int): Double {
         val effectiveReps = reps.coerceIn(1, MAX_E1RM_REPS)
         return when (movementType) {

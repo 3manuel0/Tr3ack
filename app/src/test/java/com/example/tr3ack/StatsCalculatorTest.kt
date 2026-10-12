@@ -24,8 +24,21 @@ class StatsCalculatorTest {
     private val pullUps = ExerciseEntity(id = 1, name = "Weighted Pull-Ups", isBodyweightBased = true)
     private val bicepCurls = ExerciseEntity(id = 4, name = "Bicep Curls", isBodyweightBased = false)
 
-    private fun set(exerciseId: Long, date: String, weight: Double, reps: Int, timestamp: Long) =
-        WorkoutSetEntity(exerciseId = exerciseId, date = date, addedWeightKg = weight, reps = reps, timestamp = timestamp)
+    private fun set(
+        exerciseId: Long,
+        date: String,
+        weight: Double,
+        reps: Int,
+        timestamp: Long,
+        rir: Int = 0
+    ) = WorkoutSetEntity(
+        exerciseId = exerciseId,
+        date = date,
+        addedWeightKg = weight,
+        reps = reps,
+        timestamp = timestamp,
+        rir = rir
+    )
 
     // Demo dataset: pull-ups 32kg@8 (TSW 102) + 40kg@2 (TSW 110); curls 30kg@10 + 16kg@10 on 2026-08-21 (BW 70).
     private val demoPullSets = listOf(
@@ -76,6 +89,29 @@ class StatsCalculatorTest {
         assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 12), 1e-9)
         assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 13), 1e-9)
         assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 50), 1e-9)
+    }
+
+    @Test
+    fun rir_liftsComparedBodyweightE1RM() {
+        // Same set, but 2 reps in reserve means 10 effective reps (not 8).
+        val atFailure = StatsCalculator.computeExerciseStats(
+            pullUps, listOf(set(1, "2026-08-21", 30.0, 8, 1, rir = 0)), effectiveBodyWeight
+        )
+        val withRir = StatsCalculator.computeExerciseStats(
+            pullUps, listOf(set(1, "2026-08-21", 30.0, 8, 1, rir = 2)), effectiveBodyWeight
+        )
+
+        assertEquals(124.0, atFailure.bestE1RM, 1e-6)   // TSW 100 * 1.240 (8 reps)
+        assertEquals(130.4, withRir.bestE1RM, 1e-6)     // TSW 100 * 1.304 (10 reps)
+    }
+
+    @Test
+    fun rir_clampedByRepCap() {
+        // 11 reps + 3 RIR would be 14 effective reps; capped at 12.
+        val stats = StatsCalculator.computeExerciseStats(
+            pullUps, listOf(set(1, "2026-08-21", 30.0, 11, 1, rir = 3)), effectiveBodyWeight
+        )
+        assertEquals(136.8, stats.bestE1RM, 1e-6)       // TSW 100 * 1.368 (12 reps)
     }
 
     @Test

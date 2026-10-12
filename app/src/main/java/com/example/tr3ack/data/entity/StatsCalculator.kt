@@ -61,14 +61,20 @@ object StatsCalculator {
             if (bodyweight) {
                 val bw = effectiveBodyWeight(set.date) ?: continue
                 tsw = bw + set.addedWeightKg
-                e1rm = tsw * MovementFactors.getMovementFactor(movementType, set.reps)
+                e1rm = tsw * MovementFactors.getMovementFactor(
+                    movementType,
+                    MovementFactors.effectiveReps(set.reps, set.rir)
+                )
                 val ratio = tsw / bw
                 if (ratio > maxRatio) maxRatio = ratio
                 pct = (tsw / bw) * 100.0
                 bwAtSet = bw
             } else {
                 tsw = set.addedWeightKg
-                e1rm = MovementFactors.freeWeightE1RM(tsw, set.reps)
+                e1rm = MovementFactors.freeWeightE1RM(
+                    tsw,
+                    MovementFactors.effectiveReps(set.reps, set.rir)
+                )
                 if (set.reps >= 6 && tsw > maxGte6) maxGte6 = tsw
                 pct = effectiveBodyWeight(set.date)?.let { if (it > 0) (tsw / it) * 100.0 else 0.0 } ?: 0.0
                 bwAtSet = effectiveBodyWeight(set.date) ?: 0.0
@@ -121,10 +127,11 @@ object StatsCalculator {
         val bestE1RM = sets
             .filter { it.reps > 0 }
             .maxOfOrNull { set ->
+                val e1rmReps = MovementFactors.effectiveReps(set.reps, set.rir)
                 if (bodyweight) {
-                    (bw + set.addedWeightKg) * MovementFactors.getMovementFactor(movementType, set.reps)
+                    (bw + set.addedWeightKg) * MovementFactors.getMovementFactor(movementType, e1rmReps)
                 } else {
-                    MovementFactors.freeWeightE1RM(set.addedWeightKg, set.reps)
+                    MovementFactors.freeWeightE1RM(set.addedWeightKg, e1rmReps)
                 }
             } ?: 0.0
 
