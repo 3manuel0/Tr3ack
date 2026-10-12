@@ -136,53 +136,6 @@ class Tr3ackDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate5to6_addsRirColumnDefaultingToZero() {
-        val created = helper.createDatabase("test", 5)
-        created.execSQL(
-            "INSERT INTO workout_sets (id, exerciseId, date, addedWeightKg, reps, timestamp) " +
-                "VALUES (1, 1, '2026-08-21', 32.0, 8, 1)"
-        )
-        created.close()
-
-        val db = helper.runMigrationsAndValidate(
-            "test", 6, /* validateDroppedTables = */ true,
-            Tr3ackDatabase.MIGRATION_5_6
-        )
-
-        val cursor = db.query("SELECT rir FROM workout_sets WHERE id = 1")
-        cursor.moveToFirst()
-        assertEquals(0, cursor.getInt(0))
-        cursor.close()
-
-        val version = db.query("PRAGMA user_version")
-        version.moveToFirst()
-        assertEquals(6, version.getInt(0))
-        version.close()
-
-        db.close()
-    }
-
-    @Test
-    fun migrateChain_toV6_succeeds() {
-        helper.createDatabase("test", 1).close()
-        val db = helper.runMigrationsAndValidate(
-            "test", 6, true,
-            Tr3ackDatabase.MIGRATION_1_2,
-            Tr3ackDatabase.MIGRATION_2_3,
-            Tr3ackDatabase.MIGRATION_3_4,
-            Tr3ackDatabase.MIGRATION_4_5,
-            Tr3ackDatabase.MIGRATION_5_6
-        )
-
-        val version = db.query("PRAGMA user_version")
-        version.moveToFirst()
-        assertEquals(6, version.getInt(0))
-        version.close()
-
-        db.close()
-    }
-
-    @Test
     fun migrateChain_toV4_succeeds() {
         // Start from empty v1 schema; apply every migration in sequence
         helper.createDatabase("test", 1).close()

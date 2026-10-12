@@ -12,6 +12,13 @@ import java.util.TreeMap
 object StatsCalculator {
 
     /**
+     * Bump whenever the E1RM / tonnage formulas change so the stats caches get
+     * rebuilt once on next launch. Kept separate from the Room schema version,
+     * which only moves when the database schema itself changes.
+     */
+    const val CACHE_VERSION = 1
+
+    /**
      * Best-known body weight for a date. Prefers an entry on/before the date;
      * when none exists (e.g. workouts back-filled before the first weight was
      * logged) falls back to the nearest entry after it, choosing whichever of the
@@ -63,7 +70,7 @@ object StatsCalculator {
                 tsw = bw + set.addedWeightKg
                 e1rm = tsw * MovementFactors.getMovementFactor(
                     movementType,
-                    MovementFactors.effectiveReps(set.reps, set.rir)
+                    set.reps
                 )
                 val ratio = tsw / bw
                 if (ratio > maxRatio) maxRatio = ratio
@@ -73,7 +80,7 @@ object StatsCalculator {
                 tsw = set.addedWeightKg
                 e1rm = MovementFactors.freeWeightE1RM(
                     tsw,
-                    MovementFactors.effectiveReps(set.reps, set.rir)
+                    set.reps
                 )
                 if (set.reps >= 6 && tsw > maxGte6) maxGte6 = tsw
                 pct = effectiveBodyWeight(set.date)?.let { if (it > 0) (tsw / it) * 100.0 else 0.0 } ?: 0.0
@@ -127,7 +134,7 @@ object StatsCalculator {
         val bestE1RM = sets
             .filter { it.reps > 0 }
             .maxOfOrNull { set ->
-                val e1rmReps = MovementFactors.effectiveReps(set.reps, set.rir)
+                val e1rmReps = set.reps
                 if (bodyweight) {
                     (bw + set.addedWeightKg) * MovementFactors.getMovementFactor(movementType, e1rmReps)
                 } else {

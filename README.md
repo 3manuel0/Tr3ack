@@ -86,11 +86,7 @@ Uses the Epley formula:
 E1RM = Weight × (1 + Reps / 30)
 ```
 
-A true single (1 rep) returns the weight unchanged (no 3.3% inflation).
-
-### Reps in Reserve (RIR)
-
-Each set stores reps in reserve. E1RM uses `reps + RIR` (clamped to 12), so a set taken to failure (`RIR = 0`) scores exactly as before.
+A true single (1 rep) returns the weight unchanged (no 3.3% inflation); rep counts above 12 are capped at 12.
 
 ## Stats — Other Charts
 

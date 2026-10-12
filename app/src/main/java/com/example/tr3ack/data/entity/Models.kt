@@ -27,8 +27,7 @@ data class WorkoutSet(
     val date: String,
     val addedWeightKg: Double,
     val reps: Int,
-    val timestamp: Long,
-    val rir: Int = 0
+    val timestamp: Long
 )
 
 fun ExerciseEntity.toDomain() = Exercise(
@@ -61,8 +60,7 @@ fun WorkoutSetEntity.toDomain() = WorkoutSet(
     date = date,
     addedWeightKg = addedWeightKg,
     reps = reps,
-    timestamp = timestamp,
-    rir = rir
+    timestamp = timestamp
 )
 
 fun WorkoutSet.toEntity() = WorkoutSetEntity(
@@ -71,6 +69,5 @@ fun WorkoutSet.toEntity() = WorkoutSetEntity(
     date = date,
     addedWeightKg = addedWeightKg,
     reps = reps,
-    timestamp = timestamp,
-    rir = rir
+    timestamp = timestamp
 )

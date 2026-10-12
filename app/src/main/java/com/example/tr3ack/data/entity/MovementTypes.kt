@@ -47,13 +47,6 @@ object MovementFactors {
         }
     }
 
-    /**
-     * Reps used for E1RM: logged reps plus reps-in-reserve, clamped to
-     * 1..[MAX_E1RM_REPS]. A set taken to failure (rir == 0) is unchanged.
-     */
-    fun effectiveReps(reps: Int, rir: Int = 0): Int =
-        (reps + rir).coerceIn(1, MAX_E1RM_REPS)
-
     fun getMovementFactor(movementType: MovementType, reps: Int): Double {
         val effectiveReps = reps.coerceIn(1, MAX_E1RM_REPS)
         return when (movementType) {
@@ -65,12 +58,15 @@ object MovementFactors {
     }
 
     /**
-     * Free-weight E1RM via the Epley formula. A true single (reps == 1) is already
-     * a maximal effort, so it returns the weight unchanged instead of the 3.3%
-     * inflation the formula would otherwise add. [reps] is assumed >= 1.
+     * Free-weight E1RM via the Epley formula, using reps clamped to
+     * 1..[MAX_E1RM_REPS]. A true single (reps == 1) is already a maximal effort,
+     * so it returns the weight unchanged instead of the 3.3% inflation the formula
+     * would otherwise add.
      */
-    fun freeWeightE1RM(weight: Double, reps: Int): Double =
-        if (reps <= 1) weight else weight * (1.0 + reps / EPLEY_DIVISOR)
+    fun freeWeightE1RM(weight: Double, reps: Int): Double {
+        val effectiveReps = reps.coerceIn(1, MAX_E1RM_REPS)
+        return if (effectiveReps <= 1) weight else weight * (1.0 + effectiveReps / EPLEY_DIVISOR)
+    }
 
     /**
      * Coefficient for [effectiveReps]. Rep counts past the end of [table] continue
