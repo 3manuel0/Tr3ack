@@ -8,6 +8,17 @@ enum class MovementType { DIPS, PULLUPS, CHIN_UPS, UNKNOWN }
  * screens that render the results.
  */
 object MovementFactors {
+    /**
+     * Reps above this are still logged and counted in tonnage, but their 1RM
+     * coefficient is computed from [MAX_E1RM_REPS] (the capped value). The set is
+     * kept eligible for best-set selection at that capped value rather than being
+     * excluded. Bump this constant to change the cap everywhere.
+     */
+    const val MAX_E1RM_REPS = 12
+
+    /** Slope used for movements with no coefficient table. */
+    private const val FALLBACK_SLOPE = 0.0333
+
     private val DIP_COEFFICIENTS = doubleArrayOf(
         1.000, 1.035, 1.068, 1.100, 1.130,
         1.160, 1.190, 1.220, 1.250, 1.280
@@ -34,12 +45,24 @@ object MovementFactors {
     }
 
     fun getMovementFactor(movementType: MovementType, reps: Int): Double {
-        val cappedReps = (reps - 1).coerceIn(0, 9)
+        val effectiveReps = reps.coerceIn(1, MAX_E1RM_REPS)
         return when (movementType) {
-            MovementType.DIPS -> DIP_COEFFICIENTS[cappedReps]
-            MovementType.PULLUPS -> PULLUP_COEFFICIENTS[cappedReps]
-            MovementType.CHIN_UPS -> CHINUP_COEFFICIENTS[cappedReps]
-            MovementType.UNKNOWN -> 1.0 + (reps - 1) * 0.0333
+            MovementType.DIPS -> extrapolate(DIP_COEFFICIENTS, effectiveReps)
+            MovementType.PULLUPS -> extrapolate(PULLUP_COEFFICIENTS, effectiveReps)
+            MovementType.CHIN_UPS -> extrapolate(CHINUP_COEFFICIENTS, effectiveReps)
+            MovementType.UNKNOWN -> 1.0 + (effectiveReps - 1) * FALLBACK_SLOPE
         }
+    }
+
+    /**
+     * Coefficient for [effectiveReps]. Rep counts past the end of [table] continue
+     * with the table's final slope, so the curve stays continuous at its last entry
+     * instead of flatlining or jumping to a different curve. [effectiveReps] is
+     * assumed to be within 1..[MAX_E1RM_REPS].
+     */
+    private fun extrapolate(table: DoubleArray, effectiveReps: Int): Double {
+        if (effectiveReps <= table.size) return table[effectiveReps - 1]
+        val slope = table[table.size - 1] - table[table.size - 2]
+        return table[table.size - 1] + (effectiveReps - table.size) * slope
     }
 }

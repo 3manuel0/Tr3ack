@@ -1,6 +1,8 @@
 package com.example.tr3ack
 
 import com.example.tr3ack.data.entity.ExerciseEntity
+import com.example.tr3ack.data.entity.MovementFactors
+import com.example.tr3ack.data.entity.MovementType
 import com.example.tr3ack.data.entity.StatsCalculator
 import com.example.tr3ack.data.entity.WorkoutSetEntity
 import java.util.TreeMap
@@ -63,6 +65,31 @@ class StatsCalculatorTest {
         assertEquals(0.0, stats.maxBodyweightRatio, 1e-9)
         assertEquals(70.0, stats.bestE1RMBodyWeightKg, 1e-9)
         assertTrue(stats.hasData)
+    }
+
+    @Test
+    fun bodyweightRepsAboveTen_extrapolateThenCapAtTwelve() {
+        // Pull-Ups table ends at 10 reps (1.304). 11 and 12 continue the final
+        // 0.032 slope; 13+ reuse the 12-rep coefficient (the cap).
+        assertEquals(1.304, MovementFactors.getMovementFactor(MovementType.PULLUPS, 10), 1e-9)
+        assertEquals(1.336, MovementFactors.getMovementFactor(MovementType.PULLUPS, 11), 1e-9)
+        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 12), 1e-9)
+        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 13), 1e-9)
+        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 50), 1e-9)
+    }
+
+    @Test
+    fun exerciseStats_bodyweightCapsRepsAtTwelve() {
+        val twelve = StatsCalculator.computeExerciseStats(
+            pullUps, listOf(set(1, "2026-08-21", 30.0, 12, 1)), effectiveBodyWeight
+        )
+        val thirteen = StatsCalculator.computeExerciseStats(
+            pullUps, listOf(set(1, "2026-08-21", 30.0, 13, 1)), effectiveBodyWeight
+        )
+
+        assertEquals(136.8, twelve.bestE1RM, 1e-6)          // TSW 100 * 1.368
+        assertEquals(twelve.bestE1RM, thirteen.bestE1RM, 1e-9) // 13 capped to 12
+        assertEquals(13, thirteen.bestE1RMReps)             // logged rep count preserved
     }
 
     @Test

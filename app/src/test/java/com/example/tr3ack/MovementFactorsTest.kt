@@ -52,9 +52,14 @@ class MovementFactorsTest {
     }
 
     @Test
-    fun namedMovement_capsAtTableBoundary_beyond10Reps() {
-        assertEquals(1.304, MovementFactors.getMovementFactor(MovementType.PULLUPS, 11), 1e-9)
-        assertEquals(1.328, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 30), 1e-9)
+    fun namedMovement_extrapolatesThenCapsAtTwelveReps() {
+        // Past the 10-rep table entry the curve continues with its own slope...
+        assertEquals(1.336, MovementFactors.getMovementFactor(MovementType.PULLUPS, 11), 1e-9)
+        // ...through the 12-rep cap; 13+ reuse the 12-rep coefficient.
+        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 12), 1e-9)
+        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 13), 1e-9)
+        assertEquals(1.392, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 12), 1e-9)
+        assertEquals(1.392, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 30), 1e-9)
     }
 
     @Test
