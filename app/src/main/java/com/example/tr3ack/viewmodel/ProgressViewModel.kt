@@ -52,7 +52,25 @@ data class ChartPoint(
     val sessionTonnage: Double = 0.0,
     val beltLoad: Double = 0.0,
     val bodyWeightKg: Double = 0.0,
+    /** True when this session's E1RM was a new all-time best at the time it was logged. */
+    val isAllTimePr: Boolean = false,
 )
+
+/** Sessions averaged into the smoothed E1RM trend line. */
+const val E1RM_TREND_WINDOW = 3
+
+/**
+ * Trailing rolling average over [window] points. Points before a full window is
+ * available average whatever exists so far, so a short series still gets a trend
+ * line. Returns an empty list for empty input.
+ */
+fun rollingAverage(values: List<Double>, window: Int = E1RM_TREND_WINDOW): List<Double> {
+    if (values.isEmpty()) return emptyList()
+    val w = window.coerceAtLeast(1)
+    return values.mapIndexed { index, _ ->
+        values.subList((index - w + 1).coerceAtLeast(0), index + 1).average()
+    }
+}
 
 class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
@@ -84,7 +102,13 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
             coroutineScope {
                 launch {
                     repository.getDailyStatsForExercise(exerciseId).collect { daily ->
-                        _chartData.value = daily.map { buildChartPoint(it) }
+                        var runningMax = 0.0
+                        _chartData.value = daily.map { day ->
+                            val point = buildChartPoint(day)
+                            val isPr = day.e1rm > runningMax
+                            if (isPr) runningMax = day.e1rm
+                            point.copy(isAllTimePr = isPr)
+                        }
                     }
                 }
                 launch {

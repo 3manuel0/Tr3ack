@@ -34,6 +34,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
@@ -48,6 +49,7 @@ import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.ChartPoint
 import com.example.tr3ack.viewmodel.ProgressViewModel
+import com.example.tr3ack.viewmodel.rollingAverage
 import java.time.LocalDate
 import kotlin.math.ceil
 import kotlin.math.min
@@ -423,9 +425,13 @@ private fun E1RMChart(
     if (data.isEmpty()) return
 
     val lineColor = MaterialTheme.colorScheme.primary
+    val trendColor = MaterialTheme.colorScheme.tertiary
+    val prColor = MaterialTheme.colorScheme.secondary
     val textColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val kgLabel = stringResource(R.string.unit_kg)
+    val prLabel = stringResource(R.string.chart_legend_pr)
+    val trendLabel = stringResource(R.string.chart_legend_trend)
 
     val e1rmValues = data.map { it.estimatedOneRM }
     val maxE1RM = e1rmValues.max()
@@ -434,6 +440,7 @@ private fun E1RMChart(
     val yMin = (minE1RM - padding).coerceAtLeast(0.0)
     val yMax = maxE1RM + padding
     val yRange = (yMax - yMin).coerceAtLeast(1.0)
+    val trendValues = rollingAverage(e1rmValues)
 
     Canvas(modifier = modifier) {
         val leftPadding = 56f
@@ -522,6 +529,24 @@ private fun E1RMChart(
                     endY = topPadding + chartHeight
                 )
             )
+
+            // Smoothed rolling-average trend over the raw line (thinner + dashed).
+            val trendPath = Path()
+            data.forEachIndexed { index, _ ->
+                val x = pointX(index)
+                val normalized = (trendValues[index] - yMin) / yRange
+                val y = topPadding + chartHeight * (1.0 - normalized).toFloat()
+                if (index == 0) trendPath.moveTo(x, y) else trendPath.lineTo(x, y)
+            }
+            drawPath(
+                path = trendPath,
+                color = trendColor,
+                style = Stroke(
+                    width = 2.5f,
+                    cap = StrokeCap.Round,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))
+                )
+            )
         }
 
         val dotRadius = if (data.size > 30) 4f else 8f
@@ -530,8 +555,50 @@ private fun E1RMChart(
             val x = pointX(index)
             val normalized = (point.estimatedOneRM - yMin) / yRange
             val y = topPadding + chartHeight * (1.0 - normalized).toFloat()
+            // PR sessions get a distinct ring so new all-time bests stand out.
+            if (point.isAllTimePr) {
+                drawCircle(
+                    color = prColor,
+                    radius = dotRadius + 4f,
+                    center = Offset(x, y),
+                    style = Stroke(width = 2.5f)
+                )
+            }
             drawCircle(color = lineColor, radius = dotRadius, center = Offset(x, y))
             drawCircle(color = Color.White, radius = dotCoreRadius, center = Offset(x, y))
+        }
+
+        // Trend + PR legend (kept inside the top padding so labels are not clipped).
+        val legendPaint = android.graphics.Paint().apply {
+            color = textColor.hashCode()
+            textSize = 18f
+            isAntiAlias = true
+        }
+        run {
+            val legendY = 12f
+            drawLine(
+                color = trendColor,
+                start = Offset(leftPadding, legendY),
+                end = Offset(leftPadding + 22f, legendY),
+                strokeWidth = 2.5f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 5f))
+            )
+            drawContext.canvas.nativeCanvas.drawText(
+                trendLabel,
+                leftPadding + 28f,
+                legendY + 6f,
+                legendPaint
+            )
+        }
+        run {
+            val legendY = 26f
+            drawCircle(color = prColor, radius = 5f, center = Offset(leftPadding + 11f, legendY), style = Stroke(width = 2f))
+            drawContext.canvas.nativeCanvas.drawText(
+                prLabel,
+                leftPadding + 28f,
+                legendY + 6f,
+                legendPaint
+            )
         }
 
         val unitLabelPaint = android.graphics.Paint().apply {

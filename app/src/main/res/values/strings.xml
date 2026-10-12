@@ -132,6 +132,8 @@
     <string name="progress_empty">Log some sets to see your progress chart</string>
     <string name="chart_legend_belt_load">Belt Load</string>
     <string name="chart_legend_body_weight">Body Weight</string>
+    <string name="chart_legend_trend">Trend</string>
+    <string name="chart_legend_pr">PR</string>
     <string name="unit_kg">kg</string>
     <string name="unit_kg_reps">kg·reps</string>
 

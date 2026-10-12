@@ -5,6 +5,7 @@ import com.example.tr3ack.data.entity.MovementFactors
 import com.example.tr3ack.data.entity.MovementType
 import com.example.tr3ack.data.entity.StatsCalculator
 import com.example.tr3ack.data.entity.WorkoutSetEntity
+import com.example.tr3ack.viewmodel.rollingAverage
 import java.util.TreeMap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -241,6 +242,23 @@ class StatsCalculatorTest {
 
         assertEquals(4, day.setCount)
         assertEquals(1496.0, day.tonnage, 1e-9)             // 1036 + 460
+    }
+
+    @Test
+    fun rollingAverage_trailingWindowHandlesShortSeries() {
+        assertEquals(emptyList<Double>(), rollingAverage(emptyList()))
+        assertEquals(listOf(10.0), rollingAverage(listOf(10.0)))
+
+        // Default window of 3: points before a full window average what exists so far.
+        assertEquals(
+            listOf(10.0, 15.0, 20.0, 30.0),
+            rollingAverage(listOf(10.0, 20.0, 30.0, 40.0))
+        )
+
+        assertEquals(
+            listOf(1.0, 1.5, 2.5),
+            rollingAverage(listOf(1.0, 2.0, 3.0), window = 2)
+        )
     }
 
     @Test
