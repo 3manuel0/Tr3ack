@@ -157,6 +157,38 @@ class StatsCacheRoundTripTest {
     }
 
     @Test
+    fun cacheMatchesStatsCalculatorOnSameSampleData() = runBlocking {
+        val pullUps = ExerciseEntity(id = 1, name = "Weighted Pull-Ups", isBodyweightBased = true)
+        val bicepCurls = ExerciseEntity(id = 4, name = "Bicep Curls", isBodyweightBased = false)
+        db.exerciseDao().insertAll(listOf(pullUps, bicepCurls))
+        db.bodyWeightDao().insertOrUpdate(BodyWeightEntity(date = "2026-08-21", bodyWeightKg = 70.0))
+        val pullSets = listOf(
+            WorkoutSetEntity(exerciseId = 1, date = "2026-08-21", addedWeightKg = 32.0, reps = 8, timestamp = 1),
+            WorkoutSetEntity(exerciseId = 1, date = "2026-08-21", addedWeightKg = 40.0, reps = 2, timestamp = 2),
+        )
+        val curlSets = listOf(
+            WorkoutSetEntity(exerciseId = 4, date = "2026-08-21", addedWeightKg = 19.0, reps = 9, timestamp = 3),
+        )
+        db.workoutSetDao().insertAll(pullSets + curlSets)
+
+        repository.refreshStatsCache()
+
+        val bwByDate = TreeMap<String, Double>().apply { this["2026-08-21"] = 70.0 }
+        val effectiveBodyWeight: (String) -> Double? = { StatsCalculator.effectiveBodyWeight(bwByDate, it) }
+
+        val expectedPull = StatsCalculator.computeExerciseStats(pullUps, pullSets, effectiveBodyWeight)
+        val actualPull = exerciseStatsRow(1L)
+        assertEquals(expectedPull.bestE1RM, actualPull.bestE1RM, 1e-9)
+        assertEquals(expectedPull.bestE1RMReps, actualPull.bestE1RMReps)
+        assertEquals(expectedPull.bestE1RMDate, actualPull.bestE1RMDate)
+
+        val expectedCurl = StatsCalculator.computeExerciseStats(bicepCurls, curlSets, effectiveBodyWeight)
+        val actualCurl = exerciseStatsRow(4L)
+        assertEquals(expectedCurl.bestE1RM, actualCurl.bestE1RM, 1e-9)
+        assertEquals(24.7, actualCurl.bestE1RM, 1e-6) // 19 * (1 + 9/30)
+    }
+
+    @Test
     fun refreshStatsCache_clearsCacheBeforeRebuild() = runBlocking {
         db.exerciseDao().insertAll(
             listOf(ExerciseEntity(id = 1, name = "Weighted Pull-Ups", isBodyweightBased = true))
