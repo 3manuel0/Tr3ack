@@ -52,12 +52,41 @@ import com.example.tr3ack.viewmodel.ProgressViewModel
 import com.example.tr3ack.viewmodel.rollingAverage
 import java.time.LocalDate
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.min
 
 /** Interval between x-axis date labels so crowded charts stay readable (anchored to newest point). */
-private fun xLabelInterval(pointCount: Int, chartWidthPx: Float): Int {
+private fun xLabelInterval(pointCount: Int, chartWidthPx: Float, labelSlotPx: Float): Int {
     if (pointCount <= 1) return 1
-    return maxOf(1, ceil(pointCount * 60f / chartWidthPx.coerceAtLeast(1f)).toInt())
+    val maxLabels = maxOf(1, floor(chartWidthPx / labelSlotPx.coerceAtLeast(1f)).toInt())
+    return maxOf(1, ceil(pointCount.toFloat() / maxLabels).toInt())
+}
+
+/**
+ * Draws "MM-DD" date labels rotated 90° so far more of them fit under a chart
+ * without overlapping. [xAt] returns each point's horizontal anchor; labels sit
+ * just below the plot (start at [topY]) and grow downward, centered on the anchor.
+ */
+private fun drawVerticalDateLabels(
+    canvas: android.graphics.Canvas,
+    data: List<ChartPoint>,
+    labelEvery: Int,
+    topY: Float,
+    xAt: (Int) -> Float,
+    paint: android.graphics.Paint
+) {
+    val textHeight = paint.fontMetrics.descent - paint.fontMetrics.ascent
+    val previousAlign = paint.textAlign
+    paint.textAlign = android.graphics.Paint.Align.RIGHT
+    for (i in data.indices) {
+        if ((data.lastIndex - i) % labelEvery != 0) continue
+        val x = xAt(i) + textHeight / 2f
+        canvas.save()
+        canvas.rotate(-90f, x, topY)
+        canvas.drawText(data[i].date.takeLast(5), x, topY, paint)
+        canvas.restore()
+    }
+    paint.textAlign = previousAlign
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -446,7 +475,7 @@ private fun E1RMChart(
         val leftPadding = 56f
         val rightPadding = 24f
         val topPadding = 16f
-        val bottomPadding = 36f
+        val bottomPadding = 64f
 
         val chartWidth = size.width - leftPadding - rightPadding
         val chartHeight = size.height - topPadding - bottomPadding
@@ -483,20 +512,17 @@ private fun E1RMChart(
                 color = textColor.hashCode()
                 textSize = 20f
                 isAntiAlias = true
-                textAlign = android.graphics.Paint.Align.CENTER
             }
-            val labelEvery = xLabelInterval(data.size, chartWidth)
-            for (i in data.indices) {
-                if ((data.lastIndex - i) % labelEvery != 0) continue
-                val x = leftPadding + (if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f)
-                val shortDate = data[i].date.takeLast(5)
-                drawContext.canvas.nativeCanvas.drawText(
-                    shortDate,
-                    x,
-                    size.height - 4f,
-                    labelPaint
-                )
-            }
+            val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
+            val labelEvery = xLabelInterval(data.size, chartWidth, labelSlot)
+            drawVerticalDateLabels(
+                canvas = drawContext.canvas.nativeCanvas,
+                data = data,
+                labelEvery = labelEvery,
+                topY = topPadding + chartHeight + 6f,
+                xAt = { i -> leftPadding + if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f },
+                paint = labelPaint
+            )
         }
 
         fun pointX(index: Int) = leftPadding + if (stepCount > 0) chartWidth * index / stepCount else chartWidth / 2f
@@ -636,7 +662,7 @@ private fun TonnageBarChart(
         val leftPadding = 56f
         val rightPadding = 24f
         val topPadding = 16f
-        val bottomPadding = 36f
+        val bottomPadding = 64f
 
         val chartWidth = size.width - leftPadding - rightPadding
         val chartHeight = size.height - topPadding - bottomPadding
@@ -677,9 +703,9 @@ private fun TonnageBarChart(
             color = textColor.hashCode()
             textSize = 20f
             isAntiAlias = true
-            textAlign = android.graphics.Paint.Align.CENTER
         }
-        val labelEvery = xLabelInterval(data.size, chartWidth)
+        val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
+        val labelEvery = xLabelInterval(data.size, chartWidth, labelSlot)
 
         data.forEachIndexed { index, point ->
             val barLeft = leftPadding + gap + index * (barWidth + gap)
@@ -692,18 +718,16 @@ private fun TonnageBarChart(
                 size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(6f, 6f)
             )
-
-            if ((data.lastIndex - index) % labelEvery == 0) {
-                val centerX = barLeft + barWidth / 2f
-                val shortDate = point.date.takeLast(5)
-                drawContext.canvas.nativeCanvas.drawText(
-                    shortDate,
-                    centerX,
-                    size.height - 4f,
-                    labelPaint
-                )
-            }
         }
+
+        drawVerticalDateLabels(
+            canvas = drawContext.canvas.nativeCanvas,
+            data = data,
+            labelEvery = labelEvery,
+            topY = topPadding + chartHeight + 6f,
+            xAt = { index -> leftPadding + gap + index * (barWidth + gap) + barWidth / 2f },
+            paint = labelPaint
+        )
 
         val unitLabelPaint = android.graphics.Paint().apply {
             color = textColor.hashCode()
@@ -746,7 +770,7 @@ private fun BeltVsBodyChart(
         val leftPadding = 56f
         val rightPadding = 24f
         val topPadding = 28f
-        val bottomPadding = 36f
+        val bottomPadding = 64f
 
         val chartWidth = size.width - leftPadding - rightPadding
         val chartHeight = size.height - topPadding - bottomPadding
@@ -782,20 +806,17 @@ private fun BeltVsBodyChart(
             color = textColor.hashCode()
             textSize = 20f
             isAntiAlias = true
-            textAlign = android.graphics.Paint.Align.CENTER
         }
-        val labelEvery = xLabelInterval(data.size, chartWidth)
-        for (i in data.indices) {
-            if ((data.lastIndex - i) % labelEvery != 0) continue
-            val x = leftPadding + if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f
-            val shortDate = data[i].date.takeLast(5)
-            drawContext.canvas.nativeCanvas.drawText(
-                shortDate,
-                x,
-                size.height - 4f,
-                labelPaint
-            )
-        }
+        val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
+        val labelEvery = xLabelInterval(data.size, chartWidth, labelSlot)
+        drawVerticalDateLabels(
+            canvas = drawContext.canvas.nativeCanvas,
+            data = data,
+            labelEvery = labelEvery,
+            topY = topPadding + chartHeight + 6f,
+            xAt = { i -> leftPadding + if (stepCount > 0) chartWidth * i / stepCount else chartWidth / 2f },
+            paint = labelPaint
+        )
 
         fun pointX(index: Int) = leftPadding + if (stepCount > 0) chartWidth * index / stepCount else chartWidth / 2f
         fun pointY(value: Double) = topPadding + chartHeight * (1.0 - (value - yMin) / yRange).toFloat()
