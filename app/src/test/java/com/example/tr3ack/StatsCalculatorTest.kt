@@ -79,6 +79,28 @@ class StatsCalculatorTest {
     }
 
     @Test
+    fun freeWeightSingleRep_isNotInflated() {
+        // reps == 1 must be the raw weight (no Epley 3.3% bump).
+        assertEquals(40.0, MovementFactors.freeWeightE1RM(40.0, 1), 1e-9)
+
+        val stats = StatsCalculator.computeExerciseStats(
+            bicepCurls, listOf(set(4, "2026-08-21", 40.0, 1, 1)), effectiveBodyWeight
+        )
+        assertEquals(40.0, stats.bestE1RM, 1e-6)
+    }
+
+    @Test
+    fun freeWeightNineReps_matchesEpley() {
+        // 19 * (1 + 9/30) = 24.7
+        assertEquals(24.7, MovementFactors.freeWeightE1RM(19.0, 9), 1e-6)
+
+        val stats = StatsCalculator.computeExerciseStats(
+            bicepCurls, listOf(set(4, "2026-08-21", 19.0, 9, 1)), effectiveBodyWeight
+        )
+        assertEquals(24.7, stats.bestE1RM, 1e-6)
+    }
+
+    @Test
     fun exerciseStats_bodyweightCapsRepsAtTwelve() {
         val twelve = StatsCalculator.computeExerciseStats(
             pullUps, listOf(set(1, "2026-08-21", 30.0, 12, 1)), effectiveBodyWeight

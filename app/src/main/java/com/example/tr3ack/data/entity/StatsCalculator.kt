@@ -68,7 +68,7 @@ object StatsCalculator {
                 bwAtSet = bw
             } else {
                 tsw = set.addedWeightKg
-                e1rm = tsw * (1.0 + set.reps / 30.0)
+                e1rm = MovementFactors.freeWeightE1RM(tsw, set.reps)
                 if (set.reps >= 6 && tsw > maxGte6) maxGte6 = tsw
                 pct = effectiveBodyWeight(set.date)?.let { if (it > 0) (tsw / it) * 100.0 else 0.0 } ?: 0.0
                 bwAtSet = effectiveBodyWeight(set.date) ?: 0.0
@@ -124,7 +124,7 @@ object StatsCalculator {
                 if (bodyweight) {
                     (bw + set.addedWeightKg) * MovementFactors.getMovementFactor(movementType, set.reps)
                 } else {
-                    set.addedWeightKg * (1.0 + set.reps / 30.0)
+                    MovementFactors.freeWeightE1RM(set.addedWeightKg, set.reps)
                 }
             } ?: 0.0
 

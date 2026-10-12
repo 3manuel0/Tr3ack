@@ -19,6 +19,9 @@ object MovementFactors {
     /** Slope used for movements with no coefficient table. */
     private const val FALLBACK_SLOPE = 0.0333
 
+    /** Epley divisor for free-weight E1RM: weight * (1 + reps / EPLEY_DIVISOR). */
+    const val EPLEY_DIVISOR = 30.0
+
     private val DIP_COEFFICIENTS = doubleArrayOf(
         1.000, 1.035, 1.068, 1.100, 1.130,
         1.160, 1.190, 1.220, 1.250, 1.280
@@ -53,6 +56,14 @@ object MovementFactors {
             MovementType.UNKNOWN -> 1.0 + (effectiveReps - 1) * FALLBACK_SLOPE
         }
     }
+
+    /**
+     * Free-weight E1RM via the Epley formula. A true single (reps == 1) is already
+     * a maximal effort, so it returns the weight unchanged instead of the 3.3%
+     * inflation the formula would otherwise add. [reps] is assumed >= 1.
+     */
+    fun freeWeightE1RM(weight: Double, reps: Int): Double =
+        if (reps <= 1) weight else weight * (1.0 + reps / EPLEY_DIVISOR)
 
     /**
      * Coefficient for [effectiveReps]. Rep counts past the end of [table] continue
