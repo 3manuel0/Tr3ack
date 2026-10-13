@@ -65,6 +65,8 @@ import com.example.tr3ack.viewmodel.TrendNote
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 import java.time.temporal.TemporalAdjusters
 import kotlin.math.ceil
 
@@ -156,7 +158,7 @@ fun DashboardScreen(
             item {
                 Text(
                     text = stringResource(R.string.dashboard_training_consistency),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -788,25 +790,60 @@ private fun TrainingConsistencyHeatmap(
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
-    val start = today.minusMonths(3)
-    val daySet = workoutDays.map { LocalDate.parse(it.date) }.toHashSet()
-    val weeks = mutableListOf<List<LocalDate>>()
-    var cursor = start.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    while (!cursor.isAfter(today)) {
-        val week = (0..6).map { cursor.plusDays(it.toLong()) }
-        weeks.add(week)
-        cursor = cursor.plusWeeks(1)
+    val start = today.minusWeeks(18)
+    val daySet = remember(workoutDays) { workoutDays.map { LocalDate.parse(it.date) }.toHashSet() }
+    val weeks = remember(start, today) {
+        mutableListOf<List<LocalDate>>().apply {
+            var cursor = start.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            while (!cursor.isAfter(today)) {
+                val week = (0..6).map { cursor.plusDays(it.toLong()) }
+                add(week)
+                cursor = cursor.plusWeeks(1)
+            }
+        }
     }
-    val maxWeeksToShow = 18
-    val shownWeeks = weeks.takeLast(maxWeeksToShow)
+    val shownWeeks = weeks.takeLast(18)
     val primary = MaterialTheme.colorScheme.primary
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val dow = listOf("M", "T", "W", "T", "F", "S", "S")
 
     Column(modifier = modifier) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Spacer(modifier = Modifier.width(20.dp))
+            shownWeeks.forEach { week ->
+                val monthStart = week.firstOrNull { it.dayOfMonth == 1 }
+                Box(
+                    modifier = Modifier.width(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (monthStart != null) {
+                        Text(
+                            text = monthStart.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                (0..6).forEach { i ->
+                    Box(
+                        modifier = Modifier.width(20.dp).height(12.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (i % 2 == 1) {
+                            Text(
+                                text = dow[i],
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
             shownWeeks.forEach { week ->
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -816,7 +853,7 @@ private fun TrainingConsistencyHeatmap(
                         val alpha = if (hasWorkout) 0.85f else 0.15f
                         Box(
                             modifier = Modifier
-                                .width(9.dp).height(9.dp)
+                                .width(12.dp).height(12.dp)
                                 .background(
                                     color = if (hasWorkout) primary.copy(alpha = alpha) else surfaceVariant.copy(alpha = 0.4f),
                                     shape = RoundedCornerShape(2.dp)
