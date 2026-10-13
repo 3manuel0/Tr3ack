@@ -44,6 +44,9 @@
     <string name="dashboard_today_body_weight">Today\'s Body Weight</string>
     <string name="dashboard_weight_not_logged">Not logged</string>
     <string name="dashboard_body_weight_trend">Body Weight Trend</string>
+    <string name="dashboard_training_consistency">Training Consistency</string>
+    <string name="dashboard_training_consistency_desc">Days with at least 1 workout</string>
+    <string name="dashboard_training_consistency_empty">No workouts logged yet</string>
     <string name="dashboard_personal_bests">Personal Bests</string>
     <string name="dashboard_todays_sets">Today\'s Sets</string>
     <string name="dashboard_no_sets_today">No sets logged today. Tap + to get started!</string>

@@ -2,6 +2,8 @@ package com.example.tr3ack.ui.screen
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -59,8 +62,10 @@ import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.DashboardViewModel
 import com.example.tr3ack.viewmodel.TrendDirection
 import com.example.tr3ack.viewmodel.TrendNote
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 import kotlin.math.ceil
 
 @Composable
@@ -81,6 +86,7 @@ fun DashboardScreen(
     val lateralRaisesPB by viewModel.lateralRaisesPB.collectAsStateWithLifecycle()
     val exerciseTrends by viewModel.exerciseTrends.collectAsStateWithLifecycle()
     val exerciseTrendNotes by viewModel.exerciseTrendNotes.collectAsStateWithLifecycle()
+    val workoutDays by viewModel.workoutDays.collectAsStateWithLifecycle()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
 
@@ -142,6 +148,43 @@ fun DashboardScreen(
                             contentDescription = stringResource(R.string.content_desc_edit),
                             tint = MaterialTheme.colorScheme.primary
                         )
+                    }
+                }
+            }
+
+            // Training Consistency
+            item {
+                Text(
+                    text = stringResource(R.string.dashboard_training_consistency),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                Text(
+                    text = stringResource(R.string.dashboard_training_consistency_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        if (workoutDays.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.dashboard_training_consistency_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            TrainingConsistencyHeatmap(
+                                workoutDays = workoutDays,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }
@@ -737,3 +780,52 @@ private fun MiniTrendChart(
         }
     }
 }
+
+
+@Composable
+private fun TrainingConsistencyHeatmap(
+    workoutDays: List<com.example.tr3ack.data.entity.WorkoutDayEntity>,
+    modifier: Modifier = Modifier
+) {
+    val today = LocalDate.now()
+    val start = today.minusMonths(3)
+    val daySet = workoutDays.map { LocalDate.parse(it.date) }.toHashSet()
+    val weeks = mutableListOf<List<LocalDate>>()
+    var cursor = start.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    while (!cursor.isAfter(today)) {
+        val week = (0..6).map { cursor.plusDays(it.toLong()) }
+        weeks.add(week)
+        cursor = cursor.plusWeeks(1)
+    }
+    val maxWeeksToShow = 18
+    val shownWeeks = weeks.takeLast(maxWeeksToShow)
+    val primary = MaterialTheme.colorScheme.primary
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+
+    Column(modifier = modifier) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            shownWeeks.forEach { week ->
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    week.forEach { day ->
+                        val hasWorkout = daySet.contains(day)
+                        val alpha = if (hasWorkout) 0.85f else 0.15f
+                        Box(
+                            modifier = Modifier
+                                .width(9.dp).height(9.dp)
+                                .background(
+                                    color = if (hasWorkout) primary.copy(alpha = alpha) else surfaceVariant.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(2.dp)
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -7,6 +7,7 @@ import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.ExerciseDailyStatsEntity
 import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.ExerciseStatsEntity
+import com.example.tr3ack.data.entity.WorkoutDayEntity
 import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,6 +79,10 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
     val lastLoggedDateByExercise: StateFlow<Map<Long, String>> = _lastLoggedDateByExercise.asStateFlow()
 
     private val _lastSessionDate = MutableStateFlow<String?>(null)
+    val lastSessionDate: StateFlow<String?> = _lastSessionDate.asStateFlow()
+
+    private val _workoutDays = MutableStateFlow<List<WorkoutDayEntity>>(emptyList())
+    val workoutDays: StateFlow<List<WorkoutDayEntity>> = _workoutDays.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -103,6 +108,7 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
         }
         viewModelScope.launch {
             repository.workoutDays.collect { days ->
+                _workoutDays.value = days
                 _lastSessionDate.value = days.maxOfOrNull { it.date }
             }
         }
