@@ -850,14 +850,13 @@ private fun TrainingConsistencyHeatmap(
                 ) {
                     week.forEach { day ->
                         val hasWorkout = daySet.contains(day)
-                        val alpha = if (hasWorkout) 0.85f else 0.15f
                         Box(
                             modifier = Modifier
                                 .width(12.dp).height(12.dp)
-                                .background(
-                                    color = if (hasWorkout) primary.copy(alpha = alpha) else surfaceVariant.copy(alpha = 0.4f),
-                                    shape = RoundedCornerShape(2.dp)
-                                )
+                            .background(
+                                color = if (hasWorkout) primary.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(2.dp)
+                            )
                         )
                     }
                 }
