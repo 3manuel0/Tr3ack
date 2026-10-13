@@ -131,10 +131,10 @@ Export your data from the History screen (download icon in the top bar). The CSV
 | --- | --- |
 | Date | Workout date |
 | Exercise | Exercise name |
-| Added Weight (kg) | Average weight added across sets |
-| Total System Weight (kg) | Body Weight + Added Weight (or just weight for free weight) |
-| % of Body Weight | Total System Weight / Body Weight × 100 |
-| Reps | Reps per set (e.g. 8-7-6) |
+| Added Weight (kg) | Added weight per set in order (e.g. 20.0-19.0-19.0) |
+| Total System Weight (kg) | Body Weight + Added Weight per set in order (or just weight for free weight) |
+| % of Body Weight | Total System Weight / Body Weight × 100 (only shown when all added weights are the same for bodyweight exercises) |
+| Reps | Reps per set (e.g. 6-7-5) |
 | Volume (kg) | Sum of (Total System Weight × Reps) |
 
 ## JSON Backup & Restore

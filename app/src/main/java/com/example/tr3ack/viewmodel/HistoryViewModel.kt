@@ -88,15 +88,15 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
                 val repsStr = repsList.joinToString("-")
 
                 val addedWeights = sets.map { it.addedWeightKg }
-                val avgAddedWeight = addedWeights.average()
+                val addedWeightsStr = addedWeights.joinToString("-") { "%.1f".format(it) }
 
                 val totalSystemWeights = sets.map { set ->
                     if (isBodyweight && bodyWeight != null) bodyWeight + set.addedWeightKg else set.addedWeightKg
                 }
-                val avgTotalSystemWeight = totalSystemWeights.average()
+                val totalSystemWeightsStr = totalSystemWeights.joinToString("-") { "%.1f".format(it) }
 
-                val pctBw = if (isBodyweight && bodyWeight != null && bodyWeight > 0) {
-                    ((bodyWeight + avgAddedWeight) / bodyWeight) * 100.0
+                val pctBw = if (isBodyweight && bodyWeight != null && bodyWeight > 0 && addedWeights.distinct().size <= 1) {
+                    ((bodyWeight + addedWeights.first()) / bodyWeight) * 100.0
                 } else {
                     null
                 }
@@ -107,9 +107,9 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
                 sb.append(",")
                 sb.append("\"${exercise?.name ?: "Unknown"}\"")
                 sb.append(",")
-                sb.append("%.1f".format(avgAddedWeight))
+                sb.append(addedWeightsStr)
                 sb.append(",")
-                sb.append("%.1f".format(avgTotalSystemWeight))
+                sb.append(totalSystemWeightsStr)
                 sb.append(",")
                 sb.append(pctBw?.let { "%.1f".format(it) } ?: "")
                 sb.append(",")
