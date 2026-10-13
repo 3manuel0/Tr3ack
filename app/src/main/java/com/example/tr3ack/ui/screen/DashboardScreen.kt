@@ -804,21 +804,43 @@ private fun TrainingConsistencyHeatmap(
     }
     val shownWeeks = weeks.takeLast(18)
     val primary = MaterialTheme.colorScheme.primary
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val dow = listOf("M", "T", "W", "T", "F", "S", "S")
+    val cellSize = 12.dp
+    val cellSpacing = 4.dp
+
+    // Compute month label spans
+    val monthSpans = mutableListOf<Pair<String, IntRange>>()
+    var i = 0
+    while (i < shownWeeks.size) {
+        val week = shownWeeks[i]
+        val firstDay = week.firstOrNull() ?: break
+        val monthKey = firstDay.year * 100 + firstDay.monthValue
+        var j = i
+        while (j < shownWeeks.size) {
+            val w = shownWeeks[j]
+            val d = w.firstOrNull() ?: break
+            if (d.year * 100 + d.monthValue == monthKey) j++ else break
+        }
+        val span = i until j
+        val label = firstDay.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+        monthSpans.add(label to span)
+        i = j
+    }
 
     Column(modifier = modifier) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row {
             Spacer(modifier = Modifier.width(20.dp))
-            shownWeeks.forEach { week ->
-                val monthStart = week.firstOrNull { it.dayOfMonth == 1 }
-                Box(
-                    modifier = Modifier.width(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (monthStart != null) {
+            monthSpans.forEach { (label, span) ->
+                val count = span.count()
+                if (count > 0) {
+                    Box(
+                        modifier = Modifier
+                            .width(cellSize * count + cellSpacing * (count - 1).coerceAtLeast(0))
+                            .height(16.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
                         Text(
-                            text = monthStart.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                            text = label,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
