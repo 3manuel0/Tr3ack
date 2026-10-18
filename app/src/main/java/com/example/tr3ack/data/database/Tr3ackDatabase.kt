@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
         WorkoutDayEntity::class,
         GoalEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class Tr3ackDatabase : RoomDatabase() {
@@ -156,6 +156,17 @@ abstract class Tr3ackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v7 -> v8: add a rep target to goals so a working-weight goal can be
+         * "weight × reps" (progress averages the weight% and the reps%).
+         * Purely additive: existing rows default to 0 (weight-only goals).
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE goals ADD COLUMN targetReps INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): Tr3ackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -165,7 +176,7 @@ abstract class Tr3ackDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
+                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8
                     )
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {

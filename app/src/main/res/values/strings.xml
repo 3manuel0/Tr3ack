@@ -180,6 +180,10 @@
     <string name="goals_no_goals">No goals yet. Set a target to track your progress.</string>
     <string name="goals_target_label">Target</string>
     <string name="goals_target_value_label">Target value</string>
+    <string name="goals_target_reps_label">Target reps</string>
+    <string name="goals_weight_progress_value">%1$s / %2$s kg</string>
+    <string name="goals_reps_progress_value">%1$d / %2$d reps</string>
+    <string name="goals_working_weight_reps">Working weight · %1$d reps</string>
     <string name="goals_achieved">Achieved!</string>
     <string name="goals_progress_value">%1$s / %2$s</string>
     <string name="goals_percent">%1$d%%</string>

@@ -5,7 +5,7 @@ Living list of candidate features to choose from. Add ideas here, tick them off 
 _Last updated: 2026-10-18_
 
 ## Current state snapshot (for context)
-- Kotlin + Jetpack Compose (M3, always-dark), Room **v7**, MVVM + manual DI (`Tr3ackApplication.repository`).
+- Kotlin + Jetpack Compose (M3, always-dark), Room **v8**, MVVM + manual DI (`Tr3ackApplication.repository`).
 - 6 tabs: Home, Log, Weight, History, Stats, Goals.
 - **5 hard-coded exercises** (ids 1,2,3,4,6): Weighted Pull-Ups, Dips, Chin-Ups, Bicep Curls, Lateral Raises. No custom-exercise UI.
 - Materialized stats cache: `exercise_stats`, `exercise_daily_stats`, `workout_days`. Set edits refresh only the touched exercise/day rows incrementally; body-weight edits and version bumps do a full rebuild (`StatsCalculator.CACHE_VERSION`).
@@ -17,7 +17,7 @@ _Last updated: 2026-10-18_
 - Tests: `AchievementRulesTest`, `GoalRulesTest`, `MovementFactorsTest`, `StatsCalculatorTest`, `Tr3ackDatabaseMigrationTest`, `StatsCacheRoundTripTest`, `StatsCacheIncrementalParityTest`.
 
 ## Top picks (highest value, least new plumbing)
-- [x] **Goal targets with progress** — real goal-setting in the Goals tab: target E1RM / working weight / BW-multiplier per exercise, with live progress bars. Backed by the `goals` table (v6) and `GoalRules` over `exercise_stats`.
+- [x] **Goal targets with progress** — real goal-setting in the Goals tab: target E1RM / working weight / BW-multiplier per exercise, with live progress bars. Working-weight goals also take a rep target ("40 kg × 8") and score progress as the average of the weight% and reps%. Backed by the `goals` table (v6, `targetReps` v8) and `GoalRules` over `exercise_stats` + the exercise's sets.
 - [x] **Consistency calendar heatmap** — GitHub-style training calendar on Home, built from cached `workout_days` (`setCount`, `tonnage`). No new persistence.
 
 ## Quick wins (data already available)

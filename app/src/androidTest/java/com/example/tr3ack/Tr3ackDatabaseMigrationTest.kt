@@ -250,6 +250,72 @@ class Tr3ackDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate7to8_addsTargetRepsDefaultingToZero() {
+        helper.createDatabase("test", 7).apply {
+            execSQL(
+                "INSERT INTO goals (exerciseId, type, targetValue, createdAt) VALUES (1, 'WEIGHT', 40.0, 42)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            "test", 8, /* validateDroppedTables = */ true,
+            Tr3ackDatabase.MIGRATION_7_8
+        )
+
+        // Existing goal survives and gets reps = 0 (weight-only).
+        val row = db.query("SELECT type, targetValue, targetReps, createdAt FROM goals WHERE exerciseId = 1")
+        row.moveToFirst()
+        assertEquals("WEIGHT", row.getString(0))
+        assertEquals(40.0, row.getDouble(1), 1e-9)
+        assertEquals(0, row.getInt(2))
+        assertEquals(42L, row.getLong(3))
+        row.close()
+
+        // The new column accepts an explicit rep target.
+        db.execSQL("UPDATE goals SET targetReps = 8 WHERE exerciseId = 1")
+        val updated = db.query("SELECT targetReps FROM goals WHERE exerciseId = 1")
+        updated.moveToFirst()
+        assertEquals(8, updated.getInt(0))
+        updated.close()
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(8, version.getInt(0))
+        version.close()
+
+        db.close()
+    }
+
+    @Test
+    fun migrateChain_toV8_succeeds() {
+        helper.createDatabase("test", 1).close()
+        val db = helper.runMigrationsAndValidate(
+            "test", 8, true,
+            Tr3ackDatabase.MIGRATION_1_2,
+            Tr3ackDatabase.MIGRATION_2_3,
+            Tr3ackDatabase.MIGRATION_3_4,
+            Tr3ackDatabase.MIGRATION_4_5,
+            Tr3ackDatabase.MIGRATION_5_6,
+            Tr3ackDatabase.MIGRATION_6_7,
+            Tr3ackDatabase.MIGRATION_7_8
+        )
+
+        val goals = db.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='goals'"
+        )
+        assertEquals(1, goals.count)
+        goals.close()
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(8, version.getInt(0))
+        version.close()
+
+        db.close()
+    }
+
+    @Test
     fun migrateChain_toV7_succeeds() {
         helper.createDatabase("test", 1).close()
         val db = helper.runMigrationsAndValidate(

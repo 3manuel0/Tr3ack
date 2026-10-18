@@ -40,6 +40,7 @@ data class Goal(
     val exerciseId: Long,
     val type: GoalType,
     val targetValue: Double,
+    val targetReps: Int = 0,
     val createdAt: Long
 )
 
@@ -89,6 +90,7 @@ fun GoalEntity.toDomain() = Goal(
     exerciseId = exerciseId,
     type = goalTypeFromName(type),
     targetValue = targetValue,
+    targetReps = targetReps,
     createdAt = createdAt
 )
 
@@ -96,6 +98,7 @@ fun Goal.toEntity() = GoalEntity(
     exerciseId = exerciseId,
     type = type.name,
     targetValue = targetValue,
+    targetReps = targetReps,
     createdAt = createdAt
 )
 

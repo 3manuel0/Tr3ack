@@ -75,16 +75,23 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
         }
 
         viewModelScope.launch {
-            combine(repository.goals, repository.exerciseStats) { goals, stats ->
+            combine(repository.goals, repository.exerciseStats, repository.allWorkoutSets) { goals, stats, sets ->
                 val statsById = stats.associateBy { it.exerciseId }
+                val setsByExercise = sets.groupBy { it.exerciseId }
                 goals
-                    .map { goal -> GoalRules.of(goal, statsById[goal.exerciseId]) }
+                    .map { goal ->
+                        GoalRules.of(
+                            goal,
+                            statsById[goal.exerciseId],
+                            setsByExercise[goal.exerciseId].orEmpty()
+                        )
+                    }
                     .sortedByDescending { it.achieved }
             }.collect { _goalProgress.value = it }
         }
     }
 
-    fun saveGoal(exerciseId: Long, type: GoalType, targetValue: Double) {
+    fun saveGoal(exerciseId: Long, type: GoalType, targetValue: Double, targetReps: Int = 0) {
         val createdAt = _goalProgress.value
             .find { it.goal.exerciseId == exerciseId }?.goal?.createdAt
             ?: System.currentTimeMillis()
@@ -94,6 +101,7 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
                     exerciseId = exerciseId,
                     type = type,
                     targetValue = targetValue,
+                    targetReps = targetReps,
                     createdAt = createdAt
                 )
             )

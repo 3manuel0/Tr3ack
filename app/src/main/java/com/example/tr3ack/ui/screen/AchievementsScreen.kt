@@ -176,8 +176,8 @@ fun AchievementsScreen(repository: Tr3ackRepository) {
             exercises = exercises,
             existing = goalProgress.find { it.goal.exerciseId == editingGoalExerciseId },
             onDismiss = { showGoalDialog = false },
-            onSave = { exerciseId, type, target ->
-                viewModel.saveGoal(exerciseId, type, target)
+            onSave = { exerciseId, type, target, reps ->
+                viewModel.saveGoal(exerciseId, type, target, reps)
                 showGoalDialog = false
             },
             onDelete = { exerciseId ->
@@ -250,6 +250,7 @@ private fun GoalCard(
     onClick: () -> Unit
 ) {
     val accent = if (goal.achieved) GoalAccent else MaterialTheme.colorScheme.primary
+    val repsGoal = goal.goal.type == GoalType.WEIGHT && goal.goal.targetReps > 0
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -287,7 +288,11 @@ private fun GoalCard(
 
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = stringResource(goalTypeLabel(goal.goal.type)),
+                text = if (repsGoal) {
+                    stringResource(R.string.goals_working_weight_reps, goal.goal.targetReps)
+                } else {
+                    stringResource(goalTypeLabel(goal.goal.type))
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -309,17 +314,37 @@ private fun GoalCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(
-                        R.string.goals_progress_value,
-                        formatGoalValue(goal.goal.type, goal.current),
-                        formatGoalValue(goal.goal.type, goal.goal.targetValue)
-                    ),
+                    text = if (repsGoal) {
+                        stringResource(
+                            R.string.goals_weight_progress_value,
+                            formatGoalNumber(goal.current),
+                            formatGoalNumber(goal.goal.targetValue)
+                        )
+                    } else {
+                        stringResource(
+                            R.string.goals_progress_value,
+                            formatGoalValue(goal.goal.type, goal.current),
+                            formatGoalValue(goal.goal.type, goal.goal.targetValue)
+                        )
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = accent
                 )
                 Text(
                     text = stringResource(R.string.goals_percent, (goal.progress * 100).toInt()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (repsGoal) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(
+                        R.string.goals_reps_progress_value,
+                        goal.currentReps,
+                        goal.goal.targetReps
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -334,7 +359,7 @@ private fun GoalEditDialog(
     exercises: List<Exercise>,
     existing: GoalProgress?,
     onDismiss: () -> Unit,
-    onSave: (Long, GoalType, Double) -> Unit,
+    onSave: (Long, GoalType, Double, Int) -> Unit,
     onDelete: (Long) -> Unit
 ) {
     val isEditing = existing != null
@@ -344,6 +369,9 @@ private fun GoalEditDialog(
     var selectedType by remember { mutableStateOf(existing?.goal?.type ?: GoalType.E1RM) }
     var targetText by remember {
         mutableStateOf(existing?.goal?.targetValue?.let { formatGoalInput(it) } ?: "")
+    }
+    var repsText by remember {
+        mutableStateOf(existing?.goal?.targetReps?.takeIf { it > 0 }?.toString() ?: "8")
     }
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
     var typeMenuExpanded by remember { mutableStateOf(false) }
@@ -357,7 +385,10 @@ private fun GoalEditDialog(
     val effectiveType = if (selectedType in availableTypes) selectedType else availableTypes.first()
 
     val parsedTarget = targetText.toDoubleOrNull()
-    val canSave = selectedExerciseId != null && parsedTarget != null && parsedTarget > 0.0
+    val parsedReps = repsText.toIntOrNull()
+    val repsRequired = effectiveType == GoalType.WEIGHT
+    val canSave = selectedExerciseId != null && parsedTarget != null && parsedTarget > 0.0 &&
+        (!repsRequired || (parsedReps != null && parsedReps > 0))
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -441,6 +472,17 @@ private fun GoalEditDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                if (repsRequired) {
+                    OutlinedTextField(
+                        value = repsText,
+                        onValueChange = { newValue -> repsText = newValue.filter { it.isDigit() } },
+                        label = { Text(stringResource(R.string.goals_target_reps_label)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         },
         confirmButton = {
@@ -448,7 +490,12 @@ private fun GoalEditDialog(
                 enabled = canSave,
                 onClick = {
                     if (canSave) {
-                        onSave(selectedExerciseId!!, effectiveType, parsedTarget!!)
+                        onSave(
+                            selectedExerciseId!!,
+                            effectiveType,
+                            parsedTarget!!,
+                            if (effectiveType == GoalType.WEIGHT) parsedReps!! else 0
+                        )
                     }
                 }
             ) {
@@ -482,8 +529,10 @@ private fun goalTypeLabel(type: GoalType): Int = when (type) {
 
 private fun formatGoalValue(type: GoalType, value: Double): String = when (type) {
     GoalType.BW_RATIO -> "%.2fx BW".format(value)
-    else -> "%.1f kg".format(value)
+    else -> "${formatGoalNumber(value)} kg"
 }
+
+private fun formatGoalNumber(value: Double): String = "%.1f".format(value)
 
 private fun formatGoalInput(value: Double): String =
     if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
