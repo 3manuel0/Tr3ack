@@ -2,21 +2,13 @@
 <!--
    Data extraction rules for API 31+: the app's Room database is the single
    source of truth (all totals/streaks/achievements are derived from it), so
-   we back it up and exclude every other domain (cache, prefs, files).
+   we include it explicitly — anything not included is excluded.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <include domain="database" path="." />
-        <exclude domain="sharedpref" path="." />
-        <exclude domain="file" path="." />
-        <exclude domain="external" path="." />
-        <exclude domain="root" path="." />
     </cloud-backup>
     <device-transfer>
         <include domain="database" path="." />
-        <exclude domain="sharedpref" path="." />
-        <exclude domain="file" path="." />
-        <exclude domain="external" path="." />
-        <exclude domain="root" path="." />
     </device-transfer>
 </data-extraction-rules>

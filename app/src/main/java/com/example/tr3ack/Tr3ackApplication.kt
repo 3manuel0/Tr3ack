@@ -18,7 +18,8 @@ class Tr3ackApplication : Application() {
             exerciseDao = database.exerciseDao(),
             bodyWeightDao = database.bodyWeightDao(),
             workoutSetDao = database.workoutSetDao(),
-            statsCacheDao = database.statsCacheDao()
+            statsCacheDao = database.statsCacheDao(),
+            goalDao = database.goalDao()
         )
     }
 

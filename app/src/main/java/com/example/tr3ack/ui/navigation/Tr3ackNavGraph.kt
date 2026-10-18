@@ -3,6 +3,9 @@ package com.example.tr3ack.ui.navigation
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,14 +26,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -48,6 +52,9 @@ import com.example.tr3ack.ui.screen.HistoryScreen
 import com.example.tr3ack.ui.screen.LogWorkoutScreen
 import com.example.tr3ack.ui.screen.ProgressScreen
 import com.example.tr3ack.viewmodel.HistoryViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,18 +72,24 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
     val context = LocalContext.current
 
     val historyViewModel: HistoryViewModel = viewModel { HistoryViewModel(repository) }
-    val exportCsv by historyViewModel.exportCsv.collectAsState()
+    val exportCsv by historyViewModel.exportCsv.collectAsStateWithLifecycle()
     val csvExportedMessage = stringResource(R.string.toast_csv_exported)
+    val backupScope = rememberCoroutineScope()
 
     val csvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
         uri?.let {
-            context.contentResolver.openOutputStream(it)?.use { os ->
-                os.write(exportCsv?.toByteArray() ?: return@let)
+            backupScope.launch(Dispatchers.IO) {
+                val csv = exportCsv ?: historyViewModel.buildCsv()
+                context.contentResolver.openOutputStream(it)?.use { os ->
+                    os.write(csv.toByteArray())
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, csvExportedMessage, Toast.LENGTH_SHORT).show()
+                    historyViewModel.consumeCsv()
+                }
             }
-            Toast.makeText(context, csvExportedMessage, Toast.LENGTH_SHORT).show()
-            historyViewModel.consumeCsv()
         }
     }
 
@@ -88,8 +101,8 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
         }
     }
 
-    val exportJson by historyViewModel.exportJson.collectAsState()
-    val importResult by historyViewModel.importResult.collectAsState()
+    val exportJson by historyViewModel.exportJson.collectAsStateWithLifecycle()
+    val importResult by historyViewModel.importResult.collectAsStateWithLifecycle()
     val backupExportedMessage = stringResource(R.string.toast_backup_exported)
 
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -100,11 +113,16 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         uri?.let {
-            context.contentResolver.openOutputStream(it)?.use { os ->
-                os.write(exportJson?.toByteArray() ?: return@let)
+            backupScope.launch(Dispatchers.IO) {
+                val json = exportJson ?: historyViewModel.buildBackupJson()
+                context.contentResolver.openOutputStream(it)?.use { os ->
+                    os.write(json.toByteArray())
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, backupExportedMessage, Toast.LENGTH_SHORT).show()
+                    historyViewModel.consumeJson()
+                }
             }
-            Toast.makeText(context, backupExportedMessage, Toast.LENGTH_SHORT).show()
-            historyViewModel.consumeJson()
         }
     }
 
@@ -112,10 +130,14 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
-            val content = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText()
-            if (content != null) {
-                pendingImportJson = content
-                showImportConfirmDialog = true
+            backupScope.launch(Dispatchers.IO) {
+                val content = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText()
+                if (content != null) {
+                    withContext(Dispatchers.Main) {
+                        pendingImportJson = content
+                        showImportConfirmDialog = true
+                    }
+                }
             }
         }
     }
@@ -224,7 +246,11 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
         NavHost(
             navController = navController,
             startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(animationSpec = tween(220)) },
+            exitTransition = { fadeOut(animationSpec = tween(160)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(220)) },
+            popExitTransition = { fadeOut(animationSpec = tween(160)) }
         ) {
             composable(Screen.Dashboard.route) {
                 DashboardScreen(

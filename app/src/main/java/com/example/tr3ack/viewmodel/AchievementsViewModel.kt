@@ -5,14 +5,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tr3ack.R
 import com.example.tr3ack.data.entity.BodyWeightEntry
+import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.ExerciseStatsEntity
+import com.example.tr3ack.data.entity.Goal
+import com.example.tr3ack.data.entity.GoalType
 import com.example.tr3ack.data.entity.WorkoutDayEntity
 import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class LevelInfo(
@@ -56,12 +61,47 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
     private val _achievements = MutableStateFlow<List<Achievement>>(emptyList())
     val achievements: StateFlow<List<Achievement>> = _achievements.asStateFlow()
 
+    val exercises: StateFlow<List<Exercise>> = repository.allExercises
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _goalProgress = MutableStateFlow<List<GoalProgress>>(emptyList())
+    val goalProgress: StateFlow<List<GoalProgress>> = _goalProgress.asStateFlow()
+
     init {
         viewModelScope.launch {
             combine(repository.workoutDays, repository.exerciseStats, repository.allBodyWeightEntries) { days, stats, bodyWeightEntries ->
                 compute(days, stats, bodyWeightEntries)
             }.collect { }
         }
+
+        viewModelScope.launch {
+            combine(repository.goals, repository.exerciseStats) { goals, stats ->
+                val statsById = stats.associateBy { it.exerciseId }
+                goals
+                    .map { goal -> GoalRules.of(goal, statsById[goal.exerciseId]) }
+                    .sortedByDescending { it.achieved }
+            }.collect { _goalProgress.value = it }
+        }
+    }
+
+    fun saveGoal(exerciseId: Long, type: GoalType, targetValue: Double) {
+        val createdAt = _goalProgress.value
+            .find { it.goal.exerciseId == exerciseId }?.goal?.createdAt
+            ?: System.currentTimeMillis()
+        viewModelScope.launch {
+            repository.saveGoal(
+                Goal(
+                    exerciseId = exerciseId,
+                    type = type,
+                    targetValue = targetValue,
+                    createdAt = createdAt
+                )
+            )
+        }
+    }
+
+    fun deleteGoal(exerciseId: Long) {
+        viewModelScope.launch { repository.deleteGoal(exerciseId) }
     }
 
     private fun compute(

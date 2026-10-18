@@ -3,6 +3,7 @@ package com.example.tr3ack.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -76,10 +77,9 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
             if (entries.isEmpty()) {
                 item {
                     Text(
@@ -90,9 +90,11 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                 }
             }
 
-            items(entries) { entry ->
+            items(entries, key = { it.id }) { entry ->
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateItem(),
                     onClick = {
                         viewModel.startEditing(
                             LocalDate.parse(entry.date),
@@ -130,8 +132,6 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                     }
                 }
             }
-
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -38,8 +39,13 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,6 +112,10 @@ fun ProgressScreen(repository: Tr3ackRepository) {
 
     val selectedExercise = exercises.find { it.id == selectedExerciseId }
     val displayData = chartData.takeLast(dayCount)
+    val recentFreeWeightSets = remember(freeWeightData) {
+        val cutoff = LocalDate.now().minusDays(4).toString()
+        freeWeightData.filter { set -> set.date >= cutoff }.sortedByDescending { it.date }
+    }
 
     Scaffold { padding ->
         LazyColumn(
@@ -113,10 +123,9 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
             // Exercise selector
             item {
                 ExposedDropdownMenuBox(
@@ -406,8 +415,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                val cutoff = LocalDate.now().minusDays(4).toString()
-                                freeWeightData.filter { set -> set.date >= cutoff }.sortedByDescending { it.date }.forEach { set ->
+                                recentFreeWeightSets.forEach { set ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -440,8 +448,6 @@ fun ProgressScreen(repository: Tr3ackRepository) {
                     }
                 }
             }
-
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 }
@@ -453,6 +459,7 @@ private fun E1RMChart(
 ) {
     if (data.isEmpty()) return
 
+    val fontScale = LocalDensity.current.fontScale
     val lineColor = MaterialTheme.colorScheme.primary
     val trendColor = MaterialTheme.colorScheme.tertiary
     val prColor = MaterialTheme.colorScheme.secondary
@@ -470,8 +477,18 @@ private fun E1RMChart(
     val yMax = maxE1RM + padding
     val yRange = (yMax - yMin).coerceAtLeast(1.0)
     val trendValues = rollingAverage(e1rmValues)
+    val chartSummary = pluralStringResource(
+        R.plurals.chart_e1rm_desc,
+        data.size,
+        data.size,
+        "%.1f".format(data.last().estimatedOneRM)
+    )
 
-    Canvas(modifier = modifier) {
+    Canvas(
+        modifier = modifier.semantics {
+            contentDescription = chartSummary
+        }
+    ) {
         val leftPadding = 56f
         val rightPadding = 24f
         val topPadding = 16f
@@ -491,8 +508,8 @@ private fun E1RMChart(
         }
 
         val textPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 24f
+            color = textColor.toArgb()
+            textSize = 24f * fontScale
             isAntiAlias = true
         }
         for (i in 0..4) {
@@ -509,8 +526,8 @@ private fun E1RMChart(
         val stepCount = data.size - 1
         if (stepCount >= 0) {
             val labelPaint = android.graphics.Paint().apply {
-                color = textColor.hashCode()
-                textSize = 20f
+                color = textColor.toArgb()
+                textSize = 20f * fontScale
                 isAntiAlias = true
             }
             val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
@@ -596,8 +613,8 @@ private fun E1RMChart(
 
         // Trend + PR legend (kept inside the top padding so labels are not clipped).
         val legendPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 18f
+            color = textColor.toArgb()
+            textSize = 18f * fontScale
             isAntiAlias = true
         }
         run {
@@ -628,8 +645,8 @@ private fun E1RMChart(
         }
 
         val unitLabelPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 20f
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
             isAntiAlias = true
             textAlign = android.graphics.Paint.Align.RIGHT
         }
@@ -649,6 +666,7 @@ private fun TonnageBarChart(
 ) {
     if (data.isEmpty()) return
 
+    val fontScale = LocalDensity.current.fontScale
     val barColor = MaterialTheme.colorScheme.tertiary
     val textColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
@@ -657,8 +675,18 @@ private fun TonnageBarChart(
     val tonnageValues = data.map { it.sessionTonnage }
     val maxTonnage = tonnageValues.max()
     val yMax = (maxTonnage * 1.15).coerceAtLeast(1.0)
+    val chartSummary = pluralStringResource(
+        R.plurals.chart_tonnage_desc,
+        data.size,
+        data.size,
+        "%.0f".format(data.last().sessionTonnage)
+    )
 
-    Canvas(modifier = modifier) {
+    Canvas(
+        modifier = modifier.semantics {
+            contentDescription = chartSummary
+        }
+    ) {
         val leftPadding = 56f
         val rightPadding = 24f
         val topPadding = 16f
@@ -678,8 +706,8 @@ private fun TonnageBarChart(
         }
 
         val textPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 24f
+            color = textColor.toArgb()
+            textSize = 24f * fontScale
             isAntiAlias = true
         }
         for (i in 0..4) {
@@ -700,8 +728,8 @@ private fun TonnageBarChart(
         val barWidth = (chartWidth - totalGap) / barCount
 
         val labelPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 20f
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
             isAntiAlias = true
         }
         val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
@@ -730,8 +758,8 @@ private fun TonnageBarChart(
         )
 
         val unitLabelPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 20f
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
             isAntiAlias = true
             textAlign = android.graphics.Paint.Align.RIGHT
         }
@@ -751,6 +779,7 @@ private fun BeltVsBodyChart(
 ) {
     if (data.isEmpty()) return
 
+    val fontScale = LocalDensity.current.fontScale
     val beltColor = MaterialTheme.colorScheme.primary
     val bodyColor = MaterialTheme.colorScheme.secondary
     val textColor = MaterialTheme.colorScheme.onSurface
@@ -765,8 +794,13 @@ private fun BeltVsBodyChart(
     val yMin = (minVal - valuePadding).coerceAtLeast(0.0)
     val yMax = maxVal + valuePadding
     val yRange = (yMax - yMin).coerceAtLeast(1.0)
+    val chartSummary = pluralStringResource(R.plurals.chart_belt_desc, data.size, data.size)
 
-    Canvas(modifier = modifier) {
+    Canvas(
+        modifier = modifier.semantics {
+            contentDescription = chartSummary
+        }
+    ) {
         val leftPadding = 56f
         val rightPadding = 24f
         val topPadding = 28f
@@ -786,8 +820,8 @@ private fun BeltVsBodyChart(
         }
 
         val textPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 24f
+            color = textColor.toArgb()
+            textSize = 24f * fontScale
             isAntiAlias = true
         }
         for (i in 0..4) {
@@ -803,8 +837,8 @@ private fun BeltVsBodyChart(
 
         val stepCount = data.size - 1
         val labelPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 20f
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
             isAntiAlias = true
         }
         val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
@@ -851,8 +885,8 @@ private fun BeltVsBodyChart(
         }
 
         val legendPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 20f
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
             isAntiAlias = true
         }
         val legendY = 10f

@@ -16,6 +16,7 @@
     <string name="action_ok">OK</string>
     <string name="action_next">Next</string>
     <string name="action_import">Import</string>
+    <string name="action_delete">Delete</string>
     <string name="content_desc_delete">Delete</string>
     <string name="content_desc_edit">Edit</string>
     <string name="select_exercise">Select Exercise</string>
@@ -105,7 +106,7 @@
     <string name="progress_set_label">Set</string>
     <string name="progress_set_value">%1$.1f kg × %2$d reps</string>
     <string name="progress_total_system_load">Total System Load</string>
-    <string name="progress_pct_body_weight">% Body Weight</string>
+    <string name="progress_pct_body_weight" formatted="false">% Body Weight</string>
     <string name="progress_date">Date</string>
     <string name="progress_estimated_1rm">Estimated 1RM</string>
     <string name="progress_1rm_tsl">1RM Total System Load</string>
@@ -116,7 +117,7 @@
     <string name="progress_relative_strength">Relative Strength</string>
     <string name="progress_bw_multiplier">BW Multiplier</string>
     <string name="progress_bw_multiplier_value">%1$.2fx BW</string>
-    <string name="progress_added_as_pct_bw">Added as % BW</string>
+    <string name="progress_added_as_pct_bw" formatted="false">Added as % BW</string>
     <string name="progress_working_loads">Working Loads</string>
     <string name="progress_working_85">85% 1RM</string>
     <string name="progress_working_80">80% 1RM</string>
@@ -137,6 +138,26 @@
     <string name="chart_legend_body_weight">Body Weight</string>
     <string name="chart_legend_trend">Trend</string>
     <string name="chart_legend_pr">PR</string>
+    <plurals name="chart_e1rm_desc">
+        <item quantity="one">Estimated 1RM chart: %1$d session, latest %2$s kg</item>
+        <item quantity="other">Estimated 1RM chart: %1$d sessions, latest %2$s kg</item>
+    </plurals>
+    <plurals name="chart_tonnage_desc">
+        <item quantity="one">Session tonnage chart: %1$d session, latest %2$s kg·reps</item>
+        <item quantity="other">Session tonnage chart: %1$d sessions, latest %2$s kg·reps</item>
+    </plurals>
+    <plurals name="chart_belt_desc">
+        <item quantity="one">Belt load versus body weight chart: %1$d session</item>
+        <item quantity="other">Belt load versus body weight chart: %1$d sessions</item>
+    </plurals>
+    <plurals name="chart_bw_trend_desc">
+        <item quantity="one">Body weight trend chart: %1$d entry, latest %2$s kg</item>
+        <item quantity="other">Body weight trend chart: %1$d entries, latest %2$s kg</item>
+    </plurals>
+    <plurals name="chart_heatmap_desc">
+        <item quantity="one">Training consistency calendar: %1$d trained day in the last 18 weeks</item>
+        <item quantity="other">Training consistency calendar: %1$d trained days in the last 18 weeks</item>
+    </plurals>
     <string name="unit_kg">kg</string>
     <string name="unit_kg_reps">kg·reps</string>
 
@@ -151,6 +172,20 @@
     <string name="goals_weeks">weeks</string>
     <string name="goals_volume">Volume</string>
     <string name="goals_volume_unit">kg·r</string>
+    <string name="goals_targets_title">Goal Targets</string>
+    <string name="goals_add_target">Add</string>
+    <string name="content_desc_add_goal">Add goal</string>
+    <string name="goals_set_goal">Set Goal</string>
+    <string name="goals_edit_goal">Edit Goal</string>
+    <string name="goals_no_goals">No goals yet. Set a target to track your progress.</string>
+    <string name="goals_target_label">Target</string>
+    <string name="goals_target_value_label">Target value</string>
+    <string name="goals_achieved">Achieved!</string>
+    <string name="goals_progress_value">%1$s / %2$s</string>
+    <string name="goals_percent">%1$d%%</string>
+    <string name="goal_type_e1rm">Estimated 1RM (kg)</string>
+    <string name="goal_type_weight">Working Weight (kg)</string>
+    <string name="goal_type_bw_ratio">Bodyweight Multiple (×BW)</string>
     <string name="tier_iron">Iron</string>
     <string name="tier_copper">Copper</string>
     <string name="tier_silver">Silver</string>

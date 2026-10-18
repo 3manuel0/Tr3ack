@@ -63,64 +63,68 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
     fun generateCsv() {
         viewModelScope.launch(Dispatchers.Default) {
-            val allSets = repository.allWorkoutSets.first()
-            val allExercises = repository.allExercises.first()
-            val allBodyWeight = repository.allBodyWeightEntries.first()
+            _exportCsv.value = buildCsv()
+        }
+    }
 
-            val bwMap = allBodyWeight.associateBy { it.date }
-            val exerciseMap = allExercises.associateBy { it.id }
+    suspend fun buildCsv(): String {
+        val allSets = repository.allWorkoutSets.first()
+        val allExercises = repository.allExercises.first()
+        val allBodyWeight = repository.allBodyWeightEntries.first()
 
-            val sb = StringBuilder()
-            sb.appendLine("Date,Exercise,Added Weight (kg),Total System Weight (kg),% of Body Weight,Reps,Volume (kg)")
+        val bwMap = allBodyWeight.associateBy { it.date }
+        val exerciseMap = allExercises.associateBy { it.id }
 
-            val grouped = allSets
-                .sortedWith(compareByDescending<WorkoutSet> { it.date }.thenBy { it.timestamp })
-                .groupBy { set -> "${set.date}_${set.exerciseId}" }
+        val sb = StringBuilder()
+        sb.appendLine("Date,Exercise,Added Weight (kg),Total System Weight (kg),% of Body Weight,Reps,Volume (kg)")
 
-            for ((_, sets) in grouped) {
-                val firstSet = sets.first()
-                val exercise = exerciseMap[firstSet.exerciseId]
-                val isBodyweight = exercise?.isBodyweightBased ?: false
-                val bwEntry = bwMap[firstSet.date]
-                val bodyWeight = bwEntry?.bodyWeightKg
+        val grouped = allSets
+            .sortedWith(compareByDescending<WorkoutSet> { it.date }.thenBy { it.timestamp })
+            .groupBy { set -> "${set.date}_${set.exerciseId}" }
 
-                val repsList = sets.map { it.reps }
-                val repsStr = repsList.joinToString("-")
+        for ((_, sets) in grouped) {
+            val firstSet = sets.first()
+            val exercise = exerciseMap[firstSet.exerciseId]
+            val isBodyweight = exercise?.isBodyweightBased ?: false
+            val bwEntry = bwMap[firstSet.date]
+            val bodyWeight = bwEntry?.bodyWeightKg
 
-                val addedWeights = sets.map { it.addedWeightKg }
-                val addedWeightsStr = addedWeights.joinToString("-") { "%.1f".format(it) }
+            val repsList = sets.map { it.reps }
+            val repsStr = repsList.joinToString("-")
 
-                val totalSystemWeights = sets.map { set ->
-                    if (isBodyweight && bodyWeight != null) bodyWeight + set.addedWeightKg else set.addedWeightKg
-                }
-                val totalSystemWeightsStr = totalSystemWeights.joinToString("-") { "%.1f".format(it) }
+            val addedWeights = sets.map { it.addedWeightKg }
+            val addedWeightsStr = addedWeights.joinToString("-") { "%.1f".format(it) }
 
-                val pctBw = if (isBodyweight && bodyWeight != null && bodyWeight > 0 && addedWeights.distinct().size <= 1) {
-                    ((bodyWeight + addedWeights.first()) / bodyWeight) * 100.0
-                } else {
-                    null
-                }
+            val totalSystemWeights = sets.map { set ->
+                if (isBodyweight && bodyWeight != null) bodyWeight + set.addedWeightKg else set.addedWeightKg
+            }
+            val totalSystemWeightsStr = totalSystemWeights.joinToString("-") { "%.1f".format(it) }
 
-                val volume = totalSystemWeights.zip(repsList.map { it.toDouble() }).sumOf { (w, r) -> w * r }
-
-                sb.append(firstSet.date)
-                sb.append(",")
-                sb.append("\"${exercise?.name ?: "Unknown"}\"")
-                sb.append(",")
-                sb.append(addedWeightsStr)
-                sb.append(",")
-                sb.append(totalSystemWeightsStr)
-                sb.append(",")
-                sb.append(pctBw?.let { "%.1f".format(it) } ?: "")
-                sb.append(",")
-                sb.append(repsStr)
-                sb.append(",")
-                sb.append("%.1f".format(volume))
-                sb.appendLine()
+            val pctBw = if (isBodyweight && bodyWeight != null && bodyWeight > 0 && addedWeights.distinct().size <= 1) {
+                ((bodyWeight + addedWeights.first()) / bodyWeight) * 100.0
+            } else {
+                null
             }
 
-            _exportCsv.value = sb.toString()
+            val volume = totalSystemWeights.zip(repsList.map { it.toDouble() }).sumOf { (w, r) -> w * r }
+
+            sb.append(firstSet.date)
+            sb.append(",")
+            sb.append("\"${exercise?.name ?: "Unknown"}\"")
+            sb.append(",")
+            sb.append(addedWeightsStr)
+            sb.append(",")
+            sb.append(totalSystemWeightsStr)
+            sb.append(",")
+            sb.append(pctBw?.let { "%.1f".format(it) } ?: "")
+            sb.append(",")
+            sb.append(repsStr)
+            sb.append(",")
+            sb.append("%.1f".format(volume))
+            sb.appendLine()
         }
+
+        return sb.toString()
     }
 
     fun consumeCsv() {
@@ -129,54 +133,58 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
 
     fun generateBackupJson() {
         viewModelScope.launch(Dispatchers.Default) {
-            val allExercises = repository.allExercises.first()
-            val allSets = repository.allWorkoutSets.first()
-            val allBodyWeight = repository.allBodyWeightEntries.first()
-
-            val root = JSONObject()
-            root.put("meta", JSONObject().apply {
-                put("version", 1)
-                put("exportDate", LocalDate.now().toString())
-                put("exerciseCount", allExercises.size)
-                put("workoutSetCount", allSets.size)
-                put("bodyWeightEntryCount", allBodyWeight.size)
-            })
-
-            val exercisesArr = JSONArray()
-            for (ex in allExercises) {
-                exercisesArr.put(JSONObject().apply {
-                    put("id", ex.id)
-                    put("name", ex.name)
-                    put("isBodyweightBased", ex.isBodyweightBased)
-                })
-            }
-            root.put("exercises", exercisesArr)
-
-            val setsArr = JSONArray()
-            for (set in allSets) {
-                setsArr.put(JSONObject().apply {
-                    put("id", set.id)
-                    put("exerciseId", set.exerciseId)
-                    put("date", set.date)
-                    put("addedWeightKg", set.addedWeightKg)
-                    put("reps", set.reps)
-                    put("timestamp", set.timestamp)
-                })
-            }
-            root.put("workoutSets", setsArr)
-
-            val bwArr = JSONArray()
-            for (bw in allBodyWeight) {
-                bwArr.put(JSONObject().apply {
-                    put("id", bw.id)
-                    put("date", bw.date)
-                    put("bodyWeightKg", bw.bodyWeightKg)
-                })
-            }
-            root.put("bodyWeightEntries", bwArr)
-
-            _exportJson.value = root.toString(2)
+            _exportJson.value = buildBackupJson()
         }
+    }
+
+    suspend fun buildBackupJson(): String {
+        val allExercises = repository.allExercises.first()
+        val allSets = repository.allWorkoutSets.first()
+        val allBodyWeight = repository.allBodyWeightEntries.first()
+
+        val root = JSONObject()
+        root.put("meta", JSONObject().apply {
+            put("version", 1)
+            put("exportDate", LocalDate.now().toString())
+            put("exerciseCount", allExercises.size)
+            put("workoutSetCount", allSets.size)
+            put("bodyWeightEntryCount", allBodyWeight.size)
+        })
+
+        val exercisesArr = JSONArray()
+        for (ex in allExercises) {
+            exercisesArr.put(JSONObject().apply {
+                put("id", ex.id)
+                put("name", ex.name)
+                put("isBodyweightBased", ex.isBodyweightBased)
+            })
+        }
+        root.put("exercises", exercisesArr)
+
+        val setsArr = JSONArray()
+        for (set in allSets) {
+            setsArr.put(JSONObject().apply {
+                put("id", set.id)
+                put("exerciseId", set.exerciseId)
+                put("date", set.date)
+                put("addedWeightKg", set.addedWeightKg)
+                put("reps", set.reps)
+                put("timestamp", set.timestamp)
+            })
+        }
+        root.put("workoutSets", setsArr)
+
+        val bwArr = JSONArray()
+        for (bw in allBodyWeight) {
+            bwArr.put(JSONObject().apply {
+                put("id", bw.id)
+                put("date", bw.date)
+                put("bodyWeightKg", bw.bodyWeightKg)
+            })
+        }
+        root.put("bodyWeightEntries", bwArr)
+
+        return root.toString(2)
     }
 
     fun consumeJson() {

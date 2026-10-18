@@ -8,12 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.tr3ack.data.dao.BodyWeightDao
 import com.example.tr3ack.data.dao.ExerciseDao
+import com.example.tr3ack.data.dao.GoalDao
 import com.example.tr3ack.data.dao.StatsCacheDao
 import com.example.tr3ack.data.dao.WorkoutSetDao
 import com.example.tr3ack.data.entity.BodyWeightEntity
 import com.example.tr3ack.data.entity.ExerciseDailyStatsEntity
 import com.example.tr3ack.data.entity.ExerciseEntity
 import com.example.tr3ack.data.entity.ExerciseStatsEntity
+import com.example.tr3ack.data.entity.GoalEntity
 import com.example.tr3ack.data.entity.WorkoutDayEntity
 import com.example.tr3ack.data.entity.WorkoutSetEntity
 import kotlinx.coroutines.CoroutineScope
@@ -27,9 +29,10 @@ import kotlinx.coroutines.launch
         WorkoutSetEntity::class,
         ExerciseStatsEntity::class,
         ExerciseDailyStatsEntity::class,
-        WorkoutDayEntity::class
+        WorkoutDayEntity::class,
+        GoalEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class Tr3ackDatabase : RoomDatabase() {
@@ -37,6 +40,7 @@ abstract class Tr3ackDatabase : RoomDatabase() {
     abstract fun bodyWeightDao(): BodyWeightDao
     abstract fun workoutSetDao(): WorkoutSetDao
     abstract fun statsCacheDao(): StatsCacheDao
+    abstract fun goalDao(): GoalDao
 
     companion object {
         @Volatile
@@ -122,6 +126,22 @@ abstract class Tr3ackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v5 -> v6: add the `goals` table (one target per exercise). Column order /
+         * affinities match the GoalEntity definition so schema validation passes.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS goals (" +
+                        "exerciseId INTEGER NOT NULL PRIMARY KEY, " +
+                        "type TEXT NOT NULL, " +
+                        "targetValue REAL NOT NULL, " +
+                        "createdAt INTEGER NOT NULL)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): Tr3ackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -129,7 +149,7 @@ abstract class Tr3ackDatabase : RoomDatabase() {
                     Tr3ackDatabase::class.java,
                     "tr3ack_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

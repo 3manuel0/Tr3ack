@@ -136,6 +136,106 @@ class Tr3ackDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate5to6_createsGoalsTableWithoutTouchingExistingData() {
+        // Seed a populated v5 database (the schema a phone running the previous
+        // release would have) so we can prove the migration preserves it.
+        helper.createDatabase("test", 5).apply {
+            execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (1, 'Weighted Pull-Ups', 1)")
+            execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (4, 'Bicep Curls', 0)")
+            execSQL("INSERT INTO body_weight_entries (id, date, bodyWeightKg) VALUES (1, '2026-08-21', 70.0)")
+            execSQL(
+                "INSERT INTO workout_sets (id, exerciseId, date, addedWeightKg, reps, timestamp) " +
+                    "VALUES (1, 1, '2026-08-21', 32.0, 8, 1)"
+            )
+            execSQL(
+                "INSERT INTO workout_sets (id, exerciseId, date, addedWeightKg, reps, timestamp) " +
+                    "VALUES (2, 4, '2026-08-21', 30.0, 10, 2)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            "test", 6, /* validateDroppedTables = */ true,
+            Tr3ackDatabase.MIGRATION_5_6
+        )
+
+        // New table exists and is empty right after the migration.
+        val goalCount = db.query("SELECT COUNT(*) FROM goals")
+        goalCount.moveToFirst()
+        assertEquals(0, goalCount.getInt(0))
+        goalCount.close()
+
+        // Existing logged data is fully intact.
+        val exCount = db.query("SELECT COUNT(*) FROM exercises")
+        exCount.moveToFirst()
+        assertEquals(2, exCount.getInt(0))
+        exCount.close()
+
+        val setCount = db.query("SELECT COUNT(*) FROM workout_sets")
+        setCount.moveToFirst()
+        assertEquals(2, setCount.getInt(0))
+        setCount.close()
+
+        val bw = db.query("SELECT bodyWeightKg FROM body_weight_entries WHERE date = '2026-08-21'")
+        bw.moveToFirst()
+        assertEquals(70.0, bw.getDouble(0), 1e-9)
+        bw.close()
+
+        val set = db.query("SELECT addedWeightKg, reps FROM workout_sets WHERE id = 1")
+        set.moveToFirst()
+        assertEquals(32.0, set.getDouble(0), 1e-9)
+        assertEquals(8, set.getInt(1))
+        set.close()
+
+        // Round-trips a goal row using the expected columns.
+        db.execSQL("INSERT INTO goals (exerciseId, type, targetValue, createdAt) VALUES (1, 'E1RM', 130.0, 42)")
+        val row = db.query("SELECT type, targetValue, createdAt FROM goals WHERE exerciseId = 1")
+        row.moveToFirst()
+        assertEquals("E1RM", row.getString(0))
+        assertEquals(130.0, row.getDouble(1), 1e-9)
+        assertEquals(42L, row.getLong(2))
+        row.close()
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(6, version.getInt(0))
+        version.close()
+
+        db.close()
+    }
+
+    @Test
+    fun migrateChain_toV6_succeeds() {
+        // Start from empty v1 schema; apply every migration in sequence.
+        helper.createDatabase("test", 1).close()
+        val db = helper.runMigrationsAndValidate(
+            "test", 6, true,
+            Tr3ackDatabase.MIGRATION_1_2,
+            Tr3ackDatabase.MIGRATION_2_3,
+            Tr3ackDatabase.MIGRATION_3_4,
+            Tr3ackDatabase.MIGRATION_4_5,
+            Tr3ackDatabase.MIGRATION_5_6
+        )
+
+        // v2_3 re-seeds 6 exercises; v3_4 removes id 5 -> 5 remain.
+        val exCount = db.query("SELECT COUNT(*) FROM exercises")
+        exCount.moveToFirst()
+        assertEquals(5, exCount.getInt(0))
+        exCount.close()
+
+        val goalsExists = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='goals'")
+        assertEquals(1, goalsExists.count)
+        goalsExists.close()
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(6, version.getInt(0))
+        version.close()
+
+        db.close()
+    }
+
+    @Test
     fun migrateChain_toV4_succeeds() {
         // Start from empty v1 schema; apply every migration in sequence
         helper.createDatabase("test", 1).close()

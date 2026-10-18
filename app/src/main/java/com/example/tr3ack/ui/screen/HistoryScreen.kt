@@ -1,14 +1,16 @@
 package com.example.tr3ack.ui.screen
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -57,6 +59,7 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val selectedDateSets by viewModel.selectedDateSets.collectAsStateWithLifecycle()
     val exercises by viewModel.exercises.collectAsStateWithLifecycle()
+    val exerciseById = remember(exercises) { exercises.associateBy { it.id } }
 
     var showAddPastWorkout by remember { mutableStateOf(false) }
 
@@ -72,10 +75,9 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
             if (allDates.isEmpty()) {
                 item {
                     Text(
@@ -86,7 +88,7 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
                 }
             }
 
-            items(allDates) { dateStr ->
+            items(allDates, key = { it }) { dateStr ->
                 val date = LocalDate.parse(dateStr)
                 val isSelected = selectedDate == date
                 val daysAgo = ChronoUnit.DAYS.between(date, LocalDate.now())
@@ -94,6 +96,7 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
                 ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .animateItem()
                         .clickable { viewModel.selectDate(date) },
                     colors = if (isSelected) CardDefaults.elevatedCardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -139,14 +142,15 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 8.dp),
+                            .padding(start = 8.dp)
+                            .animateContentSize(),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             selectedDateSets.groupBy { it.exerciseId }.forEach { (exerciseId, sets) ->
-                                val exercise = exercises.find { it.id == exerciseId }
+                                val exercise = exerciseById[exerciseId]
                                 Text(
                                     text = exercise?.name ?: stringResource(R.string.history_unknown_exercise),
                                     style = MaterialTheme.typography.titleSmall,
@@ -177,7 +181,7 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
                                             Spacer(modifier = Modifier.width(8.dp))
                                             IconButton(
                                                 onClick = { viewModel.deleteSet(set) },
-                                                modifier = Modifier.height(24.dp)
+                                                modifier = Modifier.size(48.dp)
                                             ) {
                                                 Icon(
                                                     Icons.Default.Delete,
@@ -193,8 +197,6 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
                     }
                 }
             }
-
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 

@@ -98,7 +98,9 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
         }
         viewModelScope.launch {
             combine(repository.exerciseStats, exercises) { stats, current -> stats to current }.collect { (stats, current) ->
-                _lastLoggedDateByExercise.value = stats.associate { it.exerciseId to it.lastLoggedDate }
+                _lastLoggedDateByExercise.value = stats
+                    .filter { it.lastLoggedDate.isNotBlank() }
+                    .associate { it.exerciseId to it.lastLoggedDate }
                 val byId = stats.associateBy { it.exerciseId }
                 _pullUpsPB.value = buildPersonalBest(byId[ExerciseIds.WEIGHTED_PULL_UPS], current)
                 _dipsPB.value = buildPersonalBest(byId[ExerciseIds.WEIGHTED_DIPS], current)
@@ -225,6 +227,7 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
 
     fun lastLoggedForExercise(exerciseId: Long): Long? {
         val last = _lastLoggedDateByExercise.value[exerciseId] ?: return null
+        if (last.isBlank()) return null
         val lastDate = LocalDate.parse(last)
         return ChronoUnit.DAYS.between(lastDate, LocalDate.now())
     }

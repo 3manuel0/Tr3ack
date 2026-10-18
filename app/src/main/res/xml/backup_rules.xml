@@ -3,12 +3,8 @@
    Backup rules for devices older than API 31; the newer cloud-backup /
    device-transfer rules live in data_extraction_rules.xml.
    Only the app's Room database matters for restore (all state is derived
-   from it), so we back it up explicitly and exclude everything else.
+   from it), so we include it explicitly — anything not included is excluded.
 -->
 <full-backup-content>
     <include domain="database" path="." />
-    <exclude domain="sharedpref" path="." />
-    <exclude domain="file" path="." />
-    <exclude domain="external" path="." />
-    <exclude domain="root" path="." />
 </full-backup-content>

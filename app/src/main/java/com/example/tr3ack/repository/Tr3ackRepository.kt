@@ -3,6 +3,7 @@ package com.example.tr3ack.repository
 import androidx.room.withTransaction
 import com.example.tr3ack.data.dao.BodyWeightDao
 import com.example.tr3ack.data.dao.ExerciseDao
+import com.example.tr3ack.data.dao.GoalDao
 import com.example.tr3ack.data.dao.StatsCacheDao
 import com.example.tr3ack.data.dao.WorkoutSetDao
 import com.example.tr3ack.data.database.Tr3ackDatabase
@@ -12,6 +13,7 @@ import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.ExerciseDailyStatsEntity
 import com.example.tr3ack.data.entity.ExerciseEntity
 import com.example.tr3ack.data.entity.ExerciseStatsEntity
+import com.example.tr3ack.data.entity.Goal
 import com.example.tr3ack.data.entity.StatsCalculator
 import com.example.tr3ack.data.entity.WorkoutDayEntity
 import com.example.tr3ack.data.entity.WorkoutSet
@@ -28,7 +30,8 @@ class Tr3ackRepository(
     private val exerciseDao: ExerciseDao,
     private val bodyWeightDao: BodyWeightDao,
     private val workoutSetDao: WorkoutSetDao,
-    private val statsCacheDao: StatsCacheDao
+    private val statsCacheDao: StatsCacheDao,
+    private val goalDao: GoalDao
 ) {
     val allExercises: Flow<List<Exercise>> = exerciseDao.getAllExercises().map { list ->
         list.map { it.toDomain() }
@@ -55,6 +58,9 @@ class Tr3ackRepository(
     val workoutDays: Flow<List<WorkoutDayEntity>> = statsCacheDao.getWorkoutDays()
 
     val workoutDatesCached: Flow<List<String>> = statsCacheDao.getWorkoutDatesCached()
+
+    /** Active goal per exercise (one row per exercise). */
+    val goals: Flow<List<Goal>> = goalDao.getAllGoals().map { list -> list.map { it.toDomain() } }
 
     fun getDailyStatsForExercise(exerciseId: Long): Flow<List<ExerciseDailyStatsEntity>> =
         statsCacheDao.getDailyStatsForExercise(exerciseId)
@@ -100,6 +106,10 @@ class Tr3ackRepository(
         workoutSetDao.getWorkoutDatesOnOrBefore(date)
 
     suspend fun insertExercise(exercise: Exercise): Long = exerciseDao.insert(exercise.toEntity())
+
+    suspend fun saveGoal(goal: Goal) = goalDao.upsert(goal.toEntity())
+
+    suspend fun deleteGoal(exerciseId: Long) = goalDao.deleteByExerciseId(exerciseId)
 
     suspend fun insertBodyWeight(entry: BodyWeightEntry): Long = database.withTransaction {
         val id = bodyWeightDao.insertOrUpdate(entry.toEntity())

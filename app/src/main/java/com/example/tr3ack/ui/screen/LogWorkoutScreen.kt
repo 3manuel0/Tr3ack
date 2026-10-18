@@ -3,6 +3,7 @@ package com.example.tr3ack.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -87,6 +88,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
 
     var showDatePicker by remember { mutableStateOf(false) }
     var exerciseMenuExpanded by remember { mutableStateOf(false) }
+    val selectedExercise = exercises.find { it.id == selectedExerciseId }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -139,10 +141,9 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
             // Exercise selector
             item {
                 ExposedDropdownMenuBox(
@@ -150,7 +151,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     onExpandedChange = { exerciseMenuExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = exercises.find { it.id == selectedExerciseId }?.name ?: stringResource(R.string.select_exercise),
+                        value = selectedExercise?.name ?: stringResource(R.string.select_exercise),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(stringResource(R.string.label_exercise)) },
@@ -202,7 +203,6 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
             }
 
             // Body weight display for bodyweight exercises
-            val selectedExercise = exercises.find { it.id == selectedExerciseId }
             if (selectedExercise?.isBodyweightBased == true) {
                 item {
                     Card(
@@ -353,8 +353,12 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
-                items(savedSets) { set ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                items(savedSets, key = { it.id }) { set ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateItem()
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -385,8 +389,6 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
                     }
                 }
             }
-
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 

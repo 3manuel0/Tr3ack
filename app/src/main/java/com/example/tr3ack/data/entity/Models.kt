@@ -30,6 +30,19 @@ data class WorkoutSet(
     val timestamp: Long
 )
 
+/**
+ * What a goal measures. [E1RM] and [WEIGHT] apply to every exercise; [BW_RATIO]
+ * is only meaningful for bodyweight-based movements (weighted pull-ups, etc.).
+ */
+enum class GoalType { E1RM, WEIGHT, BW_RATIO }
+
+data class Goal(
+    val exerciseId: Long,
+    val type: GoalType,
+    val targetValue: Double,
+    val createdAt: Long
+)
+
 fun ExerciseEntity.toDomain() = Exercise(
     id = id,
     name = name,
@@ -71,3 +84,21 @@ fun WorkoutSet.toEntity() = WorkoutSetEntity(
     reps = reps,
     timestamp = timestamp
 )
+
+fun GoalEntity.toDomain() = Goal(
+    exerciseId = exerciseId,
+    type = goalTypeFromName(type),
+    targetValue = targetValue,
+    createdAt = createdAt
+)
+
+fun Goal.toEntity() = GoalEntity(
+    exerciseId = exerciseId,
+    type = type.name,
+    targetValue = targetValue,
+    createdAt = createdAt
+)
+
+/** Parses a stored goal type, defaulting to [GoalType.E1RM] for unknown values. */
+fun goalTypeFromName(name: String): GoalType =
+    GoalType.entries.firstOrNull { it.name == name } ?: GoalType.E1RM

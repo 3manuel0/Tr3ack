@@ -37,7 +37,8 @@ class StatsCacheRoundTripTest {
             db.exerciseDao(),
             db.bodyWeightDao(),
             db.workoutSetDao(),
-            db.statsCacheDao()
+            db.statsCacheDao(),
+            db.goalDao()
         )
     }
 

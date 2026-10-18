@@ -2,8 +2,6 @@ package com.example.tr3ack.ui.screen
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -38,17 +36,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,6 +72,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.time.temporal.TemporalAdjusters
 import kotlin.math.ceil
@@ -89,8 +96,24 @@ fun DashboardScreen(
     val exerciseTrends by viewModel.exerciseTrends.collectAsStateWithLifecycle()
     val exerciseTrendNotes by viewModel.exerciseTrendNotes.collectAsStateWithLifecycle()
     val workoutDays by viewModel.workoutDays.collectAsStateWithLifecycle()
+    val lastLoggedByExercise by viewModel.lastLoggedDateByExercise.collectAsStateWithLifecycle()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
+
+    val groupedTodaySets = remember(todaySets) { todaySets.groupBy { it.exerciseId }.entries.toList() }
+    val exerciseById = remember(exercises) { exercises.associateBy { it.id } }
+    val trainingLogRows = remember(exercises, lastLoggedByExercise) {
+        val today = LocalDate.now()
+        exercises.map { exercise ->
+            val last = lastLoggedByExercise[exercise.id]
+            val daysAgo = if (last.isNullOrBlank()) {
+                null
+            } else {
+                ChronoUnit.DAYS.between(LocalDate.parse(last), today)
+            }
+            exercise to daysAgo
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -115,10 +138,9 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
             // Today's Body Weight
             item {
                 ElevatedCard(
@@ -273,18 +295,17 @@ fun DashboardScreen(
             }
 
             // Group sets by exercise
-            val groupedSets = todaySets.groupBy { it.exerciseId }
-            items(groupedSets.entries.toList()) { (exerciseId, sets) ->
-                val exercise = exercises.find { it.id == exerciseId }
+            items(groupedTodaySets, key = { "day_${it.key}" }) { (exerciseId, sets) ->
                 ExerciseDayCard(
-                    exercise = exercise,
+                    exercise = exerciseById[exerciseId],
                     sets = sets,
-                    todayBodyWeight = todayBodyWeight
+                    todayBodyWeight = todayBodyWeight,
+                    modifier = Modifier.animateItem()
                 )
             }
 
             // Per-exercise last logged
-            if (exercises.isNotEmpty()) {
+            if (trainingLogRows.isNotEmpty()) {
                 item {
                     Text(
                         text = stringResource(R.string.dashboard_training_log),
@@ -293,11 +314,11 @@ fun DashboardScreen(
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
-                items(exercises) { exercise ->
-                    val daysAgo = viewModel.lastLoggedForExercise(exercise.id)
+                items(trainingLogRows, key = { "log_${it.first.id}" }) { (exercise, daysAgo) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .animateItem()
                             .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -315,8 +336,6 @@ fun DashboardScreen(
                     }
                 }
             }
-
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 
@@ -356,9 +375,10 @@ fun DashboardScreen(
 private fun ExerciseDayCard(
     exercise: Exercise?,
     sets: List<WorkoutSet>,
-    todayBodyWeight: Double?
+    todayBodyWeight: Double?,
+    modifier: Modifier = Modifier
 ) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    ElevatedCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -440,9 +460,16 @@ private fun BodyWeightTrendChart(
 ) {
     if (data.isEmpty()) return
 
+    val fontScale = LocalDensity.current.fontScale
     val lineColor = MaterialTheme.colorScheme.secondary
     val textColor = MaterialTheme.colorScheme.onSurface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val chartSummary = pluralStringResource(
+        R.plurals.chart_bw_trend_desc,
+        data.size,
+        data.size,
+        "%.1f".format(data.last().bodyWeightKg)
+    )
 
     val values = data.map { it.bodyWeightKg }
     val maxVal = values.max()
@@ -452,7 +479,11 @@ private fun BodyWeightTrendChart(
     val yMax = maxVal + valuePadding
     val yRange = (yMax - yMin).coerceAtLeast(1.0)
 
-    Canvas(modifier = modifier) {
+    Canvas(
+        modifier = modifier.semantics {
+            contentDescription = chartSummary
+        }
+    ) {
         val leftPadding = 48f
         val rightPadding = 24f
         val topPadding = 16f
@@ -472,8 +503,8 @@ private fun BodyWeightTrendChart(
         }
 
         val textPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 22f
+            color = textColor.toArgb()
+            textSize = 22f * fontScale
             isAntiAlias = true
         }
         for (i in 0..4) {
@@ -489,8 +520,8 @@ private fun BodyWeightTrendChart(
 
         val stepCount = data.size - 1
         val labelPaint = android.graphics.Paint().apply {
-            color = textColor.hashCode()
-            textSize = 18f
+            color = textColor.toArgb()
+            textSize = 18f * fontScale
             isAntiAlias = true
             textAlign = android.graphics.Paint.Align.CENTER
         }
@@ -803,85 +834,108 @@ private fun TrainingConsistencyHeatmap(
         }
     }
     val shownWeeks = weeks.takeLast(18)
-    val primary = MaterialTheme.colorScheme.primary
+
+    // Month label spans: label + the week-column range it covers
+    val monthSpans = remember(shownWeeks) {
+        val spans = mutableListOf<Pair<String, IntRange>>()
+        var i = 0
+        while (i < shownWeeks.size) {
+            val week = shownWeeks[i]
+            val firstDay = week.firstOrNull() ?: break
+            val monthKey = firstDay.year * 100 + firstDay.monthValue
+            var j = i
+            while (j < shownWeeks.size) {
+                val w = shownWeeks[j]
+                val d = w.firstOrNull() ?: break
+                if (d.year * 100 + d.monthValue == monthKey) j++ else break
+            }
+            spans.add(firstDay.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) to (i until j))
+            i = j
+        }
+        spans
+    }
+
     val dow = listOf("M", "T", "W", "T", "F", "S", "S")
     val cellSize = 12.dp
     val cellSpacing = 4.dp
+    val labelColumnWidth = 20.dp
+    val monthRowHeight = 16.dp
+    val monthToGridGap = 4.dp
+    // month row + gap + 7 cells + 6 gaps
+    val gridHeight = monthRowHeight + monthToGridGap + cellSize * 7 + cellSpacing * 6
 
-    // Compute month label spans
-    val monthSpans = mutableListOf<Pair<String, IntRange>>()
-    var i = 0
-    while (i < shownWeeks.size) {
-        val week = shownWeeks[i]
-        val firstDay = week.firstOrNull() ?: break
-        val monthKey = firstDay.year * 100 + firstDay.monthValue
-        var j = i
-        while (j < shownWeeks.size) {
-            val w = shownWeeks[j]
-            val d = w.firstOrNull() ?: break
-            if (d.year * 100 + d.monthValue == monthKey) j++ else break
-        }
-        val span = i until j
-        val label = firstDay.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-        monthSpans.add(label to span)
-        i = j
+    val primary = MaterialTheme.colorScheme.primary
+    val emptyCellColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val density = LocalDensity.current
+    val trainedDayCount = remember(shownWeeks, daySet) {
+        shownWeeks.count { week -> week.any { daySet.contains(it) } }
     }
+    val chartSummary = pluralStringResource(R.plurals.chart_heatmap_desc, trainedDayCount, trainedDayCount)
 
-    Column(modifier = modifier) {
-        Row {
-            Spacer(modifier = Modifier.width(20.dp))
-            monthSpans.forEach { (label, span) ->
-                val count = span.count()
-                if (count > 0) {
-                    Box(
-                        modifier = Modifier
-                            .width(cellSize * count + cellSpacing * (count - 1).coerceAtLeast(0))
-                            .height(16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+    Canvas(
+        modifier = modifier
+            .height(gridHeight)
+            .semantics { contentDescription = chartSummary }
+    ) {
+        val gutterPx = labelColumnWidth.toPx()
+        val gapPx = cellSpacing.toPx()
+        val cellPx = cellSize.toPx()
+        val gridLeft = gutterPx + gapPx
+        val gridTop = monthRowHeight.toPx() + monthToGridGap.toPx()
+
+        val monthPaint = android.graphics.Paint().apply {
+            color = labelColor.toArgb()
+            textSize = with(density) { 11.sp.toPx() }
+            isAntiAlias = true
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                (0..6).forEach { i ->
-                    Box(
-                        modifier = Modifier.width(20.dp).height(12.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (i % 2 == 1) {
-                            Text(
-                                text = dow[i],
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-            shownWeeks.forEach { week ->
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    week.forEach { day ->
-                        val hasWorkout = daySet.contains(day)
-                        Box(
-                            modifier = Modifier
-                                .width(12.dp).height(12.dp)
-                            .background(
-                                color = if (hasWorkout) primary.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(2.dp)
-                            )
-                        )
-                    }
-                }
+        val dowPaint = android.graphics.Paint().apply {
+            color = labelColor.toArgb()
+            textSize = with(density) { 11.sp.toPx() }
+            isAntiAlias = true
+        }
+        fun centeredBaseline(paint: android.graphics.Paint, centerY: Float): Float {
+            val fm = paint.fontMetrics
+            return centerY - (fm.ascent + fm.descent) / 2f
+        }
+
+        // Month labels, each anchored to the first week column of its span
+        val monthCenterY = monthRowHeight.toPx() / 2f
+        monthSpans.forEach { (label, span) ->
+            if (span.isEmpty()) return@forEach
+            val x = gridLeft + span.first * (cellPx + gapPx)
+            drawContext.canvas.nativeCanvas.drawText(
+                label,
+                x,
+                centeredBaseline(monthPaint, monthCenterY),
+                monthPaint
+            )
+        }
+
+        // Day-of-week gutter (every other row, matching the previous layout)
+        (0..6).forEach { row ->
+            if (row % 2 == 0) return@forEach
+            val centerY = gridTop + row * (cellPx + gapPx) + cellPx / 2f
+            drawContext.canvas.nativeCanvas.drawText(
+                dow[row],
+                0f,
+                centeredBaseline(dowPaint, centerY),
+                dowPaint
+            )
+        }
+
+        // Workout cells
+        shownWeeks.forEachIndexed { column, week ->
+            week.forEachIndexed { row, day ->
+                val x = gridLeft + column * (cellPx + gapPx)
+                val y = gridTop + row * (cellPx + gapPx)
+                val color = if (daySet.contains(day)) primary.copy(alpha = 0.85f) else emptyCellColor
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(x, y),
+                    size = Size(cellPx, cellPx),
+                    cornerRadius = CornerRadius(2.dp.toPx())
+                )
             }
         }
     }
