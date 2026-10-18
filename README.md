@@ -46,7 +46,6 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 | Weighted Dips     | 2  | Weighted bodyweight | E1RM, Tonnage, Belt vs BW, System weight, % BW      |
 | Weighted Chin-Ups | 3  | Weighted bodyweight | E1RM, Tonnage, Belt vs BW, System weight, % BW      |
 | Bicep Curls       | 4  | Free weight         | E1RM, Tonnage, Weight x reps                         |
-| Hammer Curls      | 5  | Free weight         | E1RM, Tonnage, Weight x reps                         |
 | Lateral Raises    | 6  | Free weight         | E1RM, Tonnage, Weight x reps                         |
 
 ## Stats — How E1RM Works
