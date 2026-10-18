@@ -1,5 +1,7 @@
 package com.example.tr3ack.data.entity
 
+import kotlin.math.exp
+
 enum class MovementType { DIPS, PULLUPS, CHIN_UPS, UNKNOWN }
 
 /**
@@ -9,18 +11,34 @@ enum class MovementType { DIPS, PULLUPS, CHIN_UPS, UNKNOWN }
  */
 object MovementFactors {
     /**
-     * Reps above this are still logged and counted in tonnage, but their 1RM
-     * coefficient is computed from [MAX_E1RM_REPS] (the capped value). The set is
-     * kept eligible for best-set selection at that capped value rather than being
-     * excluded. Bump this constant to change the cap everywhere.
+     * Free-weight reps above this are still logged and counted in tonnage, but
+     * their E1RM uses the [MAX_FREE_WEIGHT_REPS] value. Epley/Brzycki both get
+     * unreliable much past this, so the estimate stops here rather than drifting.
      */
-    const val MAX_E1RM_REPS = 12
+    const val MAX_FREE_WEIGHT_REPS = 12
+
+    /**
+     * Upper bound for the bodyweight coefficient curve. The saturating tail below
+     * plateaus well before this, so the exact value only guards against absurd
+     * rep counts. Reps above it reuse the [MAX_BODYWEIGHT_REPS] coefficient.
+     */
+    const val MAX_BODYWEIGHT_REPS = 30
 
     /** Slope used for movements with no coefficient table. */
     private const val FALLBACK_SLOPE = 0.0333
 
     /** Epley divisor for free-weight E1RM: weight * (1 + reps / EPLEY_DIVISOR). */
     const val EPLEY_DIVISOR = 30.0
+
+    /** Brzycki denominator: weight * 36 / (BRZYCKI_OVER - reps). */
+    const val BRZYCKI_OVER = 37.0
+
+    /**
+     * Most a bodyweight coefficient can gain beyond the last table entry. Past the
+     * table the curve saturates toward `last + TAIL_EXTRA`, so very high-rep sets
+     * keep growing but flatten out instead of climbing linearly without bound.
+     */
+    private const val TAIL_EXTRA = 0.10
 
     private val DIP_COEFFICIENTS = doubleArrayOf(
         1.000, 1.035, 1.068, 1.100, 1.130,
@@ -48,35 +66,50 @@ object MovementFactors {
     }
 
     fun getMovementFactor(movementType: MovementType, reps: Int): Double {
-        val effectiveReps = reps.coerceIn(1, MAX_E1RM_REPS)
-        return when (movementType) {
-            MovementType.DIPS -> extrapolate(DIP_COEFFICIENTS, effectiveReps)
-            MovementType.PULLUPS -> extrapolate(PULLUP_COEFFICIENTS, effectiveReps)
-            MovementType.CHIN_UPS -> extrapolate(CHINUP_COEFFICIENTS, effectiveReps)
-            MovementType.UNKNOWN -> 1.0 + (effectiveReps - 1) * FALLBACK_SLOPE
+        val table = when (movementType) {
+            MovementType.DIPS -> DIP_COEFFICIENTS
+            MovementType.PULLUPS -> PULLUP_COEFFICIENTS
+            MovementType.CHIN_UPS -> CHINUP_COEFFICIENTS
+            MovementType.UNKNOWN -> null
         }
+        // Unknown movements have no table; fall back to the conservative linear
+        // estimate and cap it like a free weight rather than letting it run high.
+        if (table == null) {
+            val effectiveReps = reps.coerceIn(1, MAX_FREE_WEIGHT_REPS)
+            return 1.0 + (effectiveReps - 1) * FALLBACK_SLOPE
+        }
+        val effectiveReps = reps.coerceIn(1, MAX_BODYWEIGHT_REPS)
+        return if (effectiveReps <= table.size) table[effectiveReps - 1]
+        else saturatingTail(table, effectiveReps)
     }
 
     /**
-     * Free-weight E1RM via the Epley formula, using reps clamped to
-     * 1..[MAX_E1RM_REPS]. A true single (reps == 1) is already a maximal effort,
-     * so it returns the weight unchanged instead of the 3.3% inflation the formula
-     * would otherwise add.
+     * Free-weight E1RM as the average of the Epley and Brzycki formulas, using reps
+     * clamped to 1..[MAX_FREE_WEIGHT_REPS]. Averaging the two cancels part of each
+     * formula's bias (Epley runs high at low reps, Brzycki runs high at high reps),
+     * and they already agree exactly at 10 reps. A true single (reps == 1) is a
+     * maximal effort, so it returns the weight unchanged rather than the small
+     * inflation the formula would add.
      */
     fun freeWeightE1RM(weight: Double, reps: Int): Double {
-        val effectiveReps = reps.coerceIn(1, MAX_E1RM_REPS)
-        return if (effectiveReps <= 1) weight else weight * (1.0 + effectiveReps / EPLEY_DIVISOR)
+        val effectiveReps = reps.coerceIn(1, MAX_FREE_WEIGHT_REPS)
+        if (effectiveReps <= 1) return weight
+        val epley = weight * (1.0 + effectiveReps / EPLEY_DIVISOR)
+        val brzycki = weight * 36.0 / (BRZYCKI_OVER - effectiveReps)
+        return (epley + brzycki) / 2.0
     }
 
     /**
-     * Coefficient for [effectiveReps]. Rep counts past the end of [table] continue
-     * with the table's final slope, so the curve stays continuous at its last entry
-     * instead of flatlining or jumping to a different curve. [effectiveReps] is
-     * assumed to be within 1..[MAX_E1RM_REPS].
+     * Coefficient for rep counts beyond the end of [table]. The curve starts from
+     * the table's last value with the table's final slope (so it is continuous at
+     * the boundary) and saturates toward `last + [TAIL_EXTRA]`, giving progressively
+     * diminishing returns instead of unbounded linear growth.
      */
-    private fun extrapolate(table: DoubleArray, effectiveReps: Int): Double {
-        if (effectiveReps <= table.size) return table[effectiveReps - 1]
-        val slope = table[table.size - 1] - table[table.size - 2]
-        return table[table.size - 1] + (effectiveReps - table.size) * slope
+    private fun saturatingTail(table: DoubleArray, effectiveReps: Int): Double {
+        val last = table[table.size - 1]
+        val slope = last - table[table.size - 2]
+        val extra = effectiveReps - table.size
+        val gained = TAIL_EXTRA * (1.0 - exp(-extra * slope / TAIL_EXTRA))
+        return last + gained
     }
 }

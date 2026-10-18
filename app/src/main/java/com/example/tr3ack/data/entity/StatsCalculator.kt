@@ -16,7 +16,7 @@ object StatsCalculator {
      * rebuilt once on next launch. Kept separate from the Room schema version,
      * which only moves when the database schema itself changes.
      */
-    const val CACHE_VERSION = 1
+    const val CACHE_VERSION = 2
 
     /**
      * Best-known body weight for a date. Prefers an entry on/before the date;

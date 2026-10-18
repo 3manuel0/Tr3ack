@@ -3,6 +3,7 @@ package com.example.tr3ack
 import com.example.tr3ack.data.entity.MovementFactors
 import com.example.tr3ack.data.entity.MovementType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MovementFactorsTest {
@@ -52,14 +53,23 @@ class MovementFactorsTest {
     }
 
     @Test
-    fun namedMovement_extrapolatesThenCapsAtTwelveReps() {
-        // Past the 10-rep table entry the curve continues with its own slope...
-        assertEquals(1.336, MovementFactors.getMovementFactor(MovementType.PULLUPS, 11), 1e-9)
-        // ...through the 12-rep cap; 13+ reuse the 12-rep coefficient.
-        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 12), 1e-9)
-        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 13), 1e-9)
-        assertEquals(1.392, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 12), 1e-9)
-        assertEquals(1.392, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 30), 1e-9)
+    fun namedMovement_highRepsFollowSaturatingCurve() {
+        // Past the 10-rep table entry the curve keeps the table's end slope, then
+        // flattens toward `last + TAIL_EXTRA` instead of climbing linearly.
+        val f11 = MovementFactors.getMovementFactor(MovementType.PULLUPS, 11)
+        val f12 = MovementFactors.getMovementFactor(MovementType.PULLUPS, 12)
+        val f13 = MovementFactors.getMovementFactor(MovementType.PULLUPS, 13)
+        assertEquals(1.3313851, f11, 1e-7)
+        assertEquals(1.3512708, f12, 1e-7)
+        assertEquals(1.3657107, f13, 1e-7)
+        // Diminishing returns: each extra rep adds less than the previous one.
+        assertTrue(f12 - f11 > f13 - f12)
+        // Saturates toward 1.304 + 0.10 and never exceeds it (cap at 30 reps).
+        assertEquals(1.4038338, MovementFactors.getMovementFactor(MovementType.PULLUPS, 30), 1e-7)
+        assertEquals(1.4038338, MovementFactors.getMovementFactor(MovementType.PULLUPS, 200), 1e-7)
+        // Other movements saturate relative to their own final slope.
+        assertEquals(1.3752708, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 12), 1e-7)
+        assertEquals(1.4278338, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 30), 1e-7)
     }
 
     @Test

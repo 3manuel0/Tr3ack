@@ -75,17 +75,19 @@ Where `TSL = Body Weight + Added Weight` and the coefficient varies by exercise 
 
 Chin-up coefficients are higher than pull-ups because the bicep provides a leverage advantage, allowing more load at the same rep count.
 
-Above 10 reps the curve continues with the table's final slope, then caps at 12 reps (`MAX_E1RM_REPS`); sets above the cap still count toward tonnage.
+Above 10 reps the curve keeps the table's final slope at the boundary, then saturates toward `last + 0.10` — so high-rep sets keep gaining with diminishing returns instead of climbing linearly. Reps are capped at 30 (`MAX_BODYWEIGHT_REPS`); sets above the cap still count toward tonnage.
 
 ### Free Weight Exercises
 
-Uses the Epley formula:
+Uses the average of the Epley and Brzycki formulas:
 
 ```
-E1RM = Weight × (1 + Reps / 30)
+Epley    = Weight × (1 + Reps / 30)
+Brzycki  = Weight × 36 / (37 - Reps)
+E1RM     = (Epley + Brzycki) / 2
 ```
 
-A true single (1 rep) returns the weight unchanged (no 3.3% inflation); rep counts above 12 are capped at 12.
+Averaging the two cancels part of each formula's bias (Epley runs high at low reps, Brzycki runs high at high reps); they already agree exactly at 10 reps. A true single (1 rep) returns the weight unchanged (no inflation); rep counts above 12 are capped at 12 (`MAX_FREE_WEIGHT_REPS`).
 
 ## Stats — Other Charts
 
@@ -153,7 +155,7 @@ Importing a backup replaces all current data. A confirmation dialog is shown bef
 
 - **Total System Weight** = Body Weight + Added Weight
 - **% Body Weight** = (Total System Weight / Body Weight) × 100
-- **Estimated 1RM** = Movement-specific coefficient × TSL (bodyweight) or Epley formula (free weight)
+- **Estimated 1RM** = Movement-specific coefficient × TSL (bodyweight) or Epley/Brzycki blend (free weight)
 - **Personal Record** = The single set with the highest estimated 1RM across all history; all card values (load, reps, % BW, date) come from that one set
 - **Session Tonnage** = Sum of (TSL × Reps) per session
 - **Daily Volume** = Sum of (TSL × Reps) per day

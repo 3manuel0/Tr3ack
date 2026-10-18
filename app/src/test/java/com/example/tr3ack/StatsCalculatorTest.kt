@@ -65,10 +65,10 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun exerciseStats_freeWeight_usesEpleyAndMaxAddedWeightGte6() {
+    fun exerciseStats_freeWeight_usesEpleyBrzyckiBlendAndMaxAddedWeightGte6() {
         val stats = StatsCalculator.computeExerciseStats(bicepCurls, demoCurlSets, effectiveBodyWeight)
 
-        assertEquals(40.0, stats.bestE1RM, 1e-6)            // 30 * (1 + 10/30)
+        assertEquals(40.0, stats.bestE1RM, 1e-6)            // Epley & Brzycki both = 40 at 10 reps
         assertEquals(30.0, stats.bestE1RMAddedWeight, 1e-9)
         assertEquals(10, stats.bestE1RMReps)
         assertEquals(30.0, stats.bestE1RMTotalSystemWeight, 1e-9)
@@ -80,49 +80,48 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun bodyweightRepsAboveTen_extrapolateThenCapAtTwelve() {
-        // Pull-Ups table ends at 10 reps (1.304). 11 and 12 continue the final
-        // 0.032 slope; 13+ reuse the 12-rep coefficient (the cap).
+    fun bodyweightRepsAboveTen_followSaturatingCurve() {
+        // Pull-Ups table ends at 10 reps (1.304). Past it the curve keeps the final
+        // 0.032 slope at the boundary, then flattens toward 1.404 instead of rising
+        // linearly to a hard cap.
         assertEquals(1.304, MovementFactors.getMovementFactor(MovementType.PULLUPS, 10), 1e-9)
-        assertEquals(1.336, MovementFactors.getMovementFactor(MovementType.PULLUPS, 11), 1e-9)
-        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 12), 1e-9)
-        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 13), 1e-9)
-        assertEquals(1.368, MovementFactors.getMovementFactor(MovementType.PULLUPS, 50), 1e-9)
+        assertEquals(1.3313851, MovementFactors.getMovementFactor(MovementType.PULLUPS, 11), 1e-7)
+        assertEquals(1.3512708, MovementFactors.getMovementFactor(MovementType.PULLUPS, 12), 1e-7)
+        assertEquals(1.3657107, MovementFactors.getMovementFactor(MovementType.PULLUPS, 13), 1e-7)
+        assertEquals(1.4038338, MovementFactors.getMovementFactor(MovementType.PULLUPS, 50), 1e-7)
     }
 
     @Test
-    fun freeWeightSingleRep_isNotInflated() {
-        // reps == 1 must be the raw weight (no Epley 3.3% bump).
-        assertEquals(40.0, MovementFactors.freeWeightE1RM(40.0, 1), 1e-9)
-
-        val stats = StatsCalculator.computeExerciseStats(
-            bicepCurls, listOf(set(4, "2026-08-21", 40.0, 1, 1)), effectiveBodyWeight
-        )
-        assertEquals(40.0, stats.bestE1RM, 1e-6)
-    }
-
-    @Test
-    fun freeWeightNineReps_matchesEpley() {
-        // 19 * (1 + 9/30) = 24.7
-        assertEquals(24.7, MovementFactors.freeWeightE1RM(19.0, 9), 1e-6)
+    fun freeWeightNineReps_matchesBrzyckiEpleyBlend() {
+        // Epley 19*1.30 = 24.7, Brzycki 19*36/28 = 24.4286; average 24.5643.
+        assertEquals(24.5642857, MovementFactors.freeWeightE1RM(19.0, 9), 1e-6)
 
         val stats = StatsCalculator.computeExerciseStats(
             bicepCurls, listOf(set(4, "2026-08-21", 19.0, 9, 1)), effectiveBodyWeight
         )
-        assertEquals(24.7, stats.bestE1RM, 1e-6)
+        assertEquals(24.5642857, stats.bestE1RM, 1e-6)
     }
 
     @Test
-    fun exerciseStats_bodyweightCapsRepsAtTwelve() {
+    fun exerciseStats_bodyweightHighRepsKeepDiminishingReturns() {
         val twelve = StatsCalculator.computeExerciseStats(
             pullUps, listOf(set(1, "2026-08-21", 30.0, 12, 1)), effectiveBodyWeight
         )
         val thirteen = StatsCalculator.computeExerciseStats(
             pullUps, listOf(set(1, "2026-08-21", 30.0, 13, 1)), effectiveBodyWeight
         )
+        val thirty = StatsCalculator.computeExerciseStats(
+            pullUps, listOf(set(1, "2026-08-21", 30.0, 30, 1)), effectiveBodyWeight
+        )
+        val forty = StatsCalculator.computeExerciseStats(
+            pullUps, listOf(set(1, "2026-08-21", 30.0, 40, 1)), effectiveBodyWeight
+        )
 
-        assertEquals(136.8, twelve.bestE1RM, 1e-6)          // TSW 100 * 1.368
-        assertEquals(twelve.bestE1RM, thirteen.bestE1RM, 1e-9) // 13 capped to 12
+        assertEquals(135.1270758, twelve.bestE1RM, 1e-6)    // TSW 100 * 1.3512708
+        assertEquals(136.5710711, thirteen.bestE1RM, 1e-6)  // 100 * 1.3657107
+        assertEquals(140.3833844, thirty.bestE1RM, 1e-6)    // 100 * 1.4038338
+        assertTrue(thirteen.bestE1RM > twelve.bestE1RM)     // still climbing, but slower
+        assertEquals(thirty.bestE1RM, forty.bestE1RM, 1e-9) // capped at 30 reps
         assertEquals(13, thirteen.bestE1RMReps)             // logged rep count preserved
     }
 

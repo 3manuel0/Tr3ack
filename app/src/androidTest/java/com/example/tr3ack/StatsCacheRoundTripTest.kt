@@ -186,7 +186,7 @@ class StatsCacheRoundTripTest {
         val expectedCurl = StatsCalculator.computeExerciseStats(bicepCurls, curlSets, effectiveBodyWeight)
         val actualCurl = exerciseStatsRow(4L)
         assertEquals(expectedCurl.bestE1RM, actualCurl.bestE1RM, 1e-9)
-        assertEquals(24.7, actualCurl.bestE1RM, 1e-6) // 19 * (1 + 9/30)
+        assertEquals(24.5642857, actualCurl.bestE1RM, 1e-6) // Epley/Brzycki blend at 9 reps
     }
 
     @Test
