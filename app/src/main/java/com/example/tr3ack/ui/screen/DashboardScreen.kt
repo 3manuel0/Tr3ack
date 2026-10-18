@@ -22,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -68,6 +69,7 @@ import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.DashboardViewModel
 import com.example.tr3ack.viewmodel.TrendDirection
 import com.example.tr3ack.viewmodel.TrendNote
+import com.example.tr3ack.viewmodel.WeekVolume
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -75,6 +77,7 @@ import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.time.temporal.TemporalAdjusters
+import kotlin.math.abs
 import kotlin.math.ceil
 
 @Composable
@@ -96,6 +99,7 @@ fun DashboardScreen(
     val exerciseTrends by viewModel.exerciseTrends.collectAsStateWithLifecycle()
     val exerciseTrendNotes by viewModel.exerciseTrendNotes.collectAsStateWithLifecycle()
     val workoutDays by viewModel.workoutDays.collectAsStateWithLifecycle()
+    val weekVolume by viewModel.weekVolume.collectAsStateWithLifecycle()
     val lastLoggedByExercise by viewModel.lastLoggedDateByExercise.collectAsStateWithLifecycle()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
@@ -210,6 +214,13 @@ fun DashboardScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Week-over-week Volume
+            if (weekVolume.hasData) {
+                item {
+                    WeekVolumeCard(volume = weekVolume)
                 }
             }
 
@@ -369,6 +380,128 @@ fun DashboardScreen(
             }
         )
     }
+}
+
+@Composable
+private fun WeekVolumeCard(volume: WeekVolume) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.dashboard_week_volume),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.dashboard_week_volume_this_week),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = formatVolume(volume.thisWeekTonnage),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.dashboard_week_volume_unit),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 3.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.dashboard_week_volume_sessions_sets,
+                            volume.thisWeekSessions,
+                            volume.thisWeekSets
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    val change = volume.tonnageChangePct
+                    if (change != null) {
+                        val color = when {
+                            change > 0.0 -> Color(0xFF66BB6A)
+                            change < 0.0 -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        val arrow = when {
+                            change > 0.0 -> "▲"
+                            change < 0.0 -> "▼"
+                            else -> "•"
+                        }
+                        Text(
+                            text = "$arrow %.0f%%".format(abs(change)),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = color
+                        )
+                        Text(
+                            text = stringResource(R.string.dashboard_week_volume_vs_last),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.dashboard_week_volume_no_last),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            if (volume.perExercise.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.dashboard_week_volume_this_last),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                volume.perExercise.forEach { entry ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = entry.exerciseName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "${formatVolume(entry.thisWeekTonnage)} / ${formatVolume(entry.lastWeekTonnage)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatVolume(tonnage: Double): String = when {
+    tonnage >= 1_000_000 -> "%.1fM".format(tonnage / 1_000_000)
+    tonnage >= 1_000 -> "%.1fk".format(tonnage / 1_000)
+    else -> "%.0f".format(tonnage)
 }
 
 @Composable

@@ -22,7 +22,7 @@ _Last updated: 2026-10-18_
 
 ## Quick wins (data already available)
 - [ ] **Recent-PR feed / PR timeline** — chronological feed of when each all-time best was set. Reuse `ProgressViewModel.isAllTimePr` logic and `exercise_stats.bestE1RMDate`.
-- [ ] **Week-over-week volume** — compare this week's tonnage vs last (total + per exercise), using `workout_days` / `exercise_daily_stats`.
+- [x] **Week-over-week volume** — compare this week's tonnage vs last (total + per exercise), using `workout_days` / `exercise_daily_stats`. Dashboard card (`WeekVolume` / `buildWeekVolume`), ISO weeks (Mon-Sun).
 - [ ] **CSV import** — round-trip the existing CSV export (parse the same 7-column layout, resolve exercise by name).
 - [ ] **Session summary card** — after logging, show sets / tonnage / PRs for the day; optionally share as an image.
 

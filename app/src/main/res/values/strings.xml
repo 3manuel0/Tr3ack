@@ -58,6 +58,13 @@
     <string name="dashboard_sets_count">%1$d sets</string>
     <string name="dashboard_set_reps">Set %1$d: %2$d reps</string>
     <string name="dashboard_daily_volume">Daily Volume</string>
+    <string name="dashboard_week_volume">This Week vs Last Week</string>
+    <string name="dashboard_week_volume_this_week">This week</string>
+    <string name="dashboard_week_volume_unit">kg·reps</string>
+    <string name="dashboard_week_volume_sessions_sets">%1$d sessions · %2$d sets</string>
+    <string name="dashboard_week_volume_vs_last">vs last week</string>
+    <string name="dashboard_week_volume_no_last">No workouts last week</string>
+    <string name="dashboard_week_volume_this_last">Tonnage — this / last week (kg·reps)</string>
     <string name="content_desc_log_set">Log a Set</string>
     <string name="pb_system_weight">System Weight</string>
     <string name="pb_body_weight_pct">BW</string>

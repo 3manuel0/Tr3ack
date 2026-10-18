@@ -17,6 +17,9 @@ interface StatsCacheDao {
     @Query("SELECT * FROM exercise_daily_stats WHERE exerciseId = :exerciseId ORDER BY date ASC")
     fun getDailyStatsForExercise(exerciseId: Long): Flow<List<ExerciseDailyStatsEntity>>
 
+    @Query("SELECT * FROM exercise_daily_stats WHERE date >= :since ORDER BY date ASC")
+    fun getDailyStatsSince(since: String): Flow<List<ExerciseDailyStatsEntity>>
+
     @Query("SELECT * FROM workout_days ORDER BY date ASC")
     fun getWorkoutDays(): Flow<List<WorkoutDayEntity>>
 

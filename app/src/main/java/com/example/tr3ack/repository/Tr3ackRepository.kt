@@ -65,6 +65,9 @@ class Tr3ackRepository(
     fun getDailyStatsForExercise(exerciseId: Long): Flow<List<ExerciseDailyStatsEntity>> =
         statsCacheDao.getDailyStatsForExercise(exerciseId)
 
+    fun getDailyStatsSince(since: String): Flow<List<ExerciseDailyStatsEntity>> =
+        statsCacheDao.getDailyStatsSince(since)
+
     fun getSetsForDate(date: String): Flow<List<WorkoutSet>> =
         workoutSetDao.getSetsForDate(date).map { list -> list.map { it.toDomain() } }
 

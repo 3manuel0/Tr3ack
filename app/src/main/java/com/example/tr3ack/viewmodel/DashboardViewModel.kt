@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 import java.time.temporal.ChronoUnit
 
 data class PersonalBest(
@@ -84,6 +86,9 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
     private val _workoutDays = MutableStateFlow<List<WorkoutDayEntity>>(emptyList())
     val workoutDays: StateFlow<List<WorkoutDayEntity>> = _workoutDays.asStateFlow()
 
+    private val _weekVolume = MutableStateFlow(WeekVolume())
+    val weekVolume: StateFlow<WeekVolume> = _weekVolume.asStateFlow()
+
     init {
         viewModelScope.launch {
             _todayBodyWeight.value = repository.getEffectiveBodyWeight(_today.value)
@@ -113,6 +118,18 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                 _workoutDays.value = days
                 _lastSessionDate.value = days.maxOfOrNull { it.date }
             }
+        }
+        viewModelScope.launch {
+            val thisWeekStart = weekStart(LocalDate.now())
+            val since = thisWeekStart.minusWeeks(1).toString()
+            combine(
+                repository.workoutDays,
+                repository.getDailyStatsSince(since),
+                exercises
+            ) { days, daily, current -> Triple(days, daily, current) }
+                .collect { (days, daily, current) ->
+                    _weekVolume.value = buildWeekVolume(thisWeekStart, days, daily, current)
+                }
         }
         viewModelScope.launch {
             listOf(
