@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 
 data class BestSetRecord(
@@ -168,7 +167,7 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
         val movementType = MovementFactors.getMovementType(exercise.name)
         val currentBW = repository.getEffectiveBodyWeight(
             java.time.LocalDate.now().toString()
-        ) ?: repository.allBodyWeightEntries.first().maxByOrNull { it.date }?.bodyWeightKg ?: 0.0
+        ) ?: repository.getMostRecentBodyWeight() ?: 0.0
 
         if (currentBW > 0) {
             return OneRepMax(

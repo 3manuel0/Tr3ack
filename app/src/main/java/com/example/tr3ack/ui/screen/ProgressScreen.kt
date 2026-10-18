@@ -111,7 +111,7 @@ fun ProgressScreen(repository: Tr3ackRepository) {
     var dayCount by remember { mutableIntStateOf(30) }
 
     val selectedExercise = exercises.find { it.id == selectedExerciseId }
-    val displayData = chartData.takeLast(dayCount)
+    val displayData = remember(chartData, dayCount) { chartData.takeLast(dayCount) }
     val recentFreeWeightSets = remember(freeWeightData) {
         val cutoff = LocalDate.now().minusDays(4).toString()
         freeWeightData.filter { set -> set.date >= cutoff }.sortedByDescending { it.date }
@@ -469,14 +469,54 @@ private fun E1RMChart(
     val prLabel = stringResource(R.string.chart_legend_pr)
     val trendLabel = stringResource(R.string.chart_legend_trend)
 
-    val e1rmValues = data.map { it.estimatedOneRM }
-    val maxE1RM = e1rmValues.max()
-    val minE1RM = e1rmValues.min()
-    val padding = ((maxE1RM - minE1RM) * 0.15).coerceAtLeast(5.0)
-    val yMin = (minE1RM - padding).coerceAtLeast(0.0)
-    val yMax = maxE1RM + padding
-    val yRange = (yMax - yMin).coerceAtLeast(1.0)
-    val trendValues = rollingAverage(e1rmValues)
+    val metrics = remember(data) {
+        val values = data.map { it.estimatedOneRM }
+        val maxE1RM = values.max()
+        val minE1RM = values.min()
+        val padding = ((maxE1RM - minE1RM) * 0.15).coerceAtLeast(5.0)
+        val yMin = (minE1RM - padding).coerceAtLeast(0.0)
+        val yMax = maxE1RM + padding
+        E1RMChartMetrics(
+            yMin = yMin,
+            yMax = yMax,
+            yRange = (yMax - yMin).coerceAtLeast(1.0),
+            trend = rollingAverage(values)
+        )
+    }
+    val yMin = metrics.yMin
+    val yMax = metrics.yMax
+    val yRange = metrics.yRange
+    val trendValues = metrics.trend
+
+    val textPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 24f * fontScale
+            isAntiAlias = true
+        }
+    }
+    val labelPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
+            isAntiAlias = true
+        }
+    }
+    val legendPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 18f * fontScale
+            isAntiAlias = true
+        }
+    }
+    val unitLabelPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+    }
     val chartSummary = pluralStringResource(
         R.plurals.chart_e1rm_desc,
         data.size,
@@ -507,11 +547,6 @@ private fun E1RMChart(
             )
         }
 
-        val textPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 24f * fontScale
-            isAntiAlias = true
-        }
         for (i in 0..4) {
             val y = topPadding + chartHeight * (i / 4f)
             val value = yMax - (yRange * i / 4.0)
@@ -525,11 +560,6 @@ private fun E1RMChart(
 
         val stepCount = data.size - 1
         if (stepCount >= 0) {
-            val labelPaint = android.graphics.Paint().apply {
-                color = textColor.toArgb()
-                textSize = 20f * fontScale
-                isAntiAlias = true
-            }
             val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
             val labelEvery = xLabelInterval(data.size, chartWidth, labelSlot)
             drawVerticalDateLabels(
@@ -612,11 +642,6 @@ private fun E1RMChart(
         }
 
         // Trend + PR legend (kept inside the top padding so labels are not clipped).
-        val legendPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 18f * fontScale
-            isAntiAlias = true
-        }
         run {
             val legendY = 12f
             drawLine(
@@ -644,12 +669,6 @@ private fun E1RMChart(
             )
         }
 
-        val unitLabelPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 20f * fontScale
-            isAntiAlias = true
-            textAlign = android.graphics.Paint.Align.RIGHT
-        }
         drawContext.canvas.nativeCanvas.drawText(
             kgLabel,
             size.width - rightPadding,
@@ -672,15 +691,36 @@ private fun TonnageBarChart(
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val kgRepsLabel = stringResource(R.string.unit_kg_reps)
 
-    val tonnageValues = data.map { it.sessionTonnage }
-    val maxTonnage = tonnageValues.max()
-    val yMax = (maxTonnage * 1.15).coerceAtLeast(1.0)
+    val yMax = remember(data) { (data.maxOf { it.sessionTonnage } * 1.15).coerceAtLeast(1.0) }
     val chartSummary = pluralStringResource(
         R.plurals.chart_tonnage_desc,
         data.size,
         data.size,
         "%.0f".format(data.last().sessionTonnage)
     )
+
+    val textPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 24f * fontScale
+            isAntiAlias = true
+        }
+    }
+    val labelPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
+            isAntiAlias = true
+        }
+    }
+    val unitLabelPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+    }
 
     Canvas(
         modifier = modifier.semantics {
@@ -705,11 +745,6 @@ private fun TonnageBarChart(
             )
         }
 
-        val textPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 24f * fontScale
-            isAntiAlias = true
-        }
         for (i in 0..4) {
             val y = topPadding + chartHeight * (i / 4f)
             val value = yMax - (yMax * i / 4.0)
@@ -727,11 +762,6 @@ private fun TonnageBarChart(
         val gap = if (barCount > 1) totalGap / (barCount + 1) else 0f
         val barWidth = (chartWidth - totalGap) / barCount
 
-        val labelPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 20f * fontScale
-            isAntiAlias = true
-        }
         val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
         val labelEvery = xLabelInterval(data.size, chartWidth, labelSlot)
 
@@ -757,12 +787,6 @@ private fun TonnageBarChart(
             paint = labelPaint
         )
 
-        val unitLabelPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 20f * fontScale
-            isAntiAlias = true
-            textAlign = android.graphics.Paint.Align.RIGHT
-        }
         drawContext.canvas.nativeCanvas.drawText(
             kgRepsLabel,
             size.width - rightPadding,
@@ -787,14 +811,41 @@ private fun BeltVsBodyChart(
     val beltLabel = stringResource(R.string.chart_legend_belt_load)
     val bodyWeightLabel = stringResource(R.string.chart_legend_body_weight)
 
-    val allValues = data.flatMap { listOf(it.beltLoad, it.bodyWeightKg) }
-    val maxVal = allValues.max()
-    val minVal = allValues.min()
-    val valuePadding = ((maxVal - minVal) * 0.15).coerceAtLeast(5.0)
-    val yMin = (minVal - valuePadding).coerceAtLeast(0.0)
-    val yMax = maxVal + valuePadding
-    val yRange = (yMax - yMin).coerceAtLeast(1.0)
+    val metrics = remember(data) {
+        val allValues = data.flatMap { listOf(it.beltLoad, it.bodyWeightKg) }
+        val maxVal = allValues.max()
+        val minVal = allValues.min()
+        val valuePadding = ((maxVal - minVal) * 0.15).coerceAtLeast(5.0)
+        val yMin = (minVal - valuePadding).coerceAtLeast(0.0)
+        val yMax = maxVal + valuePadding
+        BeltChartMetrics(yMin = yMin, yMax = yMax, yRange = (yMax - yMin).coerceAtLeast(1.0))
+    }
+    val yMin = metrics.yMin
+    val yMax = metrics.yMax
+    val yRange = metrics.yRange
     val chartSummary = pluralStringResource(R.plurals.chart_belt_desc, data.size, data.size)
+
+    val textPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 24f * fontScale
+            isAntiAlias = true
+        }
+    }
+    val labelPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
+            isAntiAlias = true
+        }
+    }
+    val legendPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 20f * fontScale
+            isAntiAlias = true
+        }
+    }
 
     Canvas(
         modifier = modifier.semantics {
@@ -819,11 +870,6 @@ private fun BeltVsBodyChart(
             )
         }
 
-        val textPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 24f * fontScale
-            isAntiAlias = true
-        }
         for (i in 0..4) {
             val y = topPadding + chartHeight * (i / 4f)
             val value = yMax - (yRange * i / 4.0)
@@ -836,11 +882,6 @@ private fun BeltVsBodyChart(
         }
 
         val stepCount = data.size - 1
-        val labelPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 20f * fontScale
-            isAntiAlias = true
-        }
         val labelSlot = labelPaint.fontMetrics.descent - labelPaint.fontMetrics.ascent + 8f
         val labelEvery = xLabelInterval(data.size, chartWidth, labelSlot)
         drawVerticalDateLabels(
@@ -884,11 +925,6 @@ private fun BeltVsBodyChart(
             drawCircle(color = Color.White, radius = dotRadius / 2f, center = Offset(pointX(index), bodyY))
         }
 
-        val legendPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 20f * fontScale
-            isAntiAlias = true
-        }
         val legendY = 10f
         var legendX = leftPadding + 8f
 
@@ -921,3 +957,16 @@ private fun PRRow(label: String, value: String) {
         )
     }
 }
+
+private data class E1RMChartMetrics(
+    val yMin: Double,
+    val yMax: Double,
+    val yRange: Double,
+    val trend: List<Double>
+)
+
+private data class BeltChartMetrics(
+    val yMin: Double,
+    val yMax: Double,
+    val yRange: Double
+)

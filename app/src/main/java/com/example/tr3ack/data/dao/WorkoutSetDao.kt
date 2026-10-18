@@ -20,6 +20,12 @@ interface WorkoutSetDao {
     @Query("SELECT * FROM workout_sets ORDER BY timestamp ASC")
     suspend fun getAllSetsSync(): List<WorkoutSetEntity>
 
+    @Query("SELECT * FROM workout_sets WHERE date = :date ORDER BY timestamp ASC")
+    suspend fun getSetsForDateSync(date: String): List<WorkoutSetEntity>
+
+    @Query("SELECT * FROM workout_sets WHERE id = :id LIMIT 1")
+    suspend fun getSetById(id: Long): WorkoutSetEntity?
+
     @Query("SELECT * FROM workout_sets WHERE exerciseId = :exerciseId ORDER BY timestamp ASC")
     suspend fun getSetsForExerciseSync(exerciseId: Long): List<WorkoutSetEntity>
 

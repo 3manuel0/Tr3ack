@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
         WorkoutDayEntity::class,
         GoalEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class Tr3ackDatabase : RoomDatabase() {
@@ -142,6 +142,20 @@ abstract class Tr3ackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v6 -> v7: add a composite (exerciseId, date) index so the incremental
+         * stats-cache refresh (lookups by exercise *and* day) stops scanning.
+         * Purely additive: no table or row data is touched.
+         */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_workout_sets_exerciseId_date " +
+                        "ON workout_sets(exerciseId, date)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): Tr3ackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -149,7 +163,10 @@ abstract class Tr3ackDatabase : RoomDatabase() {
                     Tr3ackDatabase::class.java,
                     "tr3ack_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(
+                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
+                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
+                    )
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

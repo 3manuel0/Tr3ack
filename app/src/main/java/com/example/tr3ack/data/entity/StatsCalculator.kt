@@ -83,8 +83,9 @@ object StatsCalculator {
                     set.reps
                 )
                 if (set.reps >= 6 && tsw > maxGte6) maxGte6 = tsw
-                pct = effectiveBodyWeight(set.date)?.let { if (it > 0) (tsw / it) * 100.0 else 0.0 } ?: 0.0
-                bwAtSet = effectiveBodyWeight(set.date) ?: 0.0
+                val bwAtSetValue = effectiveBodyWeight(set.date)
+                pct = bwAtSetValue?.let { if (it > 0) (tsw / it) * 100.0 else 0.0 } ?: 0.0
+                bwAtSet = bwAtSetValue ?: 0.0
             }
 
             val isBetter = e1rm > bestE1RM ||

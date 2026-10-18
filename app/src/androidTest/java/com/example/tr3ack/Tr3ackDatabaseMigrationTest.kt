@@ -205,6 +205,80 @@ class Tr3ackDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate6to7_addsCompositeIndexWithoutTouchingData() {
+        helper.createDatabase("test", 6).apply {
+            execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (1, 'Weighted Pull-Ups', 1)")
+            execSQL("INSERT INTO body_weight_entries (id, date, bodyWeightKg) VALUES (1, '2026-08-21', 70.0)")
+            execSQL(
+                "INSERT INTO workout_sets (id, exerciseId, date, addedWeightKg, reps, timestamp) " +
+                    "VALUES (1, 1, '2026-08-21', 32.0, 8, 1)"
+            )
+            execSQL("INSERT INTO goals (exerciseId, type, targetValue, createdAt) VALUES (1, 'E1RM', 130.0, 42)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            "test", 7, /* validateDroppedTables = */ true,
+            Tr3ackDatabase.MIGRATION_6_7
+        )
+
+        val index = db.query(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='index_workout_sets_exerciseId_date'"
+        )
+        var indexCount = 0
+        while (index.moveToNext()) indexCount++
+        index.close()
+        assertEquals(1, indexCount)
+
+        // Existing data is untouched.
+        val setCount = db.query("SELECT COUNT(*) FROM workout_sets")
+        setCount.moveToFirst()
+        assertEquals(1, setCount.getInt(0))
+        setCount.close()
+
+        val goalCount = db.query("SELECT COUNT(*) FROM goals")
+        goalCount.moveToFirst()
+        assertEquals(1, goalCount.getInt(0))
+        goalCount.close()
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(7, version.getInt(0))
+        version.close()
+
+        db.close()
+    }
+
+    @Test
+    fun migrateChain_toV7_succeeds() {
+        helper.createDatabase("test", 1).close()
+        val db = helper.runMigrationsAndValidate(
+            "test", 7, true,
+            Tr3ackDatabase.MIGRATION_1_2,
+            Tr3ackDatabase.MIGRATION_2_3,
+            Tr3ackDatabase.MIGRATION_3_4,
+            Tr3ackDatabase.MIGRATION_4_5,
+            Tr3ackDatabase.MIGRATION_5_6,
+            Tr3ackDatabase.MIGRATION_6_7
+        )
+
+        val index = db.query(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='index_workout_sets_exerciseId_date'"
+        )
+        var indexCount = 0
+        while (index.moveToNext()) indexCount++
+        index.close()
+        assertEquals(1, indexCount)
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(7, version.getInt(0))
+        version.close()
+
+        db.close()
+    }
+
+    @Test
     fun migrateChain_toV6_succeeds() {
         // Start from empty v1 schema; apply every migration in sequence.
         helper.createDatabase("test", 1).close()

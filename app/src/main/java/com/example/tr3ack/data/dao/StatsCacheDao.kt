@@ -40,4 +40,10 @@ interface StatsCacheDao {
 
     @Query("DELETE FROM workout_days")
     suspend fun clearWorkoutDays()
+
+    @Query("DELETE FROM exercise_daily_stats WHERE exerciseId = :exerciseId AND date = :date")
+    suspend fun deleteDailyStats(exerciseId: Long, date: String)
+
+    @Query("DELETE FROM workout_days WHERE date = :date")
+    suspend fun deleteWorkoutDay(date: String)
 }

@@ -20,6 +20,5 @@ local.properties
 *.dex
 *.class
 *.log
-/app/schemas
 .idea
 DEV_NOTES.md

@@ -20,6 +20,9 @@ interface BodyWeightDao {
     @Query("SELECT * FROM body_weight_entries ORDER BY date ASC")
     suspend fun getAllEntriesSync(): List<BodyWeightEntity>
 
+    @Query("SELECT * FROM body_weight_entries ORDER BY date DESC LIMIT 1")
+    suspend fun getMostRecentEntry(): BodyWeightEntity?
+
     @Query("SELECT * FROM body_weight_entries WHERE date <= :date ORDER BY date DESC LIMIT 1")
     suspend fun getMostRecentEntryOnOrBefore(date: String): BodyWeightEntity?
 

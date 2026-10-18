@@ -471,13 +471,34 @@ private fun BodyWeightTrendChart(
         "%.1f".format(data.last().bodyWeightKg)
     )
 
-    val values = data.map { it.bodyWeightKg }
-    val maxVal = values.max()
-    val minVal = values.min()
-    val valuePadding = ((maxVal - minVal) * 0.15).coerceAtLeast(2.0)
-    val yMin = (minVal - valuePadding).coerceAtLeast(0.0)
-    val yMax = maxVal + valuePadding
-    val yRange = (yMax - yMin).coerceAtLeast(1.0)
+    val metrics = remember(data) {
+        val values = data.map { it.bodyWeightKg }
+        val maxVal = values.max()
+        val minVal = values.min()
+        val valuePadding = ((maxVal - minVal) * 0.15).coerceAtLeast(2.0)
+        val yMin = (minVal - valuePadding).coerceAtLeast(0.0)
+        val yMax = maxVal + valuePadding
+        BodyWeightChartMetrics(yMin = yMin, yMax = yMax, yRange = (yMax - yMin).coerceAtLeast(1.0))
+    }
+    val yMin = metrics.yMin
+    val yMax = metrics.yMax
+    val yRange = metrics.yRange
+
+    val textPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 22f * fontScale
+            isAntiAlias = true
+        }
+    }
+    val labelPaint = remember(textColor, fontScale) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = 18f * fontScale
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+    }
 
     Canvas(
         modifier = modifier.semantics {
@@ -502,11 +523,6 @@ private fun BodyWeightTrendChart(
             )
         }
 
-        val textPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 22f * fontScale
-            isAntiAlias = true
-        }
         for (i in 0..4) {
             val y = topPadding + chartHeight * (i / 4f)
             val value = yMax - (yRange * i / 4.0)
@@ -519,12 +535,6 @@ private fun BodyWeightTrendChart(
         }
 
         val stepCount = data.size - 1
-        val labelPaint = android.graphics.Paint().apply {
-            color = textColor.toArgb()
-            textSize = 18f * fontScale
-            isAntiAlias = true
-            textAlign = android.graphics.Paint.Align.CENTER
-        }
         val labelEvery = ceil(data.size * 50f / chartWidth.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
         for (i in data.indices) {
             if ((data.lastIndex - i) % labelEvery != 0) continue
@@ -770,10 +780,18 @@ private fun MiniTrendChart(
 ) {
     if (values.size < 2) return
 
-    val minVal = values.min()
-    val maxVal = values.max()
-    val range = (maxVal - minVal).coerceAtLeast(1.0)
-    val stepCount = values.size - 1
+    val metrics = remember(values) {
+        val minVal = values.min()
+        val maxVal = values.max()
+        MiniTrendMetrics(
+            minVal = minVal,
+            range = (maxVal - minVal).coerceAtLeast(1.0),
+            stepCount = values.size - 1
+        )
+    }
+    val minVal = metrics.minVal
+    val range = metrics.range
+    val stepCount = metrics.stepCount
 
     val rising = values.last() >= values.first()
     val lineColor = if (rising) Color(0xFF66BB6A) else MaterialTheme.colorScheme.error
@@ -855,7 +873,7 @@ private fun TrainingConsistencyHeatmap(
         spans
     }
 
-    val dow = listOf("M", "T", "W", "T", "F", "S", "S")
+    val dow = DOW_LABELS
     val cellSize = 12.dp
     val cellSpacing = 4.dp
     val labelColumnWidth = 20.dp
@@ -868,6 +886,20 @@ private fun TrainingConsistencyHeatmap(
     val emptyCellColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val density = LocalDensity.current
+    val monthPaint = remember(labelColor, density) {
+        android.graphics.Paint().apply {
+            color = labelColor.toArgb()
+            textSize = with(density) { 11.sp.toPx() }
+            isAntiAlias = true
+        }
+    }
+    val dowPaint = remember(labelColor, density) {
+        android.graphics.Paint().apply {
+            color = labelColor.toArgb()
+            textSize = with(density) { 11.sp.toPx() }
+            isAntiAlias = true
+        }
+    }
     val trainedDayCount = remember(shownWeeks, daySet) {
         shownWeeks.count { week -> week.any { daySet.contains(it) } }
     }
@@ -884,16 +916,6 @@ private fun TrainingConsistencyHeatmap(
         val gridLeft = gutterPx + gapPx
         val gridTop = monthRowHeight.toPx() + monthToGridGap.toPx()
 
-        val monthPaint = android.graphics.Paint().apply {
-            color = labelColor.toArgb()
-            textSize = with(density) { 11.sp.toPx() }
-            isAntiAlias = true
-        }
-        val dowPaint = android.graphics.Paint().apply {
-            color = labelColor.toArgb()
-            textSize = with(density) { 11.sp.toPx() }
-            isAntiAlias = true
-        }
         fun centeredBaseline(paint: android.graphics.Paint, centerY: Float): Float {
             val fm = paint.fontMetrics
             return centerY - (fm.ascent + fm.descent) / 2f
@@ -941,3 +963,17 @@ private fun TrainingConsistencyHeatmap(
     }
 }
 
+
+private val DOW_LABELS = listOf("M", "T", "W", "T", "F", "S", "S")
+
+private data class BodyWeightChartMetrics(
+    val yMin: Double,
+    val yMax: Double,
+    val yRange: Double
+)
+
+private data class MiniTrendMetrics(
+    val minVal: Double,
+    val range: Double,
+    val stepCount: Int
+)

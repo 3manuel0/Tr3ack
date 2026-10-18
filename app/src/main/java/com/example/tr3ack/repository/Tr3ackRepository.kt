@@ -88,6 +88,10 @@ class Tr3ackRepository(
     suspend fun getMostRecentBodyWeightOnOrBefore(date: String): Double? =
         bodyWeightDao.getMostRecentEntryOnOrBefore(date)?.bodyWeightKg
 
+    /** Newest logged body weight, regardless of date. */
+    suspend fun getMostRecentBodyWeight(): Double? =
+        bodyWeightDao.getMostRecentEntry()?.bodyWeightKg
+
     suspend fun getEffectiveBodyWeight(date: String): Double? {
         val direct = getBodyWeightForDate(date)
         if (direct != null) return direct
@@ -129,23 +133,28 @@ class Tr3ackRepository(
 
     suspend fun insertWorkoutSet(set: WorkoutSet): Long = database.withTransaction {
         val id = workoutSetDao.insert(set.toEntity())
-        refreshStatsCacheInternal()
+        refreshStatsCacheFor(setOf(set.exerciseId), setOf(set.date))
         id
     }
 
     suspend fun updateWorkoutSet(set: WorkoutSet) = database.withTransaction {
+        val previous = workoutSetDao.getSetById(set.id)
         workoutSetDao.update(set.toEntity())
-        refreshStatsCacheInternal()
+        refreshStatsCacheFor(
+            exerciseIds = setOfNotNull(previous?.exerciseId, set.exerciseId),
+            dates = setOfNotNull(previous?.date, set.date)
+        )
     }
 
     suspend fun deleteWorkoutSet(set: WorkoutSet) = database.withTransaction {
         workoutSetDao.delete(set.toEntity())
-        refreshStatsCacheInternal()
+        refreshStatsCacheFor(setOf(set.exerciseId), setOf(set.date))
     }
 
     suspend fun deleteWorkoutSetById(id: Long) = database.withTransaction {
+        val previous = workoutSetDao.getSetById(id)
         workoutSetDao.deleteById(id)
-        refreshStatsCacheInternal()
+        if (previous != null) refreshStatsCacheFor(setOf(previous.exerciseId), setOf(previous.date))
     }
 
     /**
@@ -186,31 +195,98 @@ class Tr3ackRepository(
 
         if (exercises.isEmpty()) return
 
-        val bwByDate = TreeMap<String, Double>()
-        for (entry in bodyWeightEntries) bwByDate[entry.date] = entry.bodyWeightKg
-        val effectiveBodyWeight: (String) -> Double? = { date ->
-            StatsCalculator.effectiveBodyWeight(bwByDate, date)
-        }
-
-        val exercisesById = exercises.associateBy { it.id }
+        val context = buildCacheContext(exercises, bodyWeightEntries)
+        val setsByExercise = sets.groupBy { it.exerciseId }
 
         val exerciseStats = exercises.map { exercise ->
-            StatsCalculator.computeExerciseStats(exercise, sets.filter { it.exerciseId == exercise.id }, effectiveBodyWeight)
+            StatsCalculator.computeExerciseStats(
+                exercise,
+                setsByExercise[exercise.id].orEmpty(),
+                context.effectiveBodyWeight
+            )
         }
         if (exerciseStats.isNotEmpty()) statsCacheDao.insertExerciseStats(exerciseStats)
 
         val dailyStats = mutableListOf<ExerciseDailyStatsEntity>()
-        for (exercise in exercises) {
-            val grouped = sets.filter { it.exerciseId == exercise.id }.groupBy { it.date }
-            for ((date, daySets) in grouped) {
-                StatsCalculator.computeDailyStats(exercise, date, daySets, effectiveBodyWeight)?.let { dailyStats.add(it) }
+        for ((exerciseId, exerciseSets) in setsByExercise) {
+            val exercise = context.exercisesById[exerciseId] ?: continue
+            for ((date, daySets) in exerciseSets.groupBy { it.date }) {
+                StatsCalculator.computeDailyStats(exercise, date, daySets, context.effectiveBodyWeight)
+                    ?.let { dailyStats.add(it) }
             }
         }
         if (dailyStats.isNotEmpty()) statsCacheDao.insertExerciseDailyStats(dailyStats)
 
         val workoutDays = sets.groupBy { it.date }.map { (date, daySets) ->
-            StatsCalculator.computeWorkoutDay(date, daySets, exercisesById, effectiveBodyWeight)
+            StatsCalculator.computeWorkoutDay(date, daySets, context.exercisesById, context.effectiveBodyWeight)
         }
         if (workoutDays.isNotEmpty()) statsCacheDao.insertWorkoutDays(workoutDays)
     }
+
+    /**
+     * Rewrites only the cache rows a set change can affect: the aggregate row of
+     * each [exerciseIds] entry, the ([exerciseIds], [dates]) daily rows and the
+     * [dates] workout-day rows. Rows that no longer correspond to any set are
+     * deleted; rows that do are recomputed from source so the result is identical
+     * to [refreshStatsCacheInternal]. Body-weight edits still need the full
+     * rebuild because every stored percentage depends on it.
+     */
+    private suspend fun refreshStatsCacheFor(exerciseIds: Set<Long>, dates: Set<String>) {
+        if (exerciseIds.isEmpty() && dates.isEmpty()) return
+
+        val exercises = exerciseDao.getAllExercisesSync()
+        val context = buildCacheContext(exercises, bodyWeightDao.getAllEntriesSync())
+
+        val exerciseStats = exerciseIds.mapNotNull { id ->
+            context.exercisesById[id]?.let { exercise ->
+                StatsCalculator.computeExerciseStats(
+                    exercise,
+                    workoutSetDao.getSetsForExerciseSync(id),
+                    context.effectiveBodyWeight
+                )
+            }
+        }
+        if (exerciseStats.isNotEmpty()) statsCacheDao.insertExerciseStats(exerciseStats)
+
+        for (id in exerciseIds) {
+            val exercise = context.exercisesById[id] ?: continue
+            for (date in dates) {
+                val daySets = workoutSetDao.getSetsForExerciseOnDate(id, date)
+                val row = StatsCalculator.computeDailyStats(exercise, date, daySets, context.effectiveBodyWeight)
+                if (row == null) {
+                    statsCacheDao.deleteDailyStats(id, date)
+                } else {
+                    statsCacheDao.insertExerciseDailyStats(listOf(row))
+                }
+            }
+        }
+
+        for (date in dates) {
+            val daySets = workoutSetDao.getSetsForDateSync(date)
+            if (daySets.isEmpty()) {
+                statsCacheDao.deleteWorkoutDay(date)
+            } else {
+                statsCacheDao.insertWorkoutDays(
+                    listOf(StatsCalculator.computeWorkoutDay(date, daySets, context.exercisesById, context.effectiveBodyWeight))
+                )
+            }
+        }
+    }
+
+    private fun buildCacheContext(
+        exercises: List<ExerciseEntity>,
+        bodyWeightEntries: List<BodyWeightEntity>
+    ): CacheContext {
+        val bwByDate = TreeMap<String, Double>()
+        for (entry in bodyWeightEntries) bwByDate[entry.date] = entry.bodyWeightKg
+        return CacheContext(
+            exercisesById = exercises.associateBy { it.id },
+            effectiveBodyWeight = { date -> StatsCalculator.effectiveBodyWeight(bwByDate, date) }
+        )
+    }
+
+    private data class CacheContext(
+        val exercisesById: Map<Long, ExerciseEntity>,
+        val effectiveBodyWeight: (String) -> Double?
+    )
 }

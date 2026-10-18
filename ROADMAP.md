@@ -5,16 +5,16 @@ Living list of candidate features to choose from. Add ideas here, tick them off 
 _Last updated: 2026-10-18_
 
 ## Current state snapshot (for context)
-- Kotlin + Jetpack Compose (M3, always-dark), Room **v6**, MVVM + manual DI (`Tr3ackApplication.repository`).
+- Kotlin + Jetpack Compose (M3, always-dark), Room **v7**, MVVM + manual DI (`Tr3ackApplication.repository`).
 - 6 tabs: Home, Log, Weight, History, Stats, Goals.
 - **5 hard-coded exercises** (ids 1,2,3,4,6): Weighted Pull-Ups, Dips, Chin-Ups, Bicep Curls, Lateral Raises. No custom-exercise UI.
-- Materialized stats cache: `exercise_stats`, `exercise_daily_stats`, `workout_days`, rebuilt on every write + on startup via `StatsCalculator.CACHE_VERSION`.
+- Materialized stats cache: `exercise_stats`, `exercise_daily_stats`, `workout_days`. Set edits refresh only the touched exercise/day rows incrementally; body-weight edits and version bumps do a full rebuild (`StatsCalculator.CACHE_VERSION`).
 - E1RM math centralized in `MovementFactors` / `StatsCalculator` (no SQL computes E1RM).
 - Charts are custom `Canvas` (E1RM line + trend + PR rings, Session Tonnage bars, Belt Load vs BW). Date labels rotated 90° with adaptive thinning.
 - Achievements/XP/streaks computed retroactively (`AchievementRules`), not persisted.
 - Backup: **JSON export/import** (Dashboard ⋮) + **CSV export-only** (History). Import whitelists the 5 built-in exercise ids.
 - Units are **hard-coded kg**. No settings, notifications, widgets, rest timer, or cloud sync.
-- Tests: `AchievementRulesTest`, `GoalRulesTest`, `MovementFactorsTest`, `StatsCalculatorTest`, `Tr3ackDatabaseMigrationTest`, `StatsCacheRoundTripTest`.
+- Tests: `AchievementRulesTest`, `GoalRulesTest`, `MovementFactorsTest`, `StatsCalculatorTest`, `Tr3ackDatabaseMigrationTest`, `StatsCacheRoundTripTest`, `StatsCacheIncrementalParityTest`.
 
 ## Top picks (highest value, least new plumbing)
 - [x] **Goal targets with progress** — real goal-setting in the Goals tab: target E1RM / working weight / BW-multiplier per exercise, with live progress bars. Backed by the `goals` table (v6) and `GoalRules` over `exercise_stats`.

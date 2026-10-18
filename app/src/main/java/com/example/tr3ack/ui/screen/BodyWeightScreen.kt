@@ -91,13 +91,14 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
             }
 
             items(entries, key = { it.id }) { entry ->
+                val entryDate = LocalDate.parse(entry.date)
                 ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .animateItem(),
                     onClick = {
                         viewModel.startEditing(
-                            LocalDate.parse(entry.date),
+                            entryDate,
                             entry.bodyWeightKg
                         )
                     }
@@ -111,7 +112,7 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
                     ) {
                         Column {
                             Text(
-                                text = LocalDate.parse(entry.date).format(DateTimeFormatter.ofPattern("MMM dd, yyyy")),
+                                text = entryDate.format(BODY_WEIGHT_DATE_FORMATTER),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -282,3 +283,5 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
         }
     }
 }
+
+private val BODY_WEIGHT_DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM dd, yyyy")

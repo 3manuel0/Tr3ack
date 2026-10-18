@@ -8,7 +8,8 @@ import androidx.room.PrimaryKey
     tableName = "workout_sets",
     indices = [
         Index("date"),
-        Index("exerciseId")
+        Index("exerciseId"),
+        Index("exerciseId", "date")
     ]
 )
 data class WorkoutSetEntity(

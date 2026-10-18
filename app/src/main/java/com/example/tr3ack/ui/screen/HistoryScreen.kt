@@ -118,7 +118,7 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = date.format(DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy")),
+                                    text = date.format(HISTORY_DATE_FORMATTER),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -233,3 +233,5 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
         }
     }
 }
+
+private val HISTORY_DATE_FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy")
