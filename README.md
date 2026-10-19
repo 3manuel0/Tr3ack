@@ -25,7 +25,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 - **Log Workouts** — Select exercise, set reps/weight, pick any date for backfilling; weight persists between sets for fast logging
 - **Body Weight Tracking** — One entry per day, editable, with fallback lookup for workout days without a log
 - **Personal Record Card** — Single best-set record per exercise, selected by highest estimated 1RM across all logged sets; shows e1RM, set, total system load, % BW, and date achieved
-- **Estimated 1RM Card** — Calculated from the set with the highest estimated 1RM using movement-specific coefficients; includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
+- **Estimated 1RM Card** — Calculated from the set with the highest estimated 1RM using the Mayhew equation; includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
 - **3 Progress Charts** (30/90 trained-day window):
   - **Estimated 1RM** — Line chart with gradient fill, a dashed rolling-average trend line, and rings marking sessions that set a new all-time PR
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
@@ -52,42 +52,23 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 
 ### Bodyweight Exercises (Pull-Ups, Dips, Chin-Ups)
 
-Uses movement-specific coefficient tables to convert multi-rep performance into an estimated 1RM:
+Uses the same Mayhew et al. (1992) equation as free weights, applied to the **total system weight** (`TSL = Body Weight + Added Weight`):
 
 ```
-E1RM = TSL × coefficient(reps)
+E1RM = TSL × 100 / (52.2 + 41.9 × e^(-0.055 × Reps))
 ```
 
-Where `TSL = Body Weight + Added Weight` and the coefficient varies by exercise and rep count:
-
-| Reps | Dips   | Pull-Ups | Chin-Ups |
-| ---- | ------ | -------- | -------- |
-| 1    | 1.000  | 1.000    | 1.000    |
-| 2    | 1.035  | 1.038    | 1.042    |
-| 3    | 1.068  | 1.073    | 1.082    |
-| 4    | 1.100  | 1.108    | 1.120    |
-| 5    | 1.130  | 1.142    | 1.158    |
-| 6    | 1.160  | 1.175    | 1.194    |
-| 7    | 1.190  | 1.208    | 1.229    |
-| 8    | 1.220  | 1.240    | 1.263    |
-| 9    | 1.250  | 1.272    | 1.296    |
-| 10   | 1.280  | 1.304    | 1.328    |
-
-Chin-up coefficients are higher than pull-ups because the bicep provides a leverage advantage, allowing more load at the same rep count.
-
-Above 10 reps the curve keeps the table's final slope at the boundary, then saturates toward `last + 0.10` — so high-rep sets keep gaining with diminishing returns instead of climbing linearly. Reps are capped at 30 (`MAX_BODYWEIGHT_REPS`); sets above the cap still count toward tonnage.
+Why: Mayhew is validated on 1–15-rep sets and is exponential (so it behaves above 10 reps where linear rep→%1RM models drift), and in LeSuer et al. (1997) it was one of only two formulas not significantly different from the measured 1RM for the exercises tested. It replaces the earlier hand-tuned per-movement coefficient tables, which on logged training data sat ~2–3% below Mayhew and were no more internally consistent — the cost is dropping the pull-up/dip/chin-specific curve flavor (chin-ups no longer get a separate bicep-leverage bump). A true single (1 rep) returns the raw TSL (no inflation); reps above 15 are capped at 15 (`MAX_BODYWEIGHT_REPS`, matching Mayhew's validated range) and sets above the cap still count toward tonnage.
 
 ### Free Weight Exercises
 
-Uses the average of the Epley and Brzycki formulas:
+Uses the Mayhew et al. (1992) equation:
 
 ```
-Epley    = Weight × (1 + Reps / 30)
-Brzycki  = Weight × 36 / (37 - Reps)
-E1RM     = (Epley + Brzycki) / 2
+E1RM = 100 × Weight / (52.2 + 41.9 × e^(-0.055 × Reps))
 ```
 
-Averaging the two cancels part of each formula's bias (Epley runs high at low reps, Brzycki runs high at high reps); they already agree exactly at 10 reps. A true single (1 rep) returns the weight unchanged (no inflation); rep counts above 12 are capped at 12 (`MAX_FREE_WEIGHT_REPS`).
+Why Mayhew: it is an exponential curve, not a linear one, so it keeps estimating sensibly **above 10 reps** where Epley/Brzycki start to drift (the rep→%1RM relationship gets unreliable past 10). In the LeSuer et al. (1997) head-to-head of seven formulas against measured 1RMs, Mayhew was one of only two not significantly different from the true value, and it runs slightly below plain Epley at moderate reps (19 kg × 9 → 24.4 vs 24.7), i.e. the conservative direction for light isolation work. A true single (1 rep) returns the weight unchanged (no inflation); rep counts above 15 are capped at 15 (`MAX_FREE_WEIGHT_REPS`) because Mayhew was validated on 1–15-rep sets — beyond that the estimate stops extrapolating rather than drifting.
 
 ## Stats — Other Charts
 
@@ -155,7 +136,7 @@ Importing a backup replaces all current data. A confirmation dialog is shown bef
 
 - **Total System Weight** = Body Weight + Added Weight
 - **% Body Weight** = (Total System Weight / Body Weight) × 100
-- **Estimated 1RM** = Movement-specific coefficient × TSL (bodyweight) or Epley/Brzycki blend (free weight)
+- **Estimated 1RM** = Mayhew equation × TSL (bodyweight) or Mayhew equation on the lifted weight (free weight)
 - **Personal Record** = The single set with the highest estimated 1RM across all history; all card values (load, reps, % BW, date) come from that one set
 - **Session Tonnage** = Sum of (TSL × Reps) per session
 - **Daily Volume** = Sum of (TSL × Reps) per day

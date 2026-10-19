@@ -43,4 +43,6 @@ _Last updated: 2026-10-18_
 ## Done
 - [x] Rotate chart date labels vertically + adaptive thinning (`d96bb32`).
 - [x] E1RM accuracy work: >10-rep extrapolation cap, free-weight single-rep fix, trend line + PR markers, expanded tests.
+- [x] Free-weight E1RM switched from the Epley/Brzycki blend to **Mayhew et al. (1992)**: exponential, validated on 1–15-rep sets (so sets above 10 reps keep a trustworthy estimate instead of drifting like the linear formulas), not significantly different from measured 1RM in LeSuer et al. (1997), and slightly conservative (biceps 19 kg × 9: 24.4 instead of 24.7). Rep cap 12 → 15, `CACHE_VERSION` 2 → 3.
+- [x] Bodyweight E1RM moved onto the same **Mayhew equation** applied to the total system weight, replacing the hand-tuned dips/pull-ups/chin-ups coefficient tables (which sat ~2–3% below Mayhew on logged data): cap 30 → 15 (`MAX_BODYWEIGHT_REPS`), `CACHE_VERSION` 3 → 4.
 - [x] Remove RIR; revert DB to v5 and key cache rebuild on a formula version (`94a1f10`).

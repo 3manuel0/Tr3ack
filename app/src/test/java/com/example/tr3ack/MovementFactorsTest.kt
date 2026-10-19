@@ -9,74 +9,39 @@ import org.junit.Test
 class MovementFactorsTest {
 
     @Test
-    fun pullUpCoefficients_matchReferenceTable() {
-        val expected = doubleArrayOf(
-            1.000, 1.038, 1.073, 1.108, 1.142,
-            1.175, 1.208, 1.240, 1.272, 1.304
+    fun tswFactor_followsMayhewCurve() {
+        assertEquals(1.0, MovementFactors.tswFactor(1), 1e-9)
+        assertEquals(1.1143868, MovementFactors.tswFactor(2), 1e-6)
+        assertEquals(1.1901068, MovementFactors.tswFactor(5), 1e-6)
+        assertEquals(1.2628634, MovementFactors.tswFactor(8), 1e-6)
+        assertEquals(1.3093427, MovementFactors.tswFactor(10), 1e-6)
+    }
+
+    @Test
+    fun tswFactor_keepsClimbingPastTenThenClampsAtFifteen() {
+        // Mayhew is validated to 15 reps, so weighted-bodyweight estimates keep
+        // rising through 10..15 instead of flattening at 10 like a table cap.
+        assertEquals(1.3539848, MovementFactors.tswFactor(12), 1e-6)
+        assertTrue(MovementFactors.tswFactor(12) > MovementFactors.tswFactor(10))
+        assertTrue(MovementFactors.tswFactor(15) > MovementFactors.tswFactor(12))
+
+        // Flat at, and beyond, the cap.
+        assertEquals(1.4171925, MovementFactors.tswFactor(15), 1e-6)
+        assertEquals(1.4171925, MovementFactors.tswFactor(20), 1e-6)
+        assertEquals(1.4171925, MovementFactors.tswFactor(200), 1e-6)
+    }
+
+    @Test
+    fun freeWeightE1RM_usesTheSameMayhewFactor() {
+        // One formula for both paths: free-weight E1RM is weight × the TSL factor.
+        assertEquals(19.0, MovementFactors.freeWeightE1RM(19.0, 1), 1e-9)
+        assertEquals(
+            19.0 * MovementFactors.tswFactor(9),
+            MovementFactors.freeWeightE1RM(19.0, 9),
+            1e-9
         )
-        repeat(10) { i ->
-            val reps = i + 1
-            assertEquals("PULLUPS reps=$reps", expected[i], MovementFactors.getMovementFactor(MovementType.PULLUPS, reps), 1e-9)
-        }
-    }
-
-    @Test
-    fun dipCoefficients_matchReferenceTable() {
-        val expected = doubleArrayOf(
-            1.000, 1.035, 1.068, 1.100, 1.130,
-            1.160, 1.190, 1.220, 1.250, 1.280
-        )
-        repeat(10) { i ->
-            val reps = i + 1
-            assertEquals("DIPS reps=$reps", expected[i], MovementFactors.getMovementFactor(MovementType.DIPS, reps), 1e-9)
-        }
-    }
-
-    @Test
-    fun chinUpCoefficients_matchReferenceTable() {
-        val expected = doubleArrayOf(
-            1.000, 1.042, 1.082, 1.120, 1.158,
-            1.194, 1.229, 1.263, 1.296, 1.328
-        )
-        repeat(10) { i ->
-            val reps = i + 1
-            assertEquals("CHIN_UPS reps=$reps", expected[i], MovementFactors.getMovementFactor(MovementType.CHIN_UPS, reps), 1e-9)
-        }
-    }
-
-    @Test
-    fun unknownMovement_usesLinearFallback() {
-        assertEquals(1.0, MovementFactors.getMovementFactor(MovementType.UNKNOWN, 1), 1e-9)
-        assertEquals(1.0999, MovementFactors.getMovementFactor(MovementType.UNKNOWN, 4), 1e-9)
-        assertEquals(1.2997, MovementFactors.getMovementFactor(MovementType.UNKNOWN, 10), 1e-9)
-        assertEquals(1.3663, MovementFactors.getMovementFactor(MovementType.UNKNOWN, 12), 1e-9)
-    }
-
-    @Test
-    fun namedMovement_highRepsFollowSaturatingCurve() {
-        // Past the 10-rep table entry the curve keeps the table's end slope, then
-        // flattens toward `last + TAIL_EXTRA` instead of climbing linearly.
-        val f11 = MovementFactors.getMovementFactor(MovementType.PULLUPS, 11)
-        val f12 = MovementFactors.getMovementFactor(MovementType.PULLUPS, 12)
-        val f13 = MovementFactors.getMovementFactor(MovementType.PULLUPS, 13)
-        assertEquals(1.3313851, f11, 1e-7)
-        assertEquals(1.3512708, f12, 1e-7)
-        assertEquals(1.3657107, f13, 1e-7)
-        // Diminishing returns: each extra rep adds less than the previous one.
-        assertTrue(f12 - f11 > f13 - f12)
-        // Saturates toward 1.304 + 0.10 and never exceeds it (cap at 30 reps).
-        assertEquals(1.4038338, MovementFactors.getMovementFactor(MovementType.PULLUPS, 30), 1e-7)
-        assertEquals(1.4038338, MovementFactors.getMovementFactor(MovementType.PULLUPS, 200), 1e-7)
-        // Other movements saturate relative to their own final slope.
-        assertEquals(1.3752708, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 12), 1e-7)
-        assertEquals(1.4278338, MovementFactors.getMovementFactor(MovementType.CHIN_UPS, 30), 1e-7)
-    }
-
-    @Test
-    fun singleRep_returnsBaselineOne() {
-        for (type in MovementType.entries) {
-            assertEquals("$type reps=1", 1.0, MovementFactors.getMovementFactor(type, 1), 1e-9)
-        }
+        assertEquals(26.9266568, MovementFactors.freeWeightE1RM(19.0, 15), 1e-6)
+        assertEquals(26.9266568, MovementFactors.freeWeightE1RM(19.0, 40), 1e-6) // capped at 15
     }
 
     @Test

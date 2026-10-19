@@ -16,7 +16,7 @@ object StatsCalculator {
      * rebuilt once on next launch. Kept separate from the Room schema version,
      * which only moves when the database schema itself changes.
      */
-    const val CACHE_VERSION = 2
+    const val CACHE_VERSION = 4
 
     /**
      * Best-known body weight for a date. Prefers an entry on/before the date;
@@ -54,8 +54,6 @@ object StatsCalculator {
         var maxRatio = 0.0
         var lastDate = ""
 
-        val movementType = MovementFactors.getMovementType(exercise.name)
-
         for (set in sets) {
             if (set.date > lastDate) lastDate = set.date
             if (set.reps <= 0) continue
@@ -68,10 +66,7 @@ object StatsCalculator {
             if (bodyweight) {
                 val bw = effectiveBodyWeight(set.date) ?: continue
                 tsw = bw + set.addedWeightKg
-                e1rm = tsw * MovementFactors.getMovementFactor(
-                    movementType,
-                    set.reps
-                )
+                e1rm = tsw * MovementFactors.tswFactor(set.reps)
                 val ratio = tsw / bw
                 if (ratio > maxRatio) maxRatio = ratio
                 pct = (tsw / bw) * 100.0
@@ -129,7 +124,6 @@ object StatsCalculator {
         if (bodyweight && bodyWeight == null) return null
 
         val firstSet = sets.minByOrNull { it.timestamp } ?: return null
-        val movementType = MovementFactors.getMovementType(exercise.name)
         val bw = bodyWeight ?: 0.0
 
         val bestE1RM = sets
@@ -137,7 +131,7 @@ object StatsCalculator {
             .maxOfOrNull { set ->
                 val e1rmReps = set.reps
                 if (bodyweight) {
-                    (bw + set.addedWeightKg) * MovementFactors.getMovementFactor(movementType, e1rmReps)
+                    (bw + set.addedWeightKg) * MovementFactors.tswFactor(e1rmReps)
                 } else {
                     MovementFactors.freeWeightE1RM(set.addedWeightKg, e1rmReps)
                 }
