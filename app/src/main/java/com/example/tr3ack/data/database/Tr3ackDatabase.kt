@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
         WorkoutDayEntity::class,
         GoalEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class Tr3ackDatabase : RoomDatabase() {
@@ -167,6 +167,22 @@ abstract class Tr3ackDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v8 -> v9: remove the Weighted Chin-Ups exercise (id 3) completely —
+         * its logged sets, aggregate/daily cache rows and any goal. The stats
+         * cache version bump forces a full rebuild so `workout_days` totals are
+         * recalculated from the remaining sets on first launch.
+         */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DELETE FROM workout_sets WHERE exerciseId = 3")
+                db.execSQL("DELETE FROM exercises WHERE id = 3")
+                db.execSQL("DELETE FROM exercise_stats WHERE exerciseId = 3")
+                db.execSQL("DELETE FROM exercise_daily_stats WHERE exerciseId = 3")
+                db.execSQL("DELETE FROM goals WHERE exerciseId = 3")
+            }
+        }
+
         fun getDatabase(context: Context): Tr3ackDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -176,7 +192,8 @@ abstract class Tr3ackDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8
+                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                        MIGRATION_7_8, MIGRATION_8_9
                     )
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
@@ -197,7 +214,6 @@ abstract class Tr3ackDatabase : RoomDatabase() {
         private fun defaultExercises(): List<ExerciseEntity> = listOf(
             ExerciseEntity(id = 1, name = "Weighted Pull-Ups", isBodyweightBased = true),
             ExerciseEntity(id = 2, name = "Weighted Dips", isBodyweightBased = true),
-            ExerciseEntity(id = 3, name = "Weighted Chin-Ups", isBodyweightBased = true),
             ExerciseEntity(id = 4, name = "Bicep Curls", isBodyweightBased = false),
             ExerciseEntity(id = 6, name = "Lateral Raises", isBodyweightBased = false),
         )

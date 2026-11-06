@@ -194,7 +194,6 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     private val knownExerciseIds = setOf(
         ExerciseIds.WEIGHTED_PULL_UPS,
         ExerciseIds.WEIGHTED_DIPS,
-        ExerciseIds.WEIGHTED_CHIN_UPS,
         ExerciseIds.BICEP_CURLS,
         ExerciseIds.LATERAL_RAISES
     )

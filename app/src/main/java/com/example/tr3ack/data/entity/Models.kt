@@ -4,7 +4,6 @@ package com.example.tr3ack.data.entity
 object ExerciseIds {
     const val WEIGHTED_PULL_UPS = 1L
     const val WEIGHTED_DIPS = 2L
-    const val WEIGHTED_CHIN_UPS = 3L
     const val BICEP_CURLS = 4L
     const val LATERAL_RAISES = 6L
 }

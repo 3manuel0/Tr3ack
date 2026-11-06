@@ -1,7 +1,13 @@
 package com.example.tr3ack.ui.screen
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,24 +15,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -49,11 +59,13 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -66,12 +78,15 @@ import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.repository.Tr3ackRepository
+import com.example.tr3ack.viewmodel.AchievementRules
 import com.example.tr3ack.viewmodel.DashboardViewModel
+import com.example.tr3ack.viewmodel.PersonalBest
 import com.example.tr3ack.viewmodel.TrendDirection
 import com.example.tr3ack.viewmodel.TrendNote
 import com.example.tr3ack.viewmodel.WeekVolume
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
@@ -84,7 +99,8 @@ import kotlin.math.ceil
 fun DashboardScreen(
     repository: Tr3ackRepository,
     onNavigateToLog: () -> Unit,
-    onNavigateToBodyWeight: () -> Unit
+    onNavigateToBodyWeight: () -> Unit,
+    onNavigateToStats: () -> Unit = {}
 ) {
     val viewModel: DashboardViewModel = viewModel { DashboardViewModel(repository) }
 
@@ -100,23 +116,58 @@ fun DashboardScreen(
     val exerciseTrendNotes by viewModel.exerciseTrendNotes.collectAsStateWithLifecycle()
     val workoutDays by viewModel.workoutDays.collectAsStateWithLifecycle()
     val weekVolume by viewModel.weekVolume.collectAsStateWithLifecycle()
-    val lastLoggedByExercise by viewModel.lastLoggedDateByExercise.collectAsStateWithLifecycle()
     var showWeightDialog by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf("") }
 
     val groupedTodaySets = remember(todaySets) { todaySets.groupBy { it.exerciseId }.entries.toList() }
     val exerciseById = remember(exercises) { exercises.associateBy { it.id } }
-    val trainingLogRows = remember(exercises, lastLoggedByExercise) {
-        val today = LocalDate.now()
-        exercises.map { exercise ->
-            val last = lastLoggedByExercise[exercise.id]
-            val daysAgo = if (last.isNullOrBlank()) {
-                null
-            } else {
-                ChronoUnit.DAYS.between(LocalDate.parse(last), today)
-            }
-            exercise to daysAgo
+    val streakInfo = remember(workoutDays) { AchievementRules.computeStreak(workoutDays.map { it.date }) }
+    val workoutsThisMonth = remember(workoutDays) {
+        val ym = YearMonth.now()
+        workoutDays.count { day ->
+            val d = LocalDate.parse(day.date)
+            d.year == ym.year && d.monthValue == ym.monthValue
         }
+    }
+    val todayVolume = remember(todaySets, todayBodyWeight, exerciseById) {
+        val bw = todayBodyWeight
+        todaySets.sumOf { set ->
+            val isBodyweight = exerciseById[set.exerciseId]?.isBodyweightBased == true
+            val weight = if (isBodyweight && bw != null) {
+                bw + set.addedWeightKg
+            } else {
+                set.addedWeightKg
+            }
+            weight * set.reps
+        }
+    }
+    val pbEntries = remember(pullUpsPB, dipsPB, bicepCurlsPB, lateralRaisesPB, exerciseTrends, exerciseTrendNotes) {
+        listOf(
+            PersonalBestCellData(
+                ExerciseIds.WEIGHTED_PULL_UPS,
+                pullUpsPB,
+                exerciseTrends[ExerciseIds.WEIGHTED_PULL_UPS].orEmpty(),
+                exerciseTrendNotes[ExerciseIds.WEIGHTED_PULL_UPS]
+            ),
+            PersonalBestCellData(
+                ExerciseIds.WEIGHTED_DIPS,
+                dipsPB,
+                exerciseTrends[ExerciseIds.WEIGHTED_DIPS].orEmpty(),
+                exerciseTrendNotes[ExerciseIds.WEIGHTED_DIPS]
+            ),
+            PersonalBestCellData(
+                ExerciseIds.BICEP_CURLS,
+                bicepCurlsPB,
+                exerciseTrends[ExerciseIds.BICEP_CURLS].orEmpty(),
+                exerciseTrendNotes[ExerciseIds.BICEP_CURLS]
+            ),
+            PersonalBestCellData(
+                ExerciseIds.LATERAL_RAISES,
+                lateralRaisesPB,
+                exerciseTrends[ExerciseIds.LATERAL_RAISES].orEmpty(),
+                exerciseTrendNotes[ExerciseIds.LATERAL_RAISES]
+            )
+        )
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -130,223 +181,116 @@ fun DashboardScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToLog) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_log_set))
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)
+    ) {
+        item {
+            TodayHeroCard(
+                setsCount = todaySets.size,
+                exerciseCount = groupedTodaySets.size,
+                volumeKg = todayVolume,
+                todayBodyWeight = todayBodyWeight,
+                streakWeeks = streakInfo.current,
+                onLogSet = onNavigateToLog,
+                onOpenWeight = onNavigateToBodyWeight,
+                onEditWeight = { showWeightDialog = true }
+            )
+        }
+
+        item {
+            ConsistencyCard(
+                workoutDays = workoutDays,
+                currentStreak = streakInfo.current,
+                longestStreak = streakInfo.longest,
+                workoutsThisMonth = workoutsThisMonth
+            )
+        }
+
+        item {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.dashboard_personal_bests),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(R.string.dashboard_see_all),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { onNavigateToStats() }
+                            .padding(4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                PersonalBestGrid(entries = pbEntries)
             }
         }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
-        ) {
-            // Today's Body Weight
-            item {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { showWeightDialog = true }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.dashboard_today_body_weight),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = todayBodyWeight?.let { "%.1f kg".format(it) } ?: stringResource(R.string.dashboard_weight_not_logged),
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.content_desc_edit),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
 
-            // Training Consistency
+        if (weekVolume.hasData) {
+            item {
+                WeekVolumeCard(volume = weekVolume)
+            }
+        }
+
+        if (bodyWeightHistory.isNotEmpty()) {
             item {
                 Text(
-                    text = stringResource(R.string.dashboard_training_consistency),
-                    style = MaterialTheme.typography.titleLarge,
+                    text = stringResource(R.string.dashboard_body_weight_trend),
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 8.dp)
-                )
-                Text(
-                    text = stringResource(R.string.dashboard_training_consistency_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
+                    BodyWeightTrendChart(
+                        data = bodyWeightHistory,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(140.dp)
                             .padding(12.dp)
-                    ) {
-                        if (workoutDays.isEmpty()) {
-                            Text(
-                                text = stringResource(R.string.dashboard_training_consistency_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            TrainingConsistencyHeatmap(
-                                workoutDays = workoutDays,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Week-over-week Volume
-            if (weekVolume.hasData) {
-                item {
-                    WeekVolumeCard(volume = weekVolume)
-                }
-            }
-
-            // Body Weight Trend
-            if (bodyWeightHistory.isNotEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.dashboard_body_weight_trend),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
-                item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        BodyWeightTrendChart(
-                            data = bodyWeightHistory,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .padding(12.dp)
-                        )
-                    }
-                }
             }
+        }
 
-            // Personal Bests
+        item {
+            Text(
+                text = stringResource(R.string.dashboard_todays_sets),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        if (todaySets.isEmpty()) {
             item {
                 Text(
-                    text = stringResource(R.string.dashboard_personal_bests),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
+                    text = stringResource(R.string.dashboard_no_sets_today),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            item {
-                PersonalBestCard(
-                    pb = pullUpsPB,
-                    trend = exerciseTrends[ExerciseIds.WEIGHTED_PULL_UPS].orEmpty(),
-                    trendNote = exerciseTrendNotes[ExerciseIds.WEIGHTED_PULL_UPS]
-                )
-            }
-            item {
-                PersonalBestCard(
-                    pb = dipsPB,
-                    trend = exerciseTrends[ExerciseIds.WEIGHTED_DIPS].orEmpty(),
-                    trendNote = exerciseTrendNotes[ExerciseIds.WEIGHTED_DIPS]
-                )
-            }
-            item {
-                PersonalBestCard(
-                    pb = bicepCurlsPB,
-                    trend = exerciseTrends[ExerciseIds.BICEP_CURLS].orEmpty(),
-                    trendNote = exerciseTrendNotes[ExerciseIds.BICEP_CURLS]
-                )
-            }
-            item {
-                PersonalBestCard(
-                    pb = lateralRaisesPB,
-                    trend = exerciseTrends[ExerciseIds.LATERAL_RAISES].orEmpty(),
-                    trendNote = exerciseTrendNotes[ExerciseIds.LATERAL_RAISES]
-                )
-            }
+        }
 
-            // Today's Sets Header
-            item {
-                Text(
-                    text = stringResource(R.string.dashboard_todays_sets),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            if (todaySets.isEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.dashboard_no_sets_today),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Group sets by exercise
-            items(groupedTodaySets, key = { "day_${it.key}" }) { (exerciseId, sets) ->
-                ExerciseDayCard(
-                    exercise = exerciseById[exerciseId],
-                    sets = sets,
-                    todayBodyWeight = todayBodyWeight,
-                    modifier = Modifier.animateItem()
-                )
-            }
-
-            // Per-exercise last logged
-            if (trainingLogRows.isNotEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.dashboard_training_log),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-                items(trainingLogRows, key = { "log_${it.first.id}" }) { (exercise, daysAgo) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateItem()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = exercise.name,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = daysAgo?.let {
-                                if (it == 0L) stringResource(R.string.dashboard_today) else stringResource(R.string.dashboard_days_ago, it)
-                            } ?: stringResource(R.string.dashboard_never),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+        items(groupedTodaySets, key = { "day_${it.key}" }) { (exerciseId, sets) ->
+            ExerciseDayCard(
+                exercise = exerciseById[exerciseId],
+                sets = sets,
+                todayBodyWeight = todayBodyWeight,
+                modifier = Modifier.animateItem()
+            )
         }
     }
 
@@ -379,6 +323,310 @@ fun DashboardScreen(
                 }
             }
         )
+    }
+}
+
+private data class PersonalBestCellData(
+    val exerciseId: Long,
+    val pb: PersonalBest,
+    val trend: List<Double>,
+    val note: TrendNote?
+)
+
+@DrawableRes
+private fun exerciseIcon(exerciseId: Long): Int = when (exerciseId) {
+    ExerciseIds.WEIGHTED_PULL_UPS -> R.drawable.ic_ach_pullup
+    ExerciseIds.WEIGHTED_DIPS -> R.drawable.ic_ex_dips
+    ExerciseIds.BICEP_CURLS -> R.drawable.ic_ach_bicep
+    ExerciseIds.LATERAL_RAISES -> R.drawable.ic_ach_lateral
+    else -> R.drawable.ic_ach_weight
+}
+
+@Composable
+private fun TodayHeroCard(
+    setsCount: Int,
+    exerciseCount: Int,
+    volumeKg: Double,
+    todayBodyWeight: Double?,
+    streakWeeks: Long,
+    onLogSet: () -> Unit,
+    onOpenWeight: () -> Unit,
+    onEditWeight: () -> Unit
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(Color(0xFF3A4668), Color(0xFF262C40))))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.dashboard_today).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        letterSpacing = 1.5.sp,
+                        color = Color(0xFFAEBBD8)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.dashboard_sets_count, setsCount),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.dashboard_today_exercises_volume,
+                            exerciseCount,
+                            formatVolume(volumeKg)
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFB9C3DD)
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Surface(
+                        onClick = onEditWeight,
+                        shape = RoundedCornerShape(50),
+                        color = Color.White.copy(alpha = 0.10f)
+                    ) {
+                        Text(
+                            text = todayBodyWeight?.let { "%.1f kg".format(it) }
+                                ?: stringResource(R.string.dashboard_weight_not_logged),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.dashboard_body_weight_edit),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFB9C3DD),
+                        modifier = Modifier.clickable { onEditWeight() }
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = onLogSet,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFCDD6F4),
+                        contentColor = Color(0xFF121116)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(stringResource(R.string.dashboard_log_a_set))
+                }
+                OutlinedButton(
+                    onClick = onOpenWeight,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFCDD6F4)),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(stringResource(R.string.dashboard_weight_action))
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.dashboard_streak_weeks, streakWeeks),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFB9C3DD)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConsistencyCard(
+    workoutDays: List<com.example.tr3ack.data.entity.WorkoutDayEntity>,
+    currentStreak: Long,
+    longestStreak: Long,
+    workoutsThisMonth: Int
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.dashboard_training_consistency),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                StatChip(stringResource(R.string.dashboard_weeks_current, currentStreak))
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            if (workoutDays.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.dashboard_training_consistency_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                TrainingConsistencyHeatmap(
+                    workoutDays = workoutDays,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.dashboard_longest_weeks, longestStreak),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.dashboard_workouts_this_month, workoutsThisMonth),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatChip(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), RoundedCornerShape(50))
+            .padding(horizontal = 9.dp, vertical = 3.dp)
+    )
+}
+
+@Composable
+private fun PersonalBestGrid(entries: List<PersonalBestCellData>) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        entries.chunked(2).forEach { rowEntries ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                rowEntries.forEach { entry ->
+                    PersonalBestCell(entry, modifier = Modifier.weight(1f))
+                }
+                if (rowEntries.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PersonalBestCell(data: PersonalBestCellData, modifier: Modifier = Modifier) {
+    val pb = data.pb
+    val note = data.note
+    val pctBw = if (pb.isBodyweightBased) pb.maxPercentBodyWeight else pb.addedWeightPercentBodyWeight
+    val dateLabel = remember(pb.dateAchieved) {
+        if (pb.dateAchieved.isBlank()) {
+            ""
+        } else {
+            runCatching {
+                LocalDate.parse(pb.dateAchieved).format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
+            }.getOrDefault("")
+        }
+    }
+
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(exerciseIcon(data.exerciseId)),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = pb.exerciseName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            if (pb.estimatedOneRM > 0) {
+                Text(
+                    text = "%.1f kg".format(pb.estimatedOneRM),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (dateLabel.isNotEmpty()) {
+                        "%.1f%% BW · %s".format(pctBw, dateLabel)
+                    } else {
+                        "%.1f%% BW".format(pctBw)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (data.trend.size >= 2) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MiniTrendChart(
+                            values = data.trend,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(30.dp)
+                        )
+                        if (note != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            val noteColor = when (note.direction) {
+                                TrendDirection.UP -> Color(0xFF66BB6A)
+                                TrendDirection.DOWN -> MaterialTheme.colorScheme.error
+                                TrendDirection.FLAT -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                            Text(
+                                text = when (note.direction) {
+                                    TrendDirection.UP -> "+%.1f%%".format(note.pctChange)
+                                    TrendDirection.DOWN -> "%.1f%%".format(note.pctChange)
+                                    TrendDirection.FLAT -> "•"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = noteColor
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = stringResource(R.string.pb_no_sets_logged),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -1007,11 +1255,11 @@ private fun TrainingConsistencyHeatmap(
     }
 
     val dow = DOW_LABELS
-    val cellSize = 12.dp
-    val cellSpacing = 4.dp
+    val cellSize = 9.dp
+    val cellSpacing = 3.dp
     val labelColumnWidth = 20.dp
-    val monthRowHeight = 16.dp
-    val monthToGridGap = 4.dp
+    val monthRowHeight = 14.dp
+    val monthToGridGap = 3.dp
     // month row + gap + 7 cells + 6 gaps
     val gridHeight = monthRowHeight + monthToGridGap + cellSize * 7 + cellSpacing * 6
 

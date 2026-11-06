@@ -2,6 +2,8 @@ package com.example.tr3ack.ui.screen
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
@@ -47,14 +51,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -66,8 +77,10 @@ import com.example.tr3ack.viewmodel.Achievement
 import com.example.tr3ack.viewmodel.AchievementsViewModel
 import com.example.tr3ack.viewmodel.GoalProgress
 import com.example.tr3ack.viewmodel.GoalRules
+import kotlin.math.cos
+import kotlin.math.sin
 
-private fun achievementIcon(key: String): Int = when (key) {
+internal fun achievementIcon(key: String): Int = when (key) {
     "whatshot", "local_fire_department" -> R.drawable.ic_ach_flame
     "bolt" -> R.drawable.ic_ach_zap
     "workspace_premium" -> R.drawable.ic_ach_award
@@ -86,7 +99,7 @@ private fun achievementIcon(key: String): Int = when (key) {
 }
 
 @Composable
-private fun AchievementIcon(key: String, modifier: Modifier = Modifier, tint: Color = Color.White) {
+internal fun AchievementIcon(key: String, modifier: Modifier = Modifier, tint: Color = Color.White) {
     @DrawableRes val res = achievementIcon(key)
     Icon(
         painter = painterResource(res),
@@ -97,30 +110,292 @@ private fun AchievementIcon(key: String, modifier: Modifier = Modifier, tint: Co
 }
 
 /**
- * Base color assigned to each achievement tier, ranked by how hard/long they take
- * to earn. The palette follows the old League of Legends ranked emblems: dark
- * steel, warm copper, cool silver, rich gold, jewel emerald and icy diamond.
+ * Metallic palettes modelled on the old League of Legends ranked emblems: a
+ * bright top-light, a saturated body and a deep shadow tone. The hex banner and
+ * its side wings are both painted from these three colors.
  */
-private fun tierColor(tier: String): Color = when (tier) {
-    "iron" -> Color(0xFF5C6167)
-    "copper" -> Color(0xFFB26A3C)
-    "silver" -> Color(0xFF98A2AB)
-    "gold" -> Color(0xFFC9A227)
-    "emerald" -> Color(0xFF17A96A)
-    "diamond" -> Color(0xFF3FA9E8)
-    else -> Color(0xFF5C6167)
+private data class TierPalette(val light: Color, val base: Color, val dark: Color)
+
+private fun tierPalette(tier: String): TierPalette = when (tier) {
+    "iron" -> TierPalette(Color(0xFFB9C0C8), Color(0xFF6E757E), Color(0xFF33373C))
+    "copper" -> TierPalette(Color(0xFFFFD2A1), Color(0xFFD07A2E), Color(0xFF63300F))
+    "silver" -> TierPalette(Color(0xFFF3F7FA), Color(0xFFAFBAC4), Color(0xFF5F6A74))
+    "gold" -> TierPalette(Color(0xFFFFEC9E), Color(0xFFD9A92C), Color(0xFF7A570B))
+    "emerald" -> TierPalette(Color(0xFF8DF5C7), Color(0xFF22B573), Color(0xFF0A5735))
+    "diamond" -> TierPalette(Color(0xFFD4F4FF), Color(0xFF4BB8E8), Color(0xFF125A80))
+    else -> TierPalette(Color(0xFFB9C0C8), Color(0xFF6E757E), Color(0xFF33373C))
 }
 
-/** Metallic top-light → base → shadow gradient, LoL-emblem style. */
-private fun tierBrush(tier: String): Brush {
-    val base = tierColor(tier)
-    return Brush.linearGradient(
-        listOf(
-            lerp(base, Color.White, 0.38f),
-            base,
-            lerp(base, Color.Black, 0.28f)
-        )
+/**
+ * Regalia per tier, following the old LoL ladder: wings gain feathers and reach
+ * further out as the tier climbs, and diamond adds lightning bolts.
+ */
+private data class TierOrnament(
+    val feathers: Int,
+    val wingScale: Float,
+    val bolts: Boolean = false
+)
+
+private fun tierOrnament(tier: String): TierOrnament = when (tier) {
+    "iron" -> TierOrnament(feathers = 2, wingScale = 0.78f)
+    "copper" -> TierOrnament(feathers = 2, wingScale = 0.86f)
+    "silver" -> TierOrnament(feathers = 3, wingScale = 0.92f)
+    "gold" -> TierOrnament(feathers = 3, wingScale = 0.96f)
+    "emerald" -> TierOrnament(feathers = 4, wingScale = 1f)
+    "diamond" -> TierOrnament(feathers = 5, wingScale = 1f, bolts = true)
+    else -> TierOrnament(feathers = 2, wingScale = 0.8f)
+}
+
+/** Contrasting enamel used for the pointed base tail beneath the hex. */
+private fun tierAccent(tier: String): Color = when (tier) {
+    "iron" -> Color(0xFF5C6B7A)
+    "copper" -> Color(0xFF34C27F)
+    "silver" -> Color(0xFF7C6CF0)
+    "gold" -> Color(0xFFE2603C)
+    "emerald" -> Color(0xFFE8C14A)
+    "diamond" -> Color(0xFFB57BFF)
+    else -> Color(0xFF5C6B7A)
+}
+
+/** Dimmed steel palette used for achievements that are still locked. */
+private val LockedPalette = TierPalette(
+    light = Color(0xFF8A9099),
+    base = Color(0xFF4C525A),
+    dark = Color(0xFF23262A)
+)
+
+/** Base color assigned to each achievement tier, ranked by how hard/long they take to earn. */
+internal fun tierColor(tier: String): Color = tierPalette(tier).base
+
+private fun hexagonPath(cx: Float, cy: Float, radius: Float): Path {
+    val path = Path()
+    repeat(6) { i ->
+        val angle = Math.toRadians((-90 + i * 60).toDouble())
+        val x = cx + cos(angle).toFloat() * radius
+        val y = cy + sin(angle).toFloat() * radius
+        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    path.close()
+    return path
+}
+
+/**
+ * Appends one tapered feather: start → (two control points) → tip → (two
+ * control points) → end, all in the 52x52 design space.
+ */
+private fun Path.feather(
+    scale: Float,
+    sx: Float, sy: Float,
+    c1x: Float, c1y: Float, c2x: Float, c2y: Float, tx: Float, ty: Float,
+    c3x: Float, c3y: Float, c4x: Float, c4y: Float,
+    ex: Float, ey: Float
+) {
+    moveTo(sx * scale, sy * scale)
+    cubicTo(c1x * scale, c1y * scale, c2x * scale, c2y * scale, tx * scale, ty * scale)
+    cubicTo(c3x * scale, c3y * scale, c4x * scale, c4y * scale, ex * scale, ey * scale)
+    close()
+}
+
+/** Tapered feather wing in a 52x52 design space, mirrored for the other side. */
+private fun wingPath(scale: Float, feathers: Int): Path = Path().apply {
+    when (feathers) {
+        2 -> {
+            feather(scale, 12.8f, 21f, 9.5f, 18.2f, 6.8f, 16.8f, 4.3f, 16.2f, 5.6f, 19.5f, 8.4f, 21.3f, 12.2f, 23f)
+            feather(scale, 12.3f, 26f, 8.8f, 25.4f, 6.2f, 25.8f, 4.4f, 27.2f, 6.4f, 29.8f, 9.6f, 29.4f, 12.2f, 28.2f)
+        }
+        3 -> {
+            feather(scale, 13.2f, 20.2f, 8.4f, 15.8f, 4.4f, 13.8f, 1.4f, 12.9f, 3.1f, 17.6f, 6.9f, 20.6f, 12.6f, 23.1f)
+            feather(scale, 12.6f, 24.4f, 6.8f, 22.1f, 2.6f, 21.1f, 0.6f, 21.2f, 2.8f, 24.5f, 6.9f, 26.2f, 12.4f, 27.8f)
+            feather(scale, 12.5f, 28.4f, 7.2f, 28.4f, 3.4f, 29.6f, 1.4f, 31.8f, 4.2f, 34.1f, 8.4f, 33.6f, 12.4f, 31.8f)
+        }
+        4 -> {
+            feather(scale, 13.4f, 18.6f, 9.6f, 14.2f, 5.6f, 11.8f, 2.2f, 10.6f, 3.9f, 15.4f, 7.8f, 18.8f, 12.9f, 21.4f)
+            feather(scale, 13f, 22.4f, 8.4f, 19.2f, 4.2f, 17.2f, 1.2f, 16.4f, 2.8f, 20.8f, 6.6f, 23.4f, 12.4f, 25.4f)
+            feather(scale, 12.4f, 26.2f, 7f, 24.2f, 2.8f, 23.4f, 0.4f, 23.8f, 2.4f, 27f, 6.6f, 28.4f, 12.2f, 29.2f)
+            feather(scale, 12.2f, 29.8f, 7.6f, 30f, 3.6f, 31.4f, 1.4f, 33.8f, 4.4f, 35.8f, 8.6f, 34.8f, 12.2f, 32.8f)
+        }
+        else -> {
+            feather(scale, 13.6f, 17f, 10.8f, 12f, 7.4f, 9.4f, 4.2f, 7.9f, 5.4f, 12.6f, 8.6f, 16.4f, 13f, 19.2f)
+            feather(scale, 13.3f, 20.4f, 10f, 16.2f, 6.2f, 13.8f, 2.8f, 12.4f, 4.2f, 16.9f, 7.6f, 20.4f, 12.7f, 22.8f)
+            feather(scale, 12.9f, 24f, 7.8f, 21.4f, 3.4f, 20.2f, 0.8f, 20.4f, 2.8f, 24.2f, 7f, 26.2f, 12.4f, 27.6f)
+            feather(scale, 12.4f, 27.8f, 7.2f, 27.4f, 3.2f, 28.4f, 1f, 30.8f, 4f, 33.4f, 8.2f, 33f, 12.2f, 31.2f)
+            feather(scale, 12.2f, 31.2f, 8f, 31.8f, 4.4f, 33.4f, 2.6f, 36f, 5.8f, 37.2f, 9.2f, 35.6f, 12.2f, 33.6f)
+        }
+    }
+}
+
+/** Lightning bolt accent used by the top tier, drawn behind the hex. */
+private fun boltPath(scale: Float): Path = Path().apply {
+    moveTo(13f * scale, 9.6f * scale)
+    lineTo(7.8f * scale, 14.4f * scale)
+    lineTo(10.6f * scale, 14.8f * scale)
+    lineTo(8.6f * scale, 19.4f * scale)
+    lineTo(14.2f * scale, 13.8f * scale)
+    lineTo(11.2f * scale, 13.4f * scale)
+    close()
+}
+
+private fun trianglePath(
+    scale: Float,
+    x1: Float, y1: Float,
+    x2: Float, y2: Float,
+    x3: Float, y3: Float
+): Path = Path().apply {
+    moveTo(x1 * scale, y1 * scale)
+    lineTo(x2 * scale, y2 * scale)
+    lineTo(x3 * scale, y3 * scale)
+    close()
+}
+
+/** Paints the LoL-style hex banner with tier-growing feather wings. */
+private fun DrawScope.drawTierEmblem(
+    palette: TierPalette,
+    ornament: TierOrnament,
+    accent: Color,
+    alpha: Float
+) {
+    val unit = size.width / 64f          // badge frame geometry
+    val wingUnit = size.width / 52f      // feather design space
+    val radius = 20f * unit
+    val fieldRadius = 17.1f * unit
+    val metal = Brush.verticalGradient(
+        0f to palette.light,
+        0.42f to palette.base,
+        1f to palette.dark,
+        startY = center.y - radius,
+        endY = center.y + radius
     )
+
+    // Pointed enamel tail under the hex, like the rank emblems.
+    val tail = trianglePath(unit, 23f, 45.5f, 41f, 45.5f, 32f, 59.5f)
+    drawPath(tail, accent, alpha)
+    drawPath(tail, Color.Black.copy(alpha = 0.35f * alpha), style = Stroke(width = 0.6f * unit))
+    drawPath(
+        trianglePath(unit, 26.5f, 47.5f, 37.5f, 47.5f, 32f, 55.5f),
+        Color.White.copy(alpha = 0.25f * alpha)
+    )
+
+    val wingOutline = palette.dark.copy(alpha = 0.55f * alpha)
+    val wingEdge = Color.White.copy(alpha = 0.20f * alpha)
+    val wings = wingPath(wingUnit, ornament.feathers)
+
+    scale(ornament.wingScale, ornament.wingScale, pivot = center) {
+        val outlineWidth = 0.55f * wingUnit / ornament.wingScale
+        val edgeWidth = 0.35f * wingUnit / ornament.wingScale
+        drawPath(wings, metal, alpha)
+        drawPath(wings, wingOutline, style = Stroke(width = outlineWidth))
+        drawPath(wings, wingEdge, style = Stroke(width = edgeWidth))
+        scale(scaleX = -1f, scaleY = 1f, pivot = center) {
+            drawPath(wings, metal, alpha)
+            drawPath(wings, wingOutline, style = Stroke(width = outlineWidth))
+            drawPath(wings, wingEdge, style = Stroke(width = edgeWidth))
+        }
+    }
+
+    if (ornament.bolts) {
+        val bolt = boltPath(wingUnit)
+        val boltOutline = palette.dark.copy(alpha = 0.55f * alpha)
+        drawPath(bolt, metal, alpha)
+        drawPath(bolt, boltOutline, style = Stroke(width = 0.45f * wingUnit))
+        scale(scaleX = -1f, scaleY = 1f, pivot = center) {
+            drawPath(bolt, metal, alpha)
+            drawPath(bolt, boltOutline, style = Stroke(width = 0.45f * wingUnit))
+        }
+    }
+
+    // Hex frame + inset field with gem-like facets.
+    val hex = hexagonPath(center.x, center.y, radius)
+    val field = hexagonPath(center.x, center.y, fieldRadius)
+    drawPath(hex, metal, alpha)
+    drawPath(hex, palette.dark.copy(alpha = 0.9f * alpha), style = Stroke(width = 0.9f * unit))
+    drawPath(field, metal, alpha)
+    clipPath(field) {
+        drawPath(
+            trianglePath(unit, 32f, 14.8f, 46.9f, 23.4f, 32f, 32f),
+            Color.White.copy(alpha = 0.13f * alpha)
+        )
+        drawPath(
+            trianglePath(unit, 32f, 14.8f, 17.1f, 23.4f, 32f, 32f),
+            Color.White.copy(alpha = 0.05f * alpha)
+        )
+        drawPath(
+            trianglePath(unit, 17.1f, 40.6f, 32f, 49.2f, 32f, 32f),
+            Color.Black.copy(alpha = 0.13f * alpha)
+        )
+        drawPath(
+            trianglePath(unit, 46.9f, 40.6f, 32f, 49.2f, 32f, 32f),
+            Color.Black.copy(alpha = 0.08f * alpha)
+        )
+    }
+    drawPath(field, Color.Black.copy(alpha = 0.35f * alpha), style = Stroke(width = 1f * unit))
+    drawPath(field, Color.White.copy(alpha = 0.22f * alpha), style = Stroke(width = 0.5f * unit))
+
+    drawLine(
+        color = Color.White.copy(alpha = 0.55f * alpha),
+        start = Offset(center.x, center.y - radius + 0.4f * unit),
+        end = Offset(center.x + 16.6f * unit, center.y - 10f * unit),
+        strokeWidth = 0.8f * unit,
+        cap = StrokeCap.Round
+    )
+    drawLine(
+        color = Color.White.copy(alpha = 0.30f * alpha),
+        start = Offset(center.x, center.y - radius + 0.4f * unit),
+        end = Offset(center.x - 16.6f * unit, center.y - 10f * unit),
+        strokeWidth = 0.8f * unit,
+        cap = StrokeCap.Round
+    )
+}
+
+@Composable
+internal fun TierBadge(
+    tier: String,
+    unlocked: Boolean,
+    badgeSize: Dp,
+    modifier: Modifier = Modifier,
+    iconKey: String? = null,
+    iconTint: Color = Color.White,
+    lockContentDescription: String? = null
+) {
+    val palette = if (unlocked) tierPalette(tier) else LockedPalette
+    val alpha = if (unlocked) 1f else 0.55f
+
+    Box(
+        modifier = modifier.size(badgeSize),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            drawTierEmblem(palette, tierOrnament(tier), tierAccent(tier), alpha)
+        }
+        if (iconKey != null) {
+            AchievementIcon(
+                key = iconKey,
+                tint = iconTint,
+                modifier = Modifier.size(badgeSize * 0.42f)
+            )
+        }
+        if (!unlocked && lockContentDescription != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = (-8).dp, y = (-14).dp)
+                    .size(16.dp)
+                    .background(MaterialTheme.colorScheme.surface, CircleShape)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = lockContentDescription,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(10.dp)
+                )
+            }
+        }
+    }
 }
 
 private val TIER_ORDER = listOf("iron", "copper", "silver", "gold", "emerald", "diamond")
@@ -129,7 +404,7 @@ private val TIER_ORDER = listOf("iron", "copper", "silver", "gold", "emerald", "
 private val GoalAccent = Color(0xFF2ECC71)
 
 @StringRes
-private fun tierLabel(tier: String): Int = when (tier) {
+internal fun tierLabel(tier: String): Int = when (tier) {
     "iron" -> R.string.tier_iron
     "copper" -> R.string.tier_copper
     "silver" -> R.string.tier_silver
@@ -140,7 +415,10 @@ private fun tierLabel(tier: String): Int = when (tier) {
 }
 
 @Composable
-fun AchievementsScreen(repository: Tr3ackRepository) {
+fun AchievementsScreen(
+    repository: Tr3ackRepository,
+    onOpenRankLadder: () -> Unit = {}
+) {
     val viewModel: AchievementsViewModel = viewModel { AchievementsViewModel(repository) }
 
     val level by viewModel.level.collectAsStateWithLifecycle()
@@ -190,6 +468,9 @@ fun AchievementsScreen(repository: Tr3ackRepository) {
         }
         item {
             TierLegend()
+        }
+        item {
+            RankLadderEntry(onClick = onOpenRankLadder)
         }
         items(achievements, key = { it.id }) { achievement ->
             AchievementRow(achievement, Modifier.animateItem())
@@ -666,6 +947,52 @@ private fun formatTonnage(tonnage: Double): String {
 }
 
 @Composable
+private fun RankLadderEntry(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TierBadge(
+                tier = "diamond",
+                unlocked = true,
+                badgeSize = 44.dp
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.rank_ladder_entry),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = stringResource(R.string.rank_ladder_entry_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
 private fun TierLegend() {
     Row(
         modifier = Modifier
@@ -676,15 +1003,10 @@ private fun TierLegend() {
     ) {
         TIER_ORDER.forEach { tier ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .background(tierBrush(tier), CircleShape)
-                        .border(
-                            width = 1.dp,
-                            color = Color.White.copy(alpha = 0.22f),
-                            shape = CircleShape
-                        )
+                TierBadge(
+                    tier = tier,
+                    unlocked = true,
+                    badgeSize = 28.dp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -700,16 +1022,23 @@ private fun TierLegend() {
 @Composable
 private fun AchievementRow(achievement: Achievement, modifier: Modifier = Modifier) {
     val unlockedColor = tierColor(achievement.tier)
+    // Same hue as the badge, sunk into the dark surface so the metal still pops.
     val bgColor = if (achievement.unlocked) {
-        unlockedColor.copy(alpha = 0.15f)
+        lerp(MaterialTheme.colorScheme.surface, unlockedColor, 0.32f)
     } else {
         MaterialTheme.colorScheme.surfaceVariant
+    }
+    val border = if (achievement.unlocked) {
+        BorderStroke(1.dp, unlockedColor.copy(alpha = 0.35f))
+    } else {
+        null
     }
 
     Card(
         modifier = modifier
             .fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = bgColor)
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        border = border
     ) {
         Row(
             modifier = Modifier
@@ -717,59 +1046,18 @@ private fun AchievementRow(achievement: Achievement, modifier: Modifier = Modifi
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        brush = if (achievement.unlocked) {
-                            tierBrush(achievement.tier)
-                        } else {
-                            SolidColor(MaterialTheme.colorScheme.surfaceVariant)
-                        },
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (achievement.unlocked) {
-                            Color.White.copy(alpha = 0.35f)
-                        } else {
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                        },
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                AchievementIcon(
-                    key = achievement.iconKey,
-                    tint = if (achievement.unlocked) {
-                        Color.White
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    },
-                    modifier = Modifier.size(26.dp)
-                )
-                if (!achievement.unlocked) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(16.dp)
-                            .background(MaterialTheme.colorScheme.surface, CircleShape)
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = stringResource(R.string.ach_locked),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(10.dp)
-                        )
-                    }
-                }
-            }
+            TierBadge(
+                tier = achievement.tier,
+                unlocked = achievement.unlocked,
+                badgeSize = 72.dp,
+                iconKey = achievement.iconKey,
+                iconTint = if (achievement.unlocked) {
+                    Color.White
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                },
+                lockContentDescription = stringResource(R.string.ach_locked)
+            )
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val titleArg = achievement.titleArgRes?.let { stringResource(it) }

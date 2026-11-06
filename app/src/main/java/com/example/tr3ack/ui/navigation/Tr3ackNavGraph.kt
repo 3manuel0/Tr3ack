@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -18,6 +19,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -33,6 +35,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,11 +54,14 @@ import com.example.tr3ack.ui.screen.DashboardScreen
 import com.example.tr3ack.ui.screen.HistoryScreen
 import com.example.tr3ack.ui.screen.LogWorkoutScreen
 import com.example.tr3ack.ui.screen.ProgressScreen
+import com.example.tr3ack.ui.screen.RankLadderScreen
 import com.example.tr3ack.viewmodel.HistoryViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,14 +165,36 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
 
     Scaffold(
         topBar = {
-            val title = Screen.all.find { screen ->
+            val title = Screen.titled.find { screen ->
                 currentDestination?.hierarchy?.any { it.route == screen.route } == true
             }?.titleRes ?: R.string.app_name
 
-            val canNavigateBack = currentDestination?.route != Screen.Dashboard.route
+            val isBottomTab = Screen.all.any { screen ->
+                currentDestination?.hierarchy?.any { it.route == screen.route } == true
+            }
+            val isHome = currentDestination?.hierarchy?.any { it.route == Screen.Dashboard.route } == true
+            val canNavigateBack = !isBottomTab
+            val dateLabel = remember {
+                LocalDate.now()
+                    .format(DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.getDefault()))
+                    .uppercase()
+            }
 
             TopAppBar(
-                title = { Text(stringResource(title)) },
+                title = {
+                    if (isHome) {
+                        Column {
+                            Text(
+                                text = dateLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(stringResource(title))
+                        }
+                    } else {
+                        Text(stringResource(title))
+                    }
+                },
                 navigationIcon = {
                     if (canNavigateBack) {
                         IconButton(onClick = { navController.navigateUp() }) {
@@ -225,7 +253,12 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                     Screen.all.forEach { screen ->
                         val label = stringResource(screen.titleRes)
                         NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = label) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(screen.iconRes),
+                                    contentDescription = label
+                                )
+                            },
                             label = { Text(label) },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
@@ -256,7 +289,8 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                 DashboardScreen(
                     repository = repository,
                     onNavigateToLog = { navController.navigate(Screen.LogWorkout.route) },
-                    onNavigateToBodyWeight = { navController.navigate(Screen.BodyWeight.route) }
+                    onNavigateToBodyWeight = { navController.navigate(Screen.BodyWeight.route) },
+                    onNavigateToStats = { navController.navigate(Screen.Progress.route) }
                 )
             }
             composable(Screen.LogWorkout.route) {
@@ -269,10 +303,19 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                 HistoryScreen(viewModel = historyViewModel)
             }
             composable(Screen.Progress.route) {
-                ProgressScreen(repository = repository)
+                ProgressScreen(
+                    repository = repository,
+                    onOpenRankLadder = { navController.navigate(Screen.RankLadder.route) }
+                )
             }
             composable(Screen.Achievements.route) {
-                AchievementsScreen(repository = repository)
+                AchievementsScreen(
+                    repository = repository,
+                    onOpenRankLadder = { navController.navigate(Screen.RankLadder.route) }
+                )
+            }
+            composable(Screen.RankLadder.route) {
+                RankLadderScreen(repository = repository)
             }
         }
     }

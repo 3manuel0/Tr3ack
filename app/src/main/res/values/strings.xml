@@ -8,6 +8,23 @@
     <string name="nav_history">History</string>
     <string name="nav_stats">Stats</string>
     <string name="nav_goals">Goals</string>
+    <string name="nav_rank_ladder">Rank Ladder</string>
+
+    <!-- Rank ladder -->
+    <string name="rank_ladder_entry">Rank Ladder</string>
+    <string name="rank_ladder_entry_desc">See where you stand in every lift</string>
+    <string name="rank_your_rank">Your rank</string>
+    <string name="rank_unranked">Unranked</string>
+    <string name="rank_you_are_here">You are here</string>
+    <string name="rank_locked">Locked</string>
+    <string name="rank_max_tier">Max tier reached</string>
+    <string name="rank_to_next_weight">%1$d kg to %2$s</string>
+    <string name="rank_to_next_bw">%1$.2f× to %2$s</string>
+    <string name="rank_requirement_weight">%1$d kg × 6+</string>
+    <string name="rank_requirement_bw">%1$.2f× bodyweight</string>
+    <string name="rank_best_weight">%1$d kg × 6+</string>
+    <string name="rank_best_bw">%1$.2f× bodyweight</string>
+    <string name="rank_next_unranked">Next: %1$s · %2$s</string>
 
     <!-- Common -->
     <string name="action_back">Back</string>
@@ -53,7 +70,22 @@
     <string name="dashboard_no_sets_today">No sets logged today. Tap + to get started!</string>
     <string name="dashboard_training_log">Training Log</string>
     <string name="dashboard_today">Today</string>
+    <string name="dashboard_today_exercises_volume">%1$d exercises · %2$s kg·reps</string>
+    <string name="dashboard_log_a_set">Log a set</string>
+    <string name="dashboard_weight_action">Weight</string>
+    <string name="dashboard_body_weight_edit">body weight · edit</string>
+    <string name="dashboard_streak_weeks">🔥 %1$d-week streak</string>
+    <string name="dashboard_weeks_current">%1$d weeks current</string>
+    <string name="dashboard_longest_weeks">Longest %1$d weeks</string>
+    <string name="dashboard_workouts_this_month">%1$d workouts this month</string>
+    <string name="dashboard_see_all">See all</string>
     <string name="dashboard_never">Never</string>
+    <string name="progress_chip_all">All</string>
+    <string name="stat_pct_bw">% BW</string>
+    <string name="stat_added">Added</string>
+    <string name="stat_system">System</string>
+    <string name="stat_reps">Reps</string>
+    <string name="stat_e1rm">e1RM</string>
     <string name="dashboard_days_ago">%1$d days ago</string>
     <string name="dashboard_sets_count">%1$d sets</string>
     <string name="dashboard_set_reps">Set %1$d: %2$d reps</string>

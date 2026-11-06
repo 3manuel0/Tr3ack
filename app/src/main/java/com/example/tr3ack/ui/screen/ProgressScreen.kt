@@ -1,7 +1,14 @@
 package com.example.tr3ack.ui.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,27 +16,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
@@ -38,6 +42,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Brush
@@ -53,10 +58,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
+import com.example.tr3ack.viewmodel.BestSetRecord
 import com.example.tr3ack.viewmodel.ChartPoint
+import com.example.tr3ack.viewmodel.OneRepMax
 import com.example.tr3ack.viewmodel.ProgressViewModel
 import com.example.tr3ack.viewmodel.rollingAverage
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
@@ -95,9 +104,8 @@ private fun drawVerticalDateLabels(
     paint.textAlign = previousAlign
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProgressScreen(repository: Tr3ackRepository) {
+fun ProgressScreen(repository: Tr3ackRepository, onOpenRankLadder: () -> Unit = {}) {
     val viewModel: ProgressViewModel = viewModel { ProgressViewModel(repository) }
 
     val exercises by viewModel.exercises.collectAsStateWithLifecycle()
@@ -106,8 +114,8 @@ fun ProgressScreen(repository: Tr3ackRepository) {
     val freeWeightData by viewModel.freeWeightData.collectAsStateWithLifecycle()
     val personalRecords by viewModel.bestSet.collectAsStateWithLifecycle()
     val oneRepMax by viewModel.oneRepMax.collectAsStateWithLifecycle()
+    val currentTier by viewModel.currentTier.collectAsStateWithLifecycle()
 
-    var exerciseMenuExpanded by remember { mutableStateOf(false) }
     var dayCount by remember { mutableIntStateOf(30) }
 
     val selectedExercise = exercises.find { it.id == selectedExerciseId }
@@ -128,44 +136,18 @@ fun ProgressScreen(repository: Tr3ackRepository) {
         ) {
             // Exercise selector
             item {
-                ExposedDropdownMenuBox(
-                    expanded = exerciseMenuExpanded,
-                    onExpandedChange = { exerciseMenuExpanded = it }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
-                        value = selectedExercise?.name ?: stringResource(R.string.select_exercise),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.label_exercise)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = exerciseMenuExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = exerciseMenuExpanded,
-                        onDismissRequest = { exerciseMenuExpanded = false }
-                    ) {
-                        exercises.forEach { exercise ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(exercise.name)
-                                        if (exercise.isBodyweightBased) {
-                                            Text(
-                                                stringResource(R.string.weighted_bodyweight),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                },
-                                onClick = {
-                                    viewModel.selectExercise(exercise.id)
-                                    exerciseMenuExpanded = false
-                                }
-                            )
-                        }
+                    exercises.forEach { exercise ->
+                        FilterChip(
+                            selected = exercise.id == selectedExerciseId,
+                            onClick = { viewModel.selectExercise(exercise.id) },
+                            label = { Text(shortExerciseName(exercise.name)) }
+                        )
                     }
                 }
             }
@@ -181,161 +163,35 @@ fun ProgressScreen(repository: Tr3ackRepository) {
             }
 
             if (selectedExercise != null) {
-                // Personal Record — Best Set
-                if (personalRecords.estimatedOneRM > 0) {
-                    item {
-                        Text(
-                            text = stringResource(R.string.progress_personal_record),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = stringResource(R.string.progress_best_set),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "%.1f kg".format(personalRecords.estimatedOneRM),
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = stringResource(R.string.progress_estimated_1rm_caption),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                PRRow(
-                                    stringResource(R.string.progress_set_label),
-                                    stringResource(R.string.progress_set_value, personalRecords.addedWeight, personalRecords.reps)
-                                )
-                                if (selectedExercise.isBodyweightBased) {
-                                    PRRow(
-                                        stringResource(R.string.progress_total_system_load),
-                                        "%.1f kg".format(personalRecords.totalSystemWeight)
-                                    )
-                                    PRRow(
-                                        stringResource(R.string.progress_pct_body_weight),
-                                        "%.1f%%".format(personalRecords.percentBodyWeight)
-                                    )
-                                }
-                                PRRow(stringResource(R.string.progress_date), personalRecords.date)
-                            }
-                        }
-                    }
-                }
-
-                // 1RM Card
-                if (oneRepMax != null) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = stringResource(R.string.progress_estimated_1rm),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                PRRow(
-                                    stringResource(R.string.progress_1rm_tsl),
-                                    "%.1f kg".format(oneRepMax!!.oneRepMaxTSL)
-                                )
-                                PRRow(
-                                    stringResource(R.string.progress_1rm_added_weight),
-                                    "%.1f kg".format(oneRepMax!!.oneRepMaxAddedWeight)
-                                )
-                                PRRow(
-                                    stringResource(R.string.progress_based_on),
-                                    stringResource(R.string.progress_based_on_value, oneRepMax!!.basedOnTSL, oneRepMax!!.basedOnReps)
-                                )
-                                PRRow(
-                                    stringResource(R.string.progress_set_date),
-                                    oneRepMax!!.basedOnDate
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = stringResource(R.string.progress_relative_strength),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                PRRow(
-                                    stringResource(R.string.progress_bw_multiplier),
-                                    stringResource(R.string.progress_bw_multiplier_value, oneRepMax!!.strengthMultiplier)
-                                )
-                                PRRow(
-                                    stringResource(R.string.progress_added_as_pct_bw),
-                                    "%.1f%%".format(oneRepMax!!.bodyweightPercentage)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = stringResource(R.string.progress_working_loads),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                PRRow(
-                                    stringResource(R.string.progress_working_85),
-                                    stringResource(R.string.progress_working_value, oneRepMax!!.workingLoad85)
-                                )
-                                PRRow(
-                                    stringResource(R.string.progress_working_80),
-                                    stringResource(R.string.progress_working_value, oneRepMax!!.workingLoad80)
-                                )
-                                PRRow(
-                                    stringResource(R.string.progress_working_75),
-                                    stringResource(R.string.progress_working_value, oneRepMax!!.workingLoad75)
-                                )
-                                if (oneRepMax!!.currentBodyWeight > 0) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = stringResource(R.string.progress_at_current_bw, oneRepMax!!.currentBodyWeight),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    PRRow(
-                                        stringResource(R.string.progress_added_weight_needed),
-                                        "%.1f kg".format(oneRepMax!!.oneRepMaxAddedWeight)
-                                    )
-                                }
-                            }
-                        }
-                    }
+                item {
+                    ProgressHeroCard(
+                        record = personalRecords,
+                        oneRepMax = oneRepMax,
+                        isBodyweight = selectedExercise.isBodyweightBased,
+                        rankTier = currentTier,
+                        onOpenRank = onOpenRankLadder
+                    )
                 }
 
                 // Day count toggle + charts
                 if (displayData.isNotEmpty()) {
                     item {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.progress_title),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = dayCount == 30,
+                                onClick = { dayCount = 30 },
+                                label = { Text(stringResource(R.string.progress_chip_30d)) }
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(
-                                    selected = dayCount == 30,
-                                    onClick = { dayCount = 30 },
-                                    label = { Text(stringResource(R.string.progress_chip_30d)) }
-                                )
-                                FilterChip(
-                                    selected = dayCount == 90,
-                                    onClick = { dayCount = 90 },
-                                    label = { Text(stringResource(R.string.progress_chip_90d)) }
-                                )
-                            }
+                            FilterChip(
+                                selected = dayCount == 90,
+                                onClick = { dayCount = 90 },
+                                label = { Text(stringResource(R.string.progress_chip_90d)) }
+                            )
+                            FilterChip(
+                                selected = dayCount == Int.MAX_VALUE,
+                                onClick = { dayCount = Int.MAX_VALUE },
+                                label = { Text(stringResource(R.string.progress_chip_all)) }
+                            )
                         }
                     }
 
@@ -450,6 +306,171 @@ fun ProgressScreen(repository: Tr3ackRepository) {
             }
         }
     }
+}
+
+/** Compact chip labels, matching the rank ladder ("Weighted Pull-Ups" → "Pull-Ups"). */
+private fun shortExerciseName(name: String): String = name
+    .replace("Weighted ", "")
+    .removePrefix("Bicep ")
+    .removeSuffix(" Raises")
+
+@Composable
+private fun ProgressHeroCard(
+    record: BestSetRecord,
+    oneRepMax: OneRepMax?,
+    isBodyweight: Boolean,
+    rankTier: String?,
+    onOpenRank: () -> Unit
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(Color(0xFF2C3854), Color(0xFF1D2233))))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.progress_personal_record).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    letterSpacing = 1.5.sp,
+                    color = Color(0xFFAEBBD8)
+                )
+                if (rankTier != null) {
+                    val accent = tierColor(rankTier)
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(accent.copy(alpha = 0.16f))
+                            .border(1.dp, accent.copy(alpha = 0.4f), RoundedCornerShape(50))
+                            .clickable { onOpenRank() }
+                            .padding(horizontal = 9.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(accent)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = stringResource(tierLabel(rankTier)),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = accent
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = "%.1f".format(record.estimatedOneRM),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp,
+                    lineHeight = 44.sp
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "kg",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 5.dp)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.progress_estimated_1rm_caption),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 5.dp)
+                )
+            }
+            if (record.estimatedOneRM > 0) {
+                Text(
+                    text = "%+.0f kg × %d · %s".format(record.addedWeight, record.reps, shortDate(record.date)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFB9C3DD)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isBodyweight) {
+                    StatTile(stringResource(R.string.stat_pct_bw), "%.1f%%".format(record.percentBodyWeight), Modifier.weight(1f))
+                    StatTile(stringResource(R.string.stat_added), "%.1f kg".format(record.addedWeight), Modifier.weight(1f))
+                    StatTile(stringResource(R.string.stat_system), "%.1f kg".format(record.totalSystemWeight), Modifier.weight(1f))
+                } else {
+                    StatTile(stringResource(R.string.stat_added), "%.1f kg".format(record.addedWeight), Modifier.weight(1f))
+                    StatTile(stringResource(R.string.stat_reps), "${record.reps}", Modifier.weight(1f))
+                    StatTile(stringResource(R.string.stat_e1rm), "%.1f kg".format(record.estimatedOneRM), Modifier.weight(1f))
+                }
+            }
+            if (oneRepMax != null && oneRepMax.workingLoad85 > 0) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    WorkingLoad("85%", oneRepMax.workingLoad85)
+                    WorkingLoad("80%", oneRepMax.workingLoad80)
+                    WorkingLoad("75%", oneRepMax.workingLoad75)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFFAEBBD8)
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun WorkingLoad(label: String, kg: Double) {
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFFAEBBD8)
+        )
+        Text(
+            text = "%.1f kg".format(kg),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+private fun shortDate(date: String): String {
+    if (date.isBlank()) return "—"
+    return runCatching {
+        LocalDate.parse(date).format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
+    }.getOrDefault("—")
 }
 
 @Composable

@@ -91,6 +91,9 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
     private val _oneRepMax = MutableStateFlow<OneRepMax?>(null)
     val oneRepMax: StateFlow<OneRepMax?> = _oneRepMax.asStateFlow()
 
+    private val _currentTier = MutableStateFlow<String?>(null)
+    val currentTier: StateFlow<String?> = _currentTier.asStateFlow()
+
     private var selectionJob: kotlinx.coroutines.Job? = null
 
     fun selectExercise(exerciseId: Long) {
@@ -119,6 +122,7 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
                         } else {
                             buildFreeWeightOneRepMax(row, exercise)
                         }
+                        _currentTier.value = buildCurrentTier(exercise, row)
                     }
                 }
                 if (!exercise.isBodyweightBased) {
@@ -156,6 +160,17 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
             percentBodyWeight = stats.bestE1RMPercentBodyWeight,
             date = stats.bestE1RMDate
         )
+    }
+
+    private fun buildCurrentTier(exercise: Exercise, stats: ExerciseStatsEntity?): String? {
+        val thresholds = RankLadderRules.thresholdsFor(exercise)
+        if (thresholds.isEmpty()) return null
+        val metric = if (exercise.isBodyweightBased) {
+            stats?.maxBodyweightRatio ?: 0.0
+        } else {
+            stats?.maxAddedWeightGte6 ?: 0.0
+        }
+        return RankLadderRules.evaluate(thresholds, metric).currentTier
     }
 
     private suspend fun buildWeightedOneRepMax(

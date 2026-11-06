@@ -1,6 +1,6 @@
 # Tr3ack
 
-A workout tracker Android app for logging strength-training sessions, tracking body weight, and visualizing progress over time. Built for weighted calisthenics — pull-ups, dips, chin-ups — and free weight exercises.
+A workout tracker Android app for logging strength-training sessions, tracking body weight, and visualizing progress over time. Built for weighted calisthenics — pull-ups, dips — and free weight exercises.
 
 ## Screenshots
 
@@ -18,10 +18,13 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   &nbsp;&nbsp;
   <img src="screenshots/goals.png" alt="Goals" width="250"/>
 </p>
+<p align="center">
+  <img src="screenshots/rank_ladder.png" alt="Rank Ladder" width="250"/>
+</p>
 
 ## Features
 
-- **Dashboard** — At-a-glance view of today's body weight, personal bests, and recent activity
+- **Dashboard** — Today hero (sets, volume, body weight, log-set/weight actions, streak), compact training-consistency heatmap, personal bests in a 2×2 grid with sparklines, week-over-week volume, and body-weight trend
 - **Log Workouts** — Select exercise, set reps/weight, pick any date for backfilling; weight persists between sets for fast logging
 - **Body Weight Tracking** — One entry per day, editable, with fallback lookup for workout days without a log
 - **Personal Record Card** — Single best-set record per exercise, selected by highest estimated 1RM across all logged sets; shows e1RM, set, total system load, % BW, and date achieved
@@ -31,7 +34,8 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
-- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 30 tier-colored achievements for volume, consistency, relative strength, PR coverage, body-weight tracking, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond). Badges use a consistent custom vector icon set (pull-up, flexed arm curling a dumbbell, bent-arm lateral raise, and Lucide-style glyphs) with a distinct glyph per achievement family, finished with a metallic League-of-Legends-style tier gradient
+- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 30 tier-colored achievements for volume, consistency, relative strength, PR coverage, body-weight tracking, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond). Badges use a consistent custom vector icon set (pull-up, flexed arm curling a dumbbell, bent-arm lateral raise, and Lucide-style glyphs) with a distinct glyph per achievement family, mounted on a metallic hexagonal emblem with a thick beveled frame, faceted field, pointed enamel base and mirrored feather wings that gain feathers and reach as the tier rises, in old-League-of-Legends rank colors (steel, copper, silver, gold, emerald, diamond)
+- **Rank Ladder** — Per-exercise Iron → Diamond ladder reachable from Goals: current rank emblem, progress to the next tier, the benchmark for every tier, and locked/unlocked states. Derived from the same cached stats as the achievements, so it needs no extra persistence and updates as you log sets
 - **CSV Export** — Export all workout data as a formatted CSV file from the History screen
 - **JSON Backup & Restore** — Full data backup/restore from the Dashboard overflow menu; exports editable JSON file containing all exercises, sets, and body weight entries
 - **Splash Screen** — Custom branded launch screen with the same vector dumbbell glyph as the app icon
@@ -44,13 +48,12 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 | ----------------- | -- | ------------------- | ---------------------------------------------------- |
 | Weighted Pull-Ups | 1  | Weighted bodyweight | E1RM, Tonnage, Belt vs BW, System weight, % BW      |
 | Weighted Dips     | 2  | Weighted bodyweight | E1RM, Tonnage, Belt vs BW, System weight, % BW      |
-| Weighted Chin-Ups | 3  | Weighted bodyweight | E1RM, Tonnage, Belt vs BW, System weight, % BW      |
 | Bicep Curls       | 4  | Free weight         | E1RM, Tonnage, Weight x reps                         |
 | Lateral Raises    | 6  | Free weight         | E1RM, Tonnage, Weight x reps                         |
 
 ## Stats — How E1RM Works
 
-### Bodyweight Exercises (Pull-Ups, Dips, Chin-Ups)
+### Bodyweight Exercises (Pull-Ups, Dips)
 
 Uses the same Mayhew et al. (1992) equation as free weights, applied to the **total system weight** (`TSL = Body Weight + Added Weight`):
 
@@ -58,7 +61,7 @@ Uses the same Mayhew et al. (1992) equation as free weights, applied to the **to
 E1RM = TSL × 100 / (52.2 + 41.9 × e^(-0.055 × Reps))
 ```
 
-Why: Mayhew is validated on 1–15-rep sets and is exponential (so it behaves above 10 reps where linear rep→%1RM models drift), and in LeSuer et al. (1997) it was one of only two formulas not significantly different from the measured 1RM for the exercises tested. It replaces the earlier hand-tuned per-movement coefficient tables, which on logged training data sat ~2–3% below Mayhew and were no more internally consistent — the cost is dropping the pull-up/dip/chin-specific curve flavor (chin-ups no longer get a separate bicep-leverage bump). A true single (1 rep) returns the raw TSL (no inflation); reps above 15 are capped at 15 (`MAX_BODYWEIGHT_REPS`, matching Mayhew's validated range) and sets above the cap still count toward tonnage.
+Why: Mayhew is validated on 1–15-rep sets and is exponential (so it behaves above 10 reps where linear rep→%1RM models drift), and in LeSuer et al. (1997) it was one of only two formulas not significantly different from the measured 1RM for the exercises tested. It replaces the earlier hand-tuned per-movement coefficient tables, which on logged training data sat ~2–3% below Mayhew and were no more internally consistent — the cost is dropping the pull-up/dip-specific curve flavor. A true single (1 rep) returns the raw TSL (no inflation); reps above 15 are capped at 15 (`MAX_BODYWEIGHT_REPS`, matching Mayhew's validated range) and sets above the cap still count toward tonnage.
 
 ### Free Weight Exercises
 

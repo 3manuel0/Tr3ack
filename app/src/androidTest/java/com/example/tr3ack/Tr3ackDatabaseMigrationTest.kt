@@ -288,6 +288,121 @@ class Tr3ackDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate8to9_removesChinUpsAndItsData() {
+        helper.createDatabase("test", 8).apply {
+            execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (1, 'Weighted Pull-Ups', 1)")
+            execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (2, 'Weighted Dips', 1)")
+            execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (3, 'Weighted Chin-Ups', 1)")
+            execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (4, 'Bicep Curls', 0)")
+            execSQL("INSERT INTO exercises (id, name, isBodyweightBased) VALUES (6, 'Lateral Raises', 0)")
+
+            // One pull-up set stays; the chin-up set (exerciseId 3) must go.
+            execSQL(
+                "INSERT INTO workout_sets (id, exerciseId, date, addedWeightKg, reps, timestamp) " +
+                    "VALUES (1, 1, '2026-08-21', 32.0, 8, 1)"
+            )
+            execSQL(
+                "INSERT INTO workout_sets (id, exerciseId, date, addedWeightKg, reps, timestamp) " +
+                    "VALUES (2, 3, '2026-08-21', 20.0, 8, 2)"
+            )
+            execSQL(
+                "INSERT INTO workout_sets (id, exerciseId, date, addedWeightKg, reps, timestamp) " +
+                    "VALUES (3, 4, '2026-08-21', 30.0, 10, 3)"
+            )
+
+            execSQL(
+                "INSERT INTO exercise_stats (exerciseId, isBodyweightBased, hasData, bestE1RM, " +
+                    "bestE1RMAddedWeight, bestE1RMReps, bestE1RMTotalSystemWeight, " +
+                    "bestE1RMPercentBodyWeight, bestE1RMDate, bestE1RMBodyWeightKg, " +
+                    "maxAddedWeightGte6, maxBodyweightRatio, lastLoggedDate) VALUES " +
+                    "(1, 1, 1, 128.8, 32.0, 8, 102.0, 145.7, '2026-08-21', 70.0, 0.0, 1.46, '2026-08-21')"
+            )
+            execSQL(
+                "INSERT INTO exercise_stats (exerciseId, isBodyweightBased, hasData, bestE1RM, " +
+                    "bestE1RMAddedWeight, bestE1RMReps, bestE1RMTotalSystemWeight, " +
+                    "bestE1RMPercentBodyWeight, bestE1RMDate, bestE1RMBodyWeightKg, " +
+                    "maxAddedWeightGte6, maxBodyweightRatio, lastLoggedDate) VALUES " +
+                    "(3, 1, 1, 100.0, 20.0, 8, 90.0, 128.6, '2026-08-21', 70.0, 0.0, 1.28, '2026-08-21')"
+            )
+            execSQL(
+                "INSERT INTO exercise_daily_stats (exerciseId, date, isBodyweightBased, firstSetTSW, " +
+                    "firstSetReps, firstSetAddedWeight, firstSetPercentBodyWeight, e1rm, tonnage, bodyWeightKg) " +
+                    "VALUES (1, '2026-08-21', 1, 102.0, 8, 32.0, 145.7, 128.8, 816.0, 70.0)"
+            )
+            execSQL(
+                "INSERT INTO exercise_daily_stats (exerciseId, date, isBodyweightBased, firstSetTSW, " +
+                    "firstSetReps, firstSetAddedWeight, firstSetPercentBodyWeight, e1rm, tonnage, bodyWeightKg) " +
+                    "VALUES (3, '2026-08-21', 1, 90.0, 8, 20.0, 128.6, 100.0, 720.0, 70.0)"
+            )
+            execSQL("INSERT INTO workout_days (date, setCount, tonnage) VALUES ('2026-08-21', 3, 2000.0)")
+            execSQL(
+                "INSERT INTO goals (exerciseId, type, targetValue, targetReps, createdAt) " +
+                    "VALUES (3, 'E1RM', 120.0, 0, 42)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            "test", 9, /* validateDroppedTables = */ true,
+            Tr3ackDatabase.MIGRATION_8_9
+        )
+
+        assertEquals(0, count(db, "SELECT COUNT(*) FROM exercises WHERE id = 3"))
+        assertEquals(0, count(db, "SELECT COUNT(*) FROM workout_sets WHERE exerciseId = 3"))
+        assertEquals(0, count(db, "SELECT COUNT(*) FROM exercise_stats WHERE exerciseId = 3"))
+        assertEquals(0, count(db, "SELECT COUNT(*) FROM exercise_daily_stats WHERE exerciseId = 3"))
+        assertEquals(0, count(db, "SELECT COUNT(*) FROM goals WHERE exerciseId = 3"))
+
+        // Everything else survives.
+        assertEquals(4, count(db, "SELECT COUNT(*) FROM exercises"))
+        assertEquals(2, count(db, "SELECT COUNT(*) FROM workout_sets"))
+        assertEquals(1, count(db, "SELECT COUNT(*) FROM exercise_stats"))
+        assertEquals(1, count(db, "SELECT COUNT(*) FROM exercise_daily_stats"))
+        assertEquals(1, count(db, "SELECT COUNT(*) FROM exercise_stats WHERE exerciseId = 1"))
+        assertEquals(1, count(db, "SELECT COUNT(*) FROM exercise_daily_stats WHERE exerciseId = 1"))
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(9, version.getInt(0))
+        version.close()
+        db.close()
+    }
+
+    private fun count(db: androidx.sqlite.db.SupportSQLiteDatabase, sql: String): Int {
+        val cursor = db.query(sql)
+        cursor.moveToFirst()
+        val value = cursor.getInt(0)
+        cursor.close()
+        return value
+    }
+
+    @Test
+    fun migrateChain_toV9_succeeds() {
+        helper.createDatabase("test", 1).close()
+        val db = helper.runMigrationsAndValidate(
+            "test", 9, true,
+            Tr3ackDatabase.MIGRATION_1_2,
+            Tr3ackDatabase.MIGRATION_2_3,
+            Tr3ackDatabase.MIGRATION_3_4,
+            Tr3ackDatabase.MIGRATION_4_5,
+            Tr3ackDatabase.MIGRATION_5_6,
+            Tr3ackDatabase.MIGRATION_6_7,
+            Tr3ackDatabase.MIGRATION_7_8,
+            Tr3ackDatabase.MIGRATION_8_9
+        )
+
+        // v2_3 re-seeds 6 exercises; v3_4 removes id 5 and v8_9 removes id 3.
+        assertEquals(4, count(db, "SELECT COUNT(*) FROM exercises"))
+        assertEquals(0, count(db, "SELECT COUNT(*) FROM exercises WHERE id IN (3, 5)"))
+
+        val version = db.query("PRAGMA user_version")
+        version.moveToFirst()
+        assertEquals(9, version.getInt(0))
+        version.close()
+        db.close()
+    }
+
+    @Test
     fun migrateChain_toV8_succeeds() {
         helper.createDatabase("test", 1).close()
         val db = helper.runMigrationsAndValidate(
