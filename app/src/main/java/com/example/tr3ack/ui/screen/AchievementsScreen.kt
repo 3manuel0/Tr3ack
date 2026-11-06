@@ -3,6 +3,7 @@ package com.example.tr3ack.ui.screen
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,7 +47,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -70,9 +75,13 @@ private fun achievementIcon(key: String): Int = when (key) {
     "directions_run" -> R.drawable.ic_ach_person
     "emoji_events" -> R.drawable.ic_ach_trophy
     "shield" -> R.drawable.ic_ach_shield
-    "bicep" -> R.drawable.ic_ach_dumbbell
+    "bicep" -> R.drawable.ic_ach_bicep
     "pullup" -> R.drawable.ic_ach_pullup
     "shoulder" -> R.drawable.ic_ach_lateral
+    "layers" -> R.drawable.ic_ach_layers
+    "weight" -> R.drawable.ic_ach_weight
+    "target" -> R.drawable.ic_ach_target
+    "calendar_check" -> R.drawable.ic_ach_calendar_check
     else -> R.drawable.ic_ach_star
 }
 
@@ -87,15 +96,31 @@ private fun AchievementIcon(key: String, modifier: Modifier = Modifier, tint: Co
     )
 }
 
-/** Color assigned to each achievement tier, ranked by how hard/long they take to earn. */
+/**
+ * Base color assigned to each achievement tier, ranked by how hard/long they take
+ * to earn. The palette follows the old League of Legends ranked emblems: dark
+ * steel, warm copper, cool silver, rich gold, jewel emerald and icy diamond.
+ */
 private fun tierColor(tier: String): Color = when (tier) {
-    "iron" -> Color(0xFF9E9E9E)
-    "copper" -> Color(0xFFB87333)
-    "silver" -> Color(0xFFC0C0C0)
-    "gold" -> Color(0xFFD4AF37)
-    "emerald" -> Color(0xFF2ECC71)
-    "diamond" -> Color(0xFF4FC3F7)
-    else -> Color(0xFF9E9E9E)
+    "iron" -> Color(0xFF5C6167)
+    "copper" -> Color(0xFFB26A3C)
+    "silver" -> Color(0xFF98A2AB)
+    "gold" -> Color(0xFFC9A227)
+    "emerald" -> Color(0xFF17A96A)
+    "diamond" -> Color(0xFF3FA9E8)
+    else -> Color(0xFF5C6167)
+}
+
+/** Metallic top-light → base → shadow gradient, LoL-emblem style. */
+private fun tierBrush(tier: String): Brush {
+    val base = tierColor(tier)
+    return Brush.linearGradient(
+        listOf(
+            lerp(base, Color.White, 0.38f),
+            base,
+            lerp(base, Color.Black, 0.28f)
+        )
+    )
 }
 
 private val TIER_ORDER = listOf("iron", "copper", "silver", "gold", "emerald", "diamond")
@@ -654,7 +679,12 @@ private fun TierLegend() {
                 Box(
                     modifier = Modifier
                         .size(16.dp)
-                        .background(tierColor(tier), CircleShape)
+                        .background(tierBrush(tier), CircleShape)
+                        .border(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = 0.22f),
+                            shape = CircleShape
+                        )
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -670,7 +700,6 @@ private fun TierLegend() {
 @Composable
 private fun AchievementRow(achievement: Achievement, modifier: Modifier = Modifier) {
     val unlockedColor = tierColor(achievement.tier)
-    val lockedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     val bgColor = if (achievement.unlocked) {
         unlockedColor.copy(alpha = 0.15f)
     } else {
@@ -692,16 +721,54 @@ private fun AchievementRow(achievement: Achievement, modifier: Modifier = Modifi
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        color = if (achievement.unlocked) unlockedColor else lockedColor,
+                        brush = if (achievement.unlocked) {
+                            tierBrush(achievement.tier)
+                        } else {
+                            SolidColor(MaterialTheme.colorScheme.surfaceVariant)
+                        },
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (achievement.unlocked) {
+                            Color.White.copy(alpha = 0.35f)
+                        } else {
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                        },
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 AchievementIcon(
                     key = achievement.iconKey,
-                    tint = Color.White,
+                    tint = if (achievement.unlocked) {
+                        Color.White
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    },
                     modifier = Modifier.size(26.dp)
                 )
+                if (!achievement.unlocked) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(16.dp)
+                            .background(MaterialTheme.colorScheme.surface, CircleShape)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = stringResource(R.string.ach_locked),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(10.dp)
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {

@@ -223,6 +223,7 @@
     <string name="ach_rank_advanced">Advanced</string>
     <string name="ach_rank_advanced_plus">Advanced+</string>
     <string name="ach_rank_elite">Elite</string>
+    <string name="ach_locked">Locked</string>
     <string name="ach_curl_title">Bicep Curls · %1$s</string>
     <string name="ach_lat_title">Lateral Raises · %1$s</string>
     <string name="ach_target_desc">Log a %1$dkg set for 6+ reps</string>
