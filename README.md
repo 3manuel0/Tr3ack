@@ -63,6 +63,8 @@ E1RM = TSL × mean(f_Epley, f_Brzycki, f_Lombardi, f_Mayhew, f_O'Conner, f_Wathe
 
 Why: there is no validated pull-up/dip-specific reps-to-failure equation, and the individual formulas disagree most at low reps. Averaging cancels each formula's bias and matches the best available evidence: the updated reps-%1RM meta-analysis (Nuzzo et al., *Sports Med* 2023; ~7,000 participants) found the relationship is broadly similar across exercises, and the only direct weighted-pull-up validation (Baker, 2004) observed 11.5 ± 4.3 reps at 74 ± 7% 1RM — the consensus returns ~74% for 11–12 reps. A true single (1 rep) returns the raw TSL (no inflation); reps above 12 reuse the 12-rep factor (`MAX_BODYWEIGHT_REPS`) because extrapolation becomes unreliable, and sets above the cap still count toward tonnage.
 
+Both estimators assume each logged set is taken to failure (reps-to-failure). The app evaluates **every** set and reports the highest e1RM, so a later, fatigue-limited set can never lower the PR — the freshest, strongest set sets the record, while the rest still contribute to the daily/chart data and tonnage.
+
 ### Free Weight Exercises
 
 Uses the Mayhew et al. (1992) equation:
