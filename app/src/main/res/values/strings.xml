@@ -55,7 +55,7 @@
     <string name="dialog_import_backup_message">This will replace ALL current data with the backup. This cannot be undone. Continue?</string>
     <string name="toast_csv_exported">CSV exported!</string>
     <string name="toast_backup_exported">Backup exported!</string>
-    <string name="export_file_csv">Tr3ack_Export_%1$s</string>
+    <string name="export_file_csv">Tr3ack_Export_%1$s.csv</string>
     <string name="export_file_json">Tr3ack_Backup_%1$s</string>
 
     <!-- Dashboard -->
