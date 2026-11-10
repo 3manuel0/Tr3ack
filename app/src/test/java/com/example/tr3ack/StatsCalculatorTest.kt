@@ -52,7 +52,7 @@ class StatsCalculatorTest {
     fun exerciseStats_bodyweight_picksMaxE1RMAndTracksMaxRatio() {
         val stats = StatsCalculator.computeExerciseStats(pullUps, demoPullSets, effectiveBodyWeight)
 
-        assertEquals(128.8120700, stats.bestE1RM, 1e-6)      // 102 * 1.2628634 (Mayhew @ 8 reps)
+        assertEquals(127.1390562, stats.bestE1RM, 1e-6)      // 102 * 1.2464613 (consensus @ 8 reps)
         assertEquals(32.0, stats.bestE1RMAddedWeight, 1e-9)
         assertEquals(8, stats.bestE1RMReps)
         assertEquals(102.0, stats.bestE1RMTotalSystemWeight, 1e-9)
@@ -79,16 +79,16 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun bodyweightFactor_followsMayhewCurveAndClampsAtFifteen() {
-        // One shared Mayhew curve for every movement; a true single is 1.0.
+    fun bodyweightFactor_usesConsensusAndClampsAtTwelve() {
+        // Mean of Epley/Brzycki/Lombardi/Mayhew/O'Conner/Wathen on TSL.
         assertEquals(1.0, MovementFactors.tswFactor(1), 1e-9)
-        assertEquals(1.3093427, MovementFactors.tswFactor(10), 1e-6)
-        // Still climbing past 10 reps (Mayhew is validated 1..15)...
+        assertEquals(1.3054003, MovementFactors.tswFactor(10), 1e-6)
+        // Still climbing past 10 reps...
         assertTrue(MovementFactors.tswFactor(12) > MovementFactors.tswFactor(10))
-        assertEquals(1.3755698, MovementFactors.tswFactor(13), 1e-6)
-        // ...then flat at the 15-rep cap.
-        assertEquals(1.4171925, MovementFactors.tswFactor(15), 1e-6)
-        assertEquals(1.4171925, MovementFactors.tswFactor(50), 1e-6)
+        assertEquals(1.3651720, MovementFactors.tswFactor(12), 1e-6)
+        // ...then flat at the 12-rep consensus cap.
+        assertEquals(1.3651720, MovementFactors.tswFactor(15), 1e-6)
+        assertEquals(1.3651720, MovementFactors.tswFactor(50), 1e-6)
     }
 
     @Test
@@ -118,7 +118,7 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun exerciseStats_bodyweightRepsClampAtFifteen() {
+    fun exerciseStats_bodyweightRepsClampAtTwelve() {
         val twelve = StatsCalculator.computeExerciseStats(
             pullUps, listOf(set(1, "2026-08-21", 30.0, 12, 1)), effectiveBodyWeight
         )
@@ -132,11 +132,11 @@ class StatsCalculatorTest {
             pullUps, listOf(set(1, "2026-08-21", 30.0, 40, 1)), effectiveBodyWeight
         )
 
-        assertEquals(135.3984835, twelve.bestE1RM, 1e-6)    // TSW 100 * 1.3539848
-        assertEquals(137.5569754, thirteen.bestE1RM, 1e-6)  // 100 * 1.3755698
-        assertEquals(141.7192463, thirty.bestE1RM, 1e-6)    // 100 * 1.4171925 (15-rep cap)
-        assertTrue(thirteen.bestE1RM > twelve.bestE1RM)     // still climbing, but slower
-        assertEquals(thirty.bestE1RM, forty.bestE1RM, 1e-9) // capped at 15 reps
+        assertEquals(136.5172042, twelve.bestE1RM, 1e-6)    // TSW 100 * 1.3651720
+        assertEquals(136.5172042, thirteen.bestE1RM, 1e-6)  // clamped to 12-rep factor
+        assertEquals(136.5172042, thirty.bestE1RM, 1e-6)
+        assertEquals(twelve.bestE1RM, thirteen.bestE1RM, 1e-9)
+        assertEquals(thirty.bestE1RM, forty.bestE1RM, 1e-9)
         assertEquals(13, thirteen.bestE1RMReps)             // logged rep count preserved
     }
 
@@ -155,7 +155,7 @@ class StatsCalculatorTest {
             pullUps, listOf(set(1, "2020-01-01", 20.0, 8, 1)), effectiveBodyWeight
         )
 
-        assertEquals(113.6577088, stats.bestE1RM, 1e-6)      // (70 + 20) * 1.2628634
+        assertEquals(112.1815202, stats.bestE1RM, 1e-6)      // (70 + 20) * 1.2464613
         assertEquals(90.0, stats.bestE1RMTotalSystemWeight, 1e-9)
         assertEquals(90.0 / 70.0 * 100.0, stats.bestE1RMPercentBodyWeight, 1e-6)
         assertEquals(70.0, stats.bestE1RMBodyWeightKg, 1e-9)
@@ -170,7 +170,7 @@ class StatsCalculatorTest {
         assertEquals(102.0, daily.firstSetTSW, 1e-9)
         assertEquals(8, daily.firstSetReps)
         assertEquals(102.0 / 70.0 * 100.0, daily.firstSetPercentBodyWeight, 1e-6)
-        assertEquals(128.8120700, daily.e1rm, 1e-6)
+        assertEquals(127.1390562, daily.e1rm, 1e-6)
         assertEquals(1036.0, daily.tonnage, 1e-9)           // 102*8 + 110*2
         assertEquals(70.0, daily.bodyWeightKg, 1e-9)
     }
@@ -196,7 +196,7 @@ class StatsCalculatorTest {
         val daily = StatsCalculator.computeDailyStats(pullUps, "2020-01-01", demoPullSets, effectiveBodyWeight)!!
 
         assertEquals(102.0, daily.firstSetTSW, 1e-9)
-        assertEquals(128.8120700, daily.e1rm, 1e-6)
+        assertEquals(127.1390562, daily.e1rm, 1e-6)
         assertEquals(1036.0, daily.tonnage, 1e-9)
         assertEquals(70.0, daily.bodyWeightKg, 1e-9)
     }

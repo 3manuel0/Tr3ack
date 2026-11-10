@@ -68,7 +68,7 @@ class StatsCacheRoundTripTest {
         assertEquals(2, stats.size)
 
         val pullStats = stats.first { it.exerciseId == 1L }
-        assertEquals(128.8120700, pullStats.bestE1RM, 1e-6)  // 102 kg TSW x 1.2628634
+        assertEquals(127.1390562, pullStats.bestE1RM, 1e-6)  // 102 kg TSW x 1.2464613 (consensus)
         assertEquals(1.57142857, pullStats.maxBodyweightRatio, 1e-6)
 
         val curlStats = stats.first { it.exerciseId == 4L }
@@ -78,7 +78,7 @@ class StatsCacheRoundTripTest {
         val daily = db.statsCacheDao().getDailyStatsForExercise(1L).first()
         assertEquals(1, daily.size)
         assertEquals(1036.0, daily[0].tonnage, 1e-9)         // 102*8 + 110*2
-        assertEquals(128.8120700, daily[0].e1rm, 1e-6)
+        assertEquals(127.1390562, daily[0].e1rm, 1e-6)
 
         val workoutDays = db.statsCacheDao().getWorkoutDays().first()
         assertEquals(1, workoutDays.size)
@@ -99,12 +99,12 @@ class StatsCacheRoundTripTest {
         val id = repository.insertWorkoutSet(
             WorkoutSet(id = 0, exerciseId = 1, date = "2026-08-21", addedWeightKg = 20.0, reps = 5, timestamp = 1)
         )
-        assertEquals(107.1096124, exerciseStatsRow(1L).bestE1RM, 1e-6) // TSW 90 @ 5 reps
+        assertEquals(104.2082620, exerciseStatsRow(1L).bestE1RM, 1e-6) // TSW 90 @ 5 reps (consensus)
 
         repository.updateWorkoutSet(
             WorkoutSet(id = id, exerciseId = 1, date = "2026-08-21", addedWeightKg = 20.0, reps = 8, timestamp = 1)
         )
-        assertEquals(113.6577088, exerciseStatsRow(1L).bestE1RM, 1e-6) // TSW 90 @ 8 reps
+        assertEquals(112.1815202, exerciseStatsRow(1L).bestE1RM, 1e-6) // TSW 90 @ 8 reps (consensus)
     }
 
     @Test
@@ -119,10 +119,10 @@ class StatsCacheRoundTripTest {
         repository.insertWorkoutSet(
             WorkoutSet(id = 0, exerciseId = 1, date = "2026-08-21", addedWeightKg = 20.0, reps = 5, timestamp = 2)
         )
-        assertEquals(122.5825464, exerciseStatsRow(1L).bestE1RM, 1e-6) // best is the 40kg set
+        assertEquals(117.0190217, exerciseStatsRow(1L).bestE1RM, 1e-6) // best is the 40kg set
 
         repository.deleteWorkoutSetById(heavyId)
-        assertEquals(107.1096124, exerciseStatsRow(1L).bestE1RM, 1e-6) // falls back to 20kg set
+        assertEquals(104.2082620, exerciseStatsRow(1L).bestE1RM, 1e-6) // falls back to 20kg set
 
         val day = db.statsCacheDao().getDailyStatsForExercise(1L).first().first()
         assertEquals(450.0, day.tonnage, 1e-9) // only the 20kg x 5 set remains

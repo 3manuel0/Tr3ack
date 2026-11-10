@@ -1,6 +1,7 @@
 package com.example.tr3ack.data.entity
 
 import kotlin.math.exp
+import kotlin.math.pow
 
 enum class MovementType { DIPS, PULLUPS, CHIN_UPS, UNKNOWN }
 
@@ -9,9 +10,10 @@ enum class MovementType { DIPS, PULLUPS, CHIN_UPS, UNKNOWN }
  * cache (which is rebuilt in the repository) uses exactly the same maths as the
  * screens that render the results.
  *
- * Both free-weight and weighted-bodyweight estimates come from the same Mayhew
- * et al. (1992) equation — free weights apply it to the lifted weight, bodyweight
- * movements to the total system weight (TSL = body weight + added weight).
+ * Free weights keep the Mayhew et al. (1992) equation applied to the lifted
+ * weight. Weighted-bodyweight movements use a consensus of the six classic
+ * reps-to-failure equations applied to the total system weight (TSL = body
+ * weight + added weight); see [tswFactor] for the evidence behind that choice.
  */
 object MovementFactors {
     /**
@@ -24,12 +26,12 @@ object MovementFactors {
     const val MAX_FREE_WEIGHT_REPS = 15
 
     /**
-     * Bodyweight counterpart of [MAX_FREE_WEIGHT_REPS]: Mayhew's validated range
-     * is 1..15 reps, so TSL-based estimates clamp there too (previously the
-     * coefficient tables ran to 30 with a saturating tail). Reps above it reuse
-     * the 15-rep factor; the set still counts toward tonnage.
+     * Weighted-bodyweight estimates use the consensus factor only up to 12
+     * reps: beyond that the individual equations diverge quickly and the
+     * literature agrees that rep-max predictions become unreliable. Sets above
+     * the cap still count toward tonnage.
      */
-    const val MAX_BODYWEIGHT_REPS = 15
+    const val MAX_BODYWEIGHT_REPS = 12
 
     /** Mayhew base term: 1RM = 100 * weight / (MAYHEW_BASE + MAYHEW_COEFF * e^(-MAYHEW_DECAY * reps)). */
     const val MAYHEW_BASE = 52.2
@@ -51,21 +53,31 @@ object MovementFactors {
     }
 
     /**
-     * TSL-to-E1RM factor for a bodyweight movement, using reps clamped to
-     * 1..[MAX_BODYWEIGHT_REPS]:
+     * TSL-to-E1RM factor for a weighted-bodyweight movement, using reps clamped
+     * to 1..[MAX_BODYWEIGHT_REPS].
      *
-     *     factor = 100 / (MAYHEW_BASE + MAYHEW_COEFF × e^(-MAYHEW_DECAY × reps))
+     * There is no validated pull-up/dip-specific reps-to-failure equation, so
+     * instead of trusting one formula this returns the **mean of six classic
+     * equations** — Epley, Brzycki, Lombardi, Mayhew, O'Conner and Wathen —
+     * all applied to total system weight. Averaging cancels the individual
+     * formula biases (they disagree most at low reps) and lands on the
+     * consensus that the literature supports:
      *
-     * Identical for every movement (the old per-movement coefficient tables were
-     * dropped in favour of the validated formula: on logged data they sat ~2–3%
-     * below Mayhew and were no more internally consistent). A true single
-     * (reps == 1) is a maximal effort, so the factor is 1.0 — E1RM equals the raw
-     * TSL, no inflation.
+     *  - the updated reps-%1RM meta-analysis (Nuzzo et al., Sports Med 2023,
+     *    ~7,000 participants) shows the relationship is broadly similar across
+     *    exercises, so there is no reason to use a special pull-up curve;
+     *  - the only direct weighted-pull-up validation (Baker, 2004) found
+     *    11.5 ± 4.3 reps at 74 ± 7% 1RM — this consensus returns 74% for
+     *    ~11.5 reps, whereas Mayhew alone reads low at low reps and high at
+     *    mid reps.
+     *
+     * A true single (reps == 1) is a maximal effort, so the factor is 1.0 —
+     * E1RM equals the raw TSL, no inflation.
      */
     fun tswFactor(reps: Int): Double {
         val effectiveReps = reps.coerceIn(1, MAX_BODYWEIGHT_REPS)
         if (effectiveReps <= 1) return 1.0
-        return mayhewFactor(effectiveReps)
+        return consensusFactor(effectiveReps)
     }
 
     /**
@@ -88,6 +100,30 @@ object MovementFactors {
         if (effectiveReps <= 1) return weight
         return weight * mayhewFactor(effectiveReps)
     }
+
+    /** Mean of the six validated rep-max equations for an already-clamped rep count. */
+    private fun consensusFactor(reps: Int): Double {
+        val factors = doubleArrayOf(
+            epleyFactor(reps),
+            brzyckiFactor(reps),
+            lombardiFactor(reps),
+            mayhewFactor(reps),
+            oConnerFactor(reps),
+            wathenFactor(reps),
+        )
+        return factors.average()
+    }
+
+    private fun epleyFactor(reps: Int): Double = 1.0 + reps / 30.0
+
+    private fun brzyckiFactor(reps: Int): Double = 36.0 / (37.0 - reps)
+
+    private fun lombardiFactor(reps: Int): Double = reps.toDouble().pow(0.10)
+
+    private fun oConnerFactor(reps: Int): Double = 1.0 + reps / 40.0
+
+    private fun wathenFactor(reps: Int): Double =
+        100.0 / (48.8 + 53.8 * exp(-0.075 * reps))
 
     /** Mayhew factor for an already-clamped rep count (>= 2). */
     private fun mayhewFactor(reps: Int): Double =

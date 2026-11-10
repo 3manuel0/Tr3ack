@@ -28,7 +28,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 - **Log Workouts** — Select exercise, set reps/weight, pick any date for backfilling; weight persists between sets for fast logging
 - **Body Weight Tracking** — One entry per day, editable, with fallback lookup for workout days without a log
 - **Personal Record Card** — Single best-set record per exercise, selected by highest estimated 1RM across all logged sets; shows e1RM, set, total system load, % BW, and date achieved
-- **Estimated 1RM Card** — Calculated from the set with the highest estimated 1RM using the Mayhew equation; includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
+- **Estimated 1RM Card** — Calculated from the set with the highest estimated 1RM (weighted-bodyweight consensus for pull-ups/dips, Mayhew for free weights); includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
 - **3 Progress Charts** (30/90 trained-day window):
   - **Estimated 1RM** — Line chart with gradient fill, a dashed rolling-average trend line, and rings marking sessions that set a new all-time PR
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
@@ -53,15 +53,15 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 
 ## Stats — How E1RM Works
 
-### Bodyweight Exercises (Pull-Ups, Dips)
+### Weighted Bodyweight Exercises (Pull-Ups, Dips)
 
-Uses the same Mayhew et al. (1992) equation as free weights, applied to the **total system weight** (`TSL = Body Weight + Added Weight`):
+The load is the **total system weight** (`TSL = Body Weight + Added Weight`). Rather than trusting a single rep-max formula, the estimate is the **mean of six classic reps-to-failure equations** — Epley, Brzycki, Lombardi, Mayhew, O'Conner and Wathen — all applied to TSL:
 
 ```
-E1RM = TSL × 100 / (52.2 + 41.9 × e^(-0.055 × Reps))
+E1RM = TSL × mean(f_Epley, f_Brzycki, f_Lombardi, f_Mayhew, f_O'Conner, f_Wathen)
 ```
 
-Why: Mayhew is validated on 1–15-rep sets and is exponential (so it behaves above 10 reps where linear rep→%1RM models drift), and in LeSuer et al. (1997) it was one of only two formulas not significantly different from the measured 1RM for the exercises tested. It replaces the earlier hand-tuned per-movement coefficient tables, which on logged training data sat ~2–3% below Mayhew and were no more internally consistent — the cost is dropping the pull-up/dip-specific curve flavor. A true single (1 rep) returns the raw TSL (no inflation); reps above 15 are capped at 15 (`MAX_BODYWEIGHT_REPS`, matching Mayhew's validated range) and sets above the cap still count toward tonnage.
+Why: there is no validated pull-up/dip-specific reps-to-failure equation, and the individual formulas disagree most at low reps. Averaging cancels each formula's bias and matches the best available evidence: the updated reps-%1RM meta-analysis (Nuzzo et al., *Sports Med* 2023; ~7,000 participants) found the relationship is broadly similar across exercises, and the only direct weighted-pull-up validation (Baker, 2004) observed 11.5 ± 4.3 reps at 74 ± 7% 1RM — the consensus returns ~74% for 11–12 reps. A true single (1 rep) returns the raw TSL (no inflation); reps above 12 reuse the 12-rep factor (`MAX_BODYWEIGHT_REPS`) because extrapolation becomes unreliable, and sets above the cap still count toward tonnage.
 
 ### Free Weight Exercises
 
@@ -139,7 +139,7 @@ Importing a backup replaces all current data. A confirmation dialog is shown bef
 
 - **Total System Weight** = Body Weight + Added Weight
 - **% Body Weight** = (Total System Weight / Body Weight) × 100
-- **Estimated 1RM** = Mayhew equation × TSL (bodyweight) or Mayhew equation on the lifted weight (free weight)
+- **Estimated 1RM** = consensus of six classic equations × TSL (weighted bodyweight) or Mayhew on the lifted weight (free weight)
 - **Personal Record** = The single set with the highest estimated 1RM across all history; all card values (load, reps, % BW, date) come from that one set
 - **Session Tonnage** = Sum of (TSL × Reps) per session
 - **Daily Volume** = Sum of (TSL × Reps) per day
