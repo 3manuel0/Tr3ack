@@ -3,6 +3,7 @@ package com.example.tr3ack.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tr3ack.data.entity.BodyWeightEntity
+import com.example.tr3ack.data.entity.CsvExporter
 import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.ExerciseEntity
 import com.example.tr3ack.data.entity.ExerciseIds
@@ -68,63 +69,11 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     }
 
     suspend fun buildCsv(): String {
-        val allSets = repository.allWorkoutSets.first()
-        val allExercises = repository.allExercises.first()
-        val allBodyWeight = repository.allBodyWeightEntries.first()
-
-        val bwMap = allBodyWeight.associateBy { it.date }
-        val exerciseMap = allExercises.associateBy { it.id }
-
-        val sb = StringBuilder()
-        sb.appendLine("Date,Exercise,Added Weight (kg),Total System Weight (kg),% of Body Weight,Reps,Volume (kg)")
-
-        val grouped = allSets
-            .sortedWith(compareByDescending<WorkoutSet> { it.date }.thenBy { it.timestamp })
-            .groupBy { set -> "${set.date}_${set.exerciseId}" }
-
-        for ((_, sets) in grouped) {
-            val firstSet = sets.first()
-            val exercise = exerciseMap[firstSet.exerciseId]
-            val isBodyweight = exercise?.isBodyweightBased ?: false
-            val bwEntry = bwMap[firstSet.date]
-            val bodyWeight = bwEntry?.bodyWeightKg
-
-            val repsList = sets.map { it.reps }
-            val repsStr = repsList.joinToString("-")
-
-            val addedWeights = sets.map { it.addedWeightKg }
-            val addedWeightsStr = addedWeights.joinToString("-") { "%.1f".format(it) }
-
-            val totalSystemWeights = sets.map { set ->
-                if (isBodyweight && bodyWeight != null) bodyWeight + set.addedWeightKg else set.addedWeightKg
-            }
-            val totalSystemWeightsStr = totalSystemWeights.joinToString("-") { "%.1f".format(it) }
-
-            val pctBw = if (isBodyweight && bodyWeight != null && bodyWeight > 0 && addedWeights.distinct().size <= 1) {
-                ((bodyWeight + addedWeights.first()) / bodyWeight) * 100.0
-            } else {
-                null
-            }
-
-            val volume = totalSystemWeights.zip(repsList.map { it.toDouble() }).sumOf { (w, r) -> w * r }
-
-            sb.append(firstSet.date)
-            sb.append(",")
-            sb.append("\"${exercise?.name ?: "Unknown"}\"")
-            sb.append(",")
-            sb.append(addedWeightsStr)
-            sb.append(",")
-            sb.append(totalSystemWeightsStr)
-            sb.append(",")
-            sb.append(pctBw?.let { "%.1f".format(it) } ?: "")
-            sb.append(",")
-            sb.append(repsStr)
-            sb.append(",")
-            sb.append("%.1f".format(volume))
-            sb.appendLine()
-        }
-
-        return sb.toString()
+        return CsvExporter.buildSetsCsv(
+            sets = repository.allWorkoutSets.first(),
+            exercises = repository.allExercises.first(),
+            bodyWeightEntries = repository.allBodyWeightEntries.first()
+        )
     }
 
     fun consumeCsv() {
