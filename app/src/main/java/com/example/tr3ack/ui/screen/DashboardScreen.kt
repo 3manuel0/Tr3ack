@@ -100,7 +100,8 @@ fun DashboardScreen(
     repository: Tr3ackRepository,
     onNavigateToLog: () -> Unit,
     onNavigateToBodyWeight: () -> Unit,
-    onNavigateToStats: () -> Unit = {}
+    onNavigateToStats: () -> Unit = {},
+    onOpenRankLadder: () -> Unit = {}
 ) {
     val viewModel: DashboardViewModel = viewModel { DashboardViewModel(repository) }
 
@@ -233,7 +234,7 @@ fun DashboardScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                PersonalBestGrid(entries = pbEntries)
+                PersonalBestGrid(entries = pbEntries, onOpenRankLadder = onOpenRankLadder)
             }
         }
 
@@ -520,12 +521,19 @@ private fun StatChip(text: String) {
 }
 
 @Composable
-private fun PersonalBestGrid(entries: List<PersonalBestCellData>) {
+private fun PersonalBestGrid(
+    entries: List<PersonalBestCellData>,
+    onOpenRankLadder: () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         entries.chunked(2).forEach { rowEntries ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 rowEntries.forEach { entry ->
-                    PersonalBestCell(entry, modifier = Modifier.weight(1f))
+                    PersonalBestCell(
+                        data = entry,
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpenRankLadder
+                    )
                 }
                 if (rowEntries.size == 1) {
                     Spacer(modifier = Modifier.weight(1f))
@@ -536,7 +544,11 @@ private fun PersonalBestGrid(entries: List<PersonalBestCellData>) {
 }
 
 @Composable
-private fun PersonalBestCell(data: PersonalBestCellData, modifier: Modifier = Modifier) {
+private fun PersonalBestCell(
+    data: PersonalBestCellData,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
     val pb = data.pb
     val note = data.note
     val pctBw = if (pb.isBodyweightBased) pb.maxPercentBodyWeight else pb.addedWeightPercentBodyWeight
@@ -551,6 +563,7 @@ private fun PersonalBestCell(data: PersonalBestCellData, modifier: Modifier = Mo
     }
 
     Card(
+        onClick = onClick,
         modifier = modifier,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
@@ -573,6 +586,14 @@ private fun PersonalBestCell(data: PersonalBestCellData, modifier: Modifier = Mo
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                pb.rankTier?.let { tier ->
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TierBadge(
+                        tier = tier,
+                        unlocked = true,
+                        badgeSize = 24.dp
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(6.dp))
             if (pb.estimatedOneRM > 0) {

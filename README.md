@@ -24,7 +24,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 
 ## Features
 
-- **Dashboard** — Today hero (sets, volume, body weight, log-set/weight actions, streak), compact training-consistency heatmap, personal bests in a 2×2 grid with sparklines, week-over-week volume, and body-weight trend
+- **Dashboard** — Today hero (sets, volume, body weight, log-set/weight actions, streak), compact training-consistency heatmap, personal bests in a 2×2 grid with sparklines and each lift's **rank emblem** (tap opens the Rank Ladder), week-over-week volume, and body-weight trend
 - **Log Workouts** — Select exercise, set reps/weight, pick any date for backfilling; weight persists between sets for fast logging
 - **Body Weight Tracking** — One entry per day, editable, with fallback lookup for workout days without a log
 - **Personal Record Card** — Single best-set record per exercise, selected by highest estimated 1RM across all logged sets; shows e1RM, set, total system load, % BW, and date achieved

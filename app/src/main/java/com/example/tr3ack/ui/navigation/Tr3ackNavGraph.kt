@@ -290,7 +290,8 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                     repository = repository,
                     onNavigateToLog = { navController.navigate(Screen.LogWorkout.route) },
                     onNavigateToBodyWeight = { navController.navigate(Screen.BodyWeight.route) },
-                    onNavigateToStats = { navController.navigate(Screen.Progress.route) }
+                    onNavigateToStats = { navController.navigate(Screen.Progress.route) },
+                    onOpenRankLadder = { navController.navigate(Screen.RankLadder.route) }
                 )
             }
             composable(Screen.LogWorkout.route) {

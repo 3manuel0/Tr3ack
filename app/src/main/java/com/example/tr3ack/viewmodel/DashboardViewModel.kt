@@ -32,7 +32,8 @@ data class PersonalBest(
     val reps: Int = 0,
     val isBodyweightBased: Boolean = true,
     val exerciseName: String = "",
-    val dateAchieved: String = ""
+    val dateAchieved: String = "",
+    val rankTier: String? = null
 )
 
 enum class TrendDirection { UP, DOWN, FLAT }
@@ -177,6 +178,19 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
         if (stats == null || !stats.hasData || stats.bestE1RM <= 0.0) {
             return PersonalBest(exerciseName = exercise?.name ?: "")
         }
+        val rankTier = exercise?.let { ex ->
+            val thresholds = RankLadderRules.thresholdsFor(ex)
+            if (thresholds.isEmpty()) {
+                null
+            } else {
+                val metric = if (stats.isBodyweightBased) {
+                    stats.maxBodyweightRatio
+                } else {
+                    stats.maxAddedWeightGte6
+                }
+                RankLadderRules.evaluate(thresholds, metric).currentTier
+            }
+        }
         return if (stats.isBodyweightBased) {
             PersonalBest(
                 maxTotalSystemWeight = stats.bestE1RMTotalSystemWeight,
@@ -186,7 +200,8 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                 reps = stats.bestE1RMReps,
                 isBodyweightBased = true,
                 exerciseName = exercise?.name ?: "",
-                dateAchieved = stats.bestE1RMDate
+                dateAchieved = stats.bestE1RMDate,
+                rankTier = rankTier
             )
         } else {
             PersonalBest(
@@ -197,7 +212,8 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                 reps = stats.bestE1RMReps,
                 isBodyweightBased = false,
                 exerciseName = exercise?.name ?: "",
-                dateAchieved = stats.bestE1RMDate
+                dateAchieved = stats.bestE1RMDate,
+                rankTier = rankTier
             )
         }
     }
