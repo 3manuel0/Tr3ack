@@ -395,7 +395,7 @@ private fun ProgressHeroCard(
             }
             if (record.estimatedOneRM > 0) {
                 Text(
-                    text = "%+.0f kg × %d · %s".format(record.addedWeight, record.reps, shortDate(record.date)),
+                    text = "%+.1f kg × %d · %s".format(record.addedWeight, record.reps, shortDate(record.date)),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFB9C3DD)
                 )
