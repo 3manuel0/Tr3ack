@@ -32,7 +32,7 @@ class CsvExporterTest {
         header.split(",").zip(row.split(",")).toMap()
 
     @Test
-    fun oneRowPerExercisePerDay_withSetColumnsAndTotals() {
+    fun oneRowPerExercisePerDay_withPairedSetLists() {
         val sets = listOf(
             set(3, 4, "2026-08-21", 19.0, 9, 3),
             set(1, 1, "2026-08-21", 32.0, 8, 2),
@@ -45,13 +45,11 @@ class CsvExporterTest {
         val header = lines[0]
 
         val pull = rowMap(header, lines[1])
-        // Sets are ordered by timestamp: 40x2 then 32x8.
         assertEquals("2", pull["set_count"])
         assertEquals("70", pull["body_weight_kg"])
-        assertEquals("40", pull["set1_added_weight_kg"])
-        assertEquals("2", pull["set1_reps"])
-        assertEquals("32", pull["set2_added_weight_kg"])
-        assertEquals("8", pull["set2_reps"])
+        assertEquals("40|32", pull["added_weight_kg"])
+        assertEquals("2|8", pull["reps"])
+        assertEquals("110|102", pull["system_weight_kg"])
         assertEquals("1036", pull["volume_kg"]) // 110*2 + 102*8
         val bestE1rm = 102 * MovementFactors.tswFactor(8)
         assertEquals(bestE1rm, pull["best_e1rm_kg"]!!.toDouble(), 0.01)
@@ -59,16 +57,31 @@ class CsvExporterTest {
 
         val curl = rowMap(header, lines[2])
         assertEquals("1", curl["set_count"])
-        assertEquals("19", curl["set1_added_weight_kg"])
-        assertEquals("9", curl["set1_reps"])
-        assertEquals("", curl["set2_added_weight_kg"])
-        assertEquals("", curl["set2_reps"])
+        assertEquals("19", curl["added_weight_kg"])
+        assertEquals("9", curl["reps"])
+        assertEquals("19", curl["system_weight_kg"])
         assertEquals("171", curl["volume_kg"])
         assertEquals(
             MovementFactors.freeWeightE1RM(19.0, 9),
             curl["best_e1rm_kg"]!!.toDouble(),
             0.01
         )
+    }
+
+    @Test
+    fun perSetWeightsStayPairedWhenTheyChange() {
+        // Set 3 gets lighter: the third value in each list is the pair.
+        val sets = listOf(
+            set(1, 4, "2026-08-21", 20.0, 10, 1),
+            set(2, 4, "2026-08-21", 20.0, 10, 2),
+            set(3, 4, "2026-08-21", 17.5, 8, 3)
+        )
+        val csv = CsvExporter.buildSetsCsv(sets, listOf(curls), emptyList())
+        val lines = csv.trim().lines()
+        val row = rowMap(lines[0], lines[1])
+        assertEquals("20|20|17.5", row["added_weight_kg"])
+        assertEquals("10|10|8", row["reps"])
+        assertEquals("3", row["set_count"])
     }
 
     @Test
@@ -91,9 +104,10 @@ class CsvExporterTest {
         )
         val lines = csv.trim().lines()
         val row = rowMap(lines[0], lines[1])
-        assertEquals("20", row["set1_added_weight_kg"])
-        assertEquals("5", row["set1_reps"])
+        assertEquals("20", row["added_weight_kg"])
+        assertEquals("5", row["reps"])
         assertEquals("", row["body_weight_kg"])
+        assertEquals("", row["system_weight_kg"])
         assertEquals("", row["volume_kg"])
         assertEquals("", row["best_e1rm_kg"])
         assertEquals("", row["best_e1rm_added_weight_kg"])
