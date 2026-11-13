@@ -29,7 +29,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
 - **Body Weight Tracking** — One entry per day, editable, with fallback lookup for workout days without a log
 - **Personal Record Card** — Single best-set record per exercise, selected by highest estimated 1RM across all logged sets; shows e1RM, set, total system load, % BW, and date achieved
 - **Estimated 1RM Card** — Calculated from the set with the highest estimated 1RM (weighted-bodyweight consensus for pull-ups/dips, Mayhew for free weights); includes BW multiplier, working loads (85/80/75%), and added weight needed at current BW
-- **3 Progress Charts** (30/90 trained-day window):
+- **3 Progress Charts** (30/90 trained-day window) — all interactive: tap or drag across a chart to inspect the exact date/value (and Belt/BW pair), with a guide line and tooltip:
   - **Estimated 1RM** — Line chart with gradient fill, a dashed rolling-average trend line, and rings marking sessions that set a new all-time PR
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)

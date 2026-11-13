@@ -5,6 +5,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -27,8 +29,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,12 +45,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -69,6 +78,8 @@ import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 /** Interval between x-axis date labels so crowded charts stay readable (anchored to newest point). */
 private fun xLabelInterval(pointCount: Int, chartWidthPx: Float, labelSlotPx: Float): Int {
@@ -102,6 +113,130 @@ private fun drawVerticalDateLabels(
         canvas.restore()
     }
     paint.textAlign = previousAlign
+}
+
+private const val CHART_LEFT_PADDING = 56f
+private const val CHART_RIGHT_PADDING = 24f
+private const val CHART_BOTTOM_PADDING = 64f
+
+private fun chartDateLabel(isoDate: String): String =
+    runCatching {
+        LocalDate.parse(isoDate).format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
+    }.getOrDefault(isoDate)
+
+/** Press/drag anywhere on a chart to inspect the nearest point; auto-hides after a pause. */
+private fun Modifier.chartScrub(
+    key: Any?,
+    indexAt: (x: Float, width: Float) -> Int?,
+    onSelect: (Int?) -> Unit,
+    haptics: HapticFeedback
+): Modifier = pointerInput(key) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val width = size.width.toFloat()
+        var lastIndex: Int? = null
+
+        fun update(x: Float) {
+            val index = indexAt(x, width)
+            if (index != lastIndex) {
+                lastIndex = index
+                onSelect(index)
+                if (index != null) {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            }
+        }
+
+        update(down.position.x)
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            if (!change.pressed) break
+            update(change.position.x)
+            change.consume()
+        }
+    }
+}
+
+/** Vertical guide + highlighted point(s) + rounded date/value tooltip. */
+private fun DrawScope.drawScrubOverlay(
+    x: Float,
+    dotYs: List<Float>,
+    dateLabel: String,
+    valueLines: List<String>,
+    plotTop: Float,
+    plotBottom: Float,
+    plotLeft: Float,
+    plotRight: Float,
+    accent: Color,
+    datePaint: android.graphics.Paint,
+    valuePaint: android.graphics.Paint,
+    boxColor: Color,
+    borderColor: Color
+) {
+    drawLine(
+        color = accent.copy(alpha = 0.45f),
+        start = Offset(x, plotTop),
+        end = Offset(x, plotBottom),
+        strokeWidth = 2f,
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))
+    )
+    dotYs.forEach { y ->
+        drawCircle(color = accent, radius = 6f, center = Offset(x, y))
+        drawCircle(color = Color.White, radius = 3f, center = Offset(x, y))
+    }
+
+    val pad = 9f
+    val dateLineHeight = datePaint.fontMetrics.descent - datePaint.fontMetrics.ascent
+    val valueLineHeight = valuePaint.fontMetrics.descent - valuePaint.fontMetrics.ascent
+    val gap = 3f
+    val textWidth = maxOf(
+        datePaint.measureText(dateLabel),
+        valueLines.maxOfOrNull { valuePaint.measureText(it) } ?: 0f
+    )
+    val boxWidth = textWidth + pad * 2
+    val boxHeight = pad * 2 + dateLineHeight + gap +
+        valueLines.size * valueLineHeight + (valueLines.size - 1).coerceAtLeast(0) * gap
+    val boxLeft = (x - boxWidth / 2f)
+        .coerceIn(plotLeft, (plotRight - boxWidth).coerceAtLeast(plotLeft))
+    var boxTop = (dotYs.minOrNull() ?: plotTop) - boxHeight - 12f
+    if (boxTop < plotTop) {
+        boxTop = (dotYs.maxOrNull() ?: plotBottom) + 12f
+    }
+    boxTop = boxTop.coerceIn(plotTop, (plotBottom - boxHeight).coerceAtLeast(plotTop))
+
+    drawRoundRect(
+        color = boxColor,
+        topLeft = Offset(boxLeft, boxTop),
+        size = Size(boxWidth, boxHeight),
+        cornerRadius = CornerRadius(8f, 8f)
+    )
+    drawRoundRect(
+        color = borderColor,
+        topLeft = Offset(boxLeft, boxTop),
+        size = Size(boxWidth, boxHeight),
+        cornerRadius = CornerRadius(8f, 8f),
+        style = Stroke(width = 1f)
+    )
+
+    val textLeft = boxLeft + pad
+    var lineTop = boxTop + pad
+    drawContext.canvas.nativeCanvas.drawText(
+        dateLabel,
+        textLeft,
+        lineTop - datePaint.fontMetrics.ascent,
+        datePaint
+    )
+    lineTop += dateLineHeight + gap
+    valueLines.forEach { line ->
+        drawContext.canvas.nativeCanvas.drawText(
+            line,
+            textLeft,
+            lineTop - valuePaint.fontMetrics.ascent,
+            valuePaint
+        )
+        lineTop += valueLineHeight + gap
+    }
 }
 
 @Composable
@@ -545,10 +680,34 @@ private fun E1RMChart(
         "%.1f".format(data.last().estimatedOneRM)
     )
 
-    Canvas(
-        modifier = modifier.semantics {
-            contentDescription = chartSummary
+    val tooltipBg = MaterialTheme.colorScheme.surfaceVariant
+    val tooltipBorder = MaterialTheme.colorScheme.outlineVariant
+    var selectedIndex by remember(data) { mutableStateOf<Int?>(null) }
+    val haptics = LocalHapticFeedback.current
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex != null) {
+            delay(4000)
+            selectedIndex = null
         }
+    }
+    val indexAt = { x: Float, width: Float ->
+        val left = CHART_LEFT_PADDING
+        val right = width - CHART_RIGHT_PADDING
+        when {
+            data.isEmpty() || x < left - 12f || x > right + 12f -> null
+            data.size <= 1 -> 0
+            else -> (((x - left) / (right - left)) * (data.size - 1))
+                .roundToInt()
+                .coerceIn(0, data.lastIndex)
+        }
+    }
+
+    Canvas(
+        modifier = modifier
+            .chartScrub(data, indexAt, { selectedIndex = it }, haptics)
+            .semantics {
+                contentDescription = chartSummary
+            }
     ) {
         val leftPadding = 56f
         val rightPadding = 24f
@@ -696,6 +855,30 @@ private fun E1RMChart(
             topPadding - 2f,
             unitLabelPaint
         )
+
+        selectedIndex?.let { index ->
+            if (index in data.indices) {
+                val point = data[index]
+                val x = pointX(index)
+                val y = topPadding + chartHeight *
+                    (1.0 - ((point.estimatedOneRM - yMin) / yRange)).toFloat()
+                drawScrubOverlay(
+                    x = x,
+                    dotYs = listOf(y),
+                    dateLabel = chartDateLabel(point.date),
+                    valueLines = listOf("%.1f kg".format(point.estimatedOneRM)),
+                    plotTop = topPadding,
+                    plotBottom = topPadding + chartHeight,
+                    plotLeft = leftPadding,
+                    plotRight = size.width - rightPadding,
+                    accent = lineColor,
+                    datePaint = labelPaint,
+                    valuePaint = textPaint,
+                    boxColor = tooltipBg,
+                    borderColor = tooltipBorder
+                )
+            }
+        }
     }
 }
 
@@ -743,10 +926,36 @@ private fun TonnageBarChart(
         }
     }
 
-    Canvas(
-        modifier = modifier.semantics {
-            contentDescription = chartSummary
+    val tooltipBg = MaterialTheme.colorScheme.surfaceVariant
+    val tooltipBorder = MaterialTheme.colorScheme.outlineVariant
+    var selectedIndex by remember(data) { mutableStateOf<Int?>(null) }
+    val haptics = LocalHapticFeedback.current
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex != null) {
+            delay(4000)
+            selectedIndex = null
         }
+    }
+    val indexAt = { x: Float, width: Float ->
+        val left = CHART_LEFT_PADDING
+        val right = width - CHART_RIGHT_PADDING
+        val chartWidth = right - left
+        if (data.isEmpty() || x < left - 12f || x > right + 12f) {
+            null
+        } else {
+            val totalGap = chartWidth * 0.3f
+            val gap = if (data.size > 1) totalGap / (data.size + 1) else 0f
+            val barWidth = (chartWidth - totalGap) / data.size
+            ((x - left - gap) / (barWidth + gap)).toInt().coerceIn(0, data.lastIndex)
+        }
+    }
+
+    Canvas(
+        modifier = modifier
+            .chartScrub(data, indexAt, { selectedIndex = it }, haptics)
+            .semantics {
+                contentDescription = chartSummary
+            }
     ) {
         val leftPadding = 56f
         val rightPadding = 24f
@@ -814,6 +1023,30 @@ private fun TonnageBarChart(
             topPadding - 2f,
             unitLabelPaint
         )
+
+        selectedIndex?.let { index ->
+            if (index in data.indices) {
+                val point = data[index]
+                val barLeft = leftPadding + gap + index * (barWidth + gap)
+                val barHeight = (point.sessionTonnage / yMax * chartHeight).toFloat()
+                val barTop = topPadding + chartHeight - barHeight
+                drawScrubOverlay(
+                    x = barLeft + barWidth / 2f,
+                    dotYs = listOf(barTop),
+                    dateLabel = chartDateLabel(point.date),
+                    valueLines = listOf("%.0f kg·reps".format(point.sessionTonnage)),
+                    plotTop = topPadding,
+                    plotBottom = topPadding + chartHeight,
+                    plotLeft = leftPadding,
+                    plotRight = size.width - rightPadding,
+                    accent = barColor,
+                    datePaint = labelPaint,
+                    valuePaint = textPaint,
+                    boxColor = tooltipBg,
+                    borderColor = tooltipBorder
+                )
+            }
+        }
     }
 }
 
@@ -868,10 +1101,34 @@ private fun BeltVsBodyChart(
         }
     }
 
-    Canvas(
-        modifier = modifier.semantics {
-            contentDescription = chartSummary
+    val tooltipBg = MaterialTheme.colorScheme.surfaceVariant
+    val tooltipBorder = MaterialTheme.colorScheme.outlineVariant
+    var selectedIndex by remember(data) { mutableStateOf<Int?>(null) }
+    val haptics = LocalHapticFeedback.current
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex != null) {
+            delay(4000)
+            selectedIndex = null
         }
+    }
+    val indexAt = { x: Float, width: Float ->
+        val left = CHART_LEFT_PADDING
+        val right = width - CHART_RIGHT_PADDING
+        when {
+            data.isEmpty() || x < left - 12f || x > right + 12f -> null
+            data.size <= 1 -> 0
+            else -> (((x - left) / (right - left)) * (data.size - 1))
+                .roundToInt()
+                .coerceIn(0, data.lastIndex)
+        }
+    }
+
+    Canvas(
+        modifier = modifier
+            .chartScrub(data, indexAt, { selectedIndex = it }, haptics)
+            .semantics {
+                contentDescription = chartSummary
+            }
     ) {
         val leftPadding = 56f
         val rightPadding = 24f
@@ -955,6 +1212,31 @@ private fun BeltVsBodyChart(
 
         drawCircle(color = bodyColor, radius = 6f, center = Offset(legendX, legendY))
         drawContext.canvas.nativeCanvas.drawText(bodyWeightLabel, legendX + 14f, legendY + 6f, legendPaint)
+
+        selectedIndex?.let { index ->
+            if (index in data.indices) {
+                val point = data[index]
+                val x = pointX(index)
+                drawScrubOverlay(
+                    x = x,
+                    dotYs = listOf(pointY(point.beltLoad), pointY(point.bodyWeightKg)),
+                    dateLabel = chartDateLabel(point.date),
+                    valueLines = listOf(
+                        "Belt %.1f kg".format(point.beltLoad),
+                        "BW %.1f kg".format(point.bodyWeightKg)
+                    ),
+                    plotTop = topPadding,
+                    plotBottom = topPadding + chartHeight,
+                    plotLeft = leftPadding,
+                    plotRight = size.width - rightPadding,
+                    accent = beltColor,
+                    datePaint = labelPaint,
+                    valuePaint = textPaint,
+                    boxColor = tooltipBg,
+                    borderColor = tooltipBorder
+                )
+            }
+        }
     }
 }
 
