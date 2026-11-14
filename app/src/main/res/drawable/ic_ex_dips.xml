@@ -4,18 +4,26 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Bar: drawn dimmer than the figure so it reads as equipment, not as arms. -->
     <path
-        android:pathData="M3.25 12h17.5M12 7.6v10.9M12 9.6l2.3 2.4"
+        android:pathData="M2.5 12h19"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round" />
+    <!-- Figure: head, torso/legs, and the near arm bowing out from the
+         shoulder down to the hand on the bar (side view). -->
+    <path
+        android:pathData="M10 3.2a2 2 0 1 0 0 4a2 2 0 0 0 0-4zM10 7.2v13.4M10 7.8C13 8.6 15.2 10 15.6 12"
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
+    <!-- Hand gripping the bar. -->
     <path
-        android:pathData="M12 3.9a1.9 1.9 0 1 0 0 3.8a1.9 1.9 0 0 0 0-3.8z"
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:pathData="M15.6 10.8a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 0 0 0-2.4z"
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#00000000" />
 </vector>
