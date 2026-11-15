@@ -90,6 +90,7 @@ internal fun achievementIcon(key: String): Int = when (key) {
     "shield" -> R.drawable.ic_ach_shield
     "bicep" -> R.drawable.ic_ach_bicep
     "pullup" -> R.drawable.ic_ach_pullup
+    "dips" -> R.drawable.ic_ex_dips
     "shoulder" -> R.drawable.ic_ach_lateral
     "layers" -> R.drawable.ic_ach_layers
     "weight" -> R.drawable.ic_ach_weight

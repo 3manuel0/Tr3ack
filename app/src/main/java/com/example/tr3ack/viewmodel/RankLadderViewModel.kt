@@ -72,8 +72,10 @@ class RankLadderViewModel(repository: Tr3ackRepository) : ViewModel() {
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private fun iconKeyFor(exercise: Exercise): String = when (exercise.id) {
+        ExerciseIds.WEIGHTED_PULL_UPS -> "pullup"
+        ExerciseIds.WEIGHTED_DIPS -> "dips"
         ExerciseIds.BICEP_CURLS -> "bicep"
         ExerciseIds.LATERAL_RAISES -> "shoulder"
-        else -> "pullup"
+        else -> "weight"
     }
 }
