@@ -5,6 +5,7 @@ import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -48,6 +49,7 @@ class AutoBackupManager(
                 repository.allBodyWeightEntries
             ) { sets, bodyWeights -> sets.size to bodyWeights.size }
                 .distinctUntilChanged()
+                .debounce(3_000)
                 .collect { backupNow() }
         }
     }
