@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -38,6 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -46,11 +48,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,6 +67,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -74,10 +80,14 @@ import com.example.tr3ack.data.entity.Exercise
 import com.example.tr3ack.data.entity.GoalType
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.Achievement
+import com.example.tr3ack.viewmodel.AchievementCategory
+import com.example.tr3ack.viewmodel.AchievementProgressKind
 import com.example.tr3ack.viewmodel.AchievementsViewModel
 import com.example.tr3ack.viewmodel.GoalProgress
 import com.example.tr3ack.viewmodel.GoalRules
+import java.util.Locale
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 internal fun achievementIcon(key: String): Int = when (key) {
@@ -404,6 +414,12 @@ private val TIER_ORDER = listOf("iron", "copper", "silver", "gold", "emerald", "
 /** Same emerald used by the emerald achievement tier — marks a reached goal. */
 private val GoalAccent = Color(0xFF2ECC71)
 
+private enum class AchievementFilter(@StringRes val labelRes: Int) {
+    ALL(R.string.ach_filter_all),
+    UNLOCKED(R.string.ach_filter_unlocked),
+    LOCKED(R.string.ach_locked),
+}
+
 @StringRes
 internal fun tierLabel(tier: String): Int = when (tier) {
     "iron" -> R.string.tier_iron
@@ -433,6 +449,31 @@ fun AchievementsScreen(
 
     var showGoalDialog by remember { mutableStateOf(false) }
     var editingGoalExerciseId by remember { mutableStateOf<Long?>(null) }
+    var filterOrdinal by rememberSaveable { mutableIntStateOf(AchievementFilter.ALL.ordinal) }
+    val filter = AchievementFilter.entries[filterOrdinal]
+
+    val visibleAchievements = remember(achievements, filter) {
+        when (filter) {
+            AchievementFilter.ALL -> achievements
+            AchievementFilter.UNLOCKED -> achievements.filter { it.unlocked }
+            AchievementFilter.LOCKED -> achievements.filter { !it.unlocked }
+        }
+    }
+    val groupedAchievements = remember(visibleAchievements) {
+        AchievementCategory.entries.mapNotNull { category ->
+            visibleAchievements
+                .filter { it.category == category }
+                .takeIf { it.isNotEmpty() }
+                ?.let { category to it }
+        }
+    }
+    // Overall per-category progress, independent of the active filter.
+    val categoryTotals = remember(achievements) {
+        AchievementCategory.entries.associateWith { category ->
+            val inCategory = achievements.filter { it.category == category }
+            inCategory.count { it.unlocked } to inCategory.size
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -468,13 +509,47 @@ fun AchievementsScreen(
             )
         }
         item {
+            AchievementFilters(
+                selected = filter,
+                onSelect = { filterOrdinal = it.ordinal }
+            )
+        }
+        item {
             TierLegend()
         }
         item {
             RankLadderEntry(onClick = onOpenRankLadder)
         }
-        items(achievements, key = { it.id }) { achievement ->
-            AchievementRow(achievement, Modifier.animateItem())
+        groupedAchievements.forEach { (category, categoryAchievements) ->
+            item(key = "header_${category.name}") {
+                val (unlockedInCategory, totalInCategory) = categoryTotals[category] ?: (0 to 0)
+                CategoryHeader(
+                    category = category,
+                    unlocked = unlockedInCategory,
+                    total = totalInCategory
+                )
+            }
+            items(categoryAchievements, key = { it.id }) { achievement ->
+                AchievementRow(achievement, Modifier.animateItem())
+            }
+        }
+        if (visibleAchievements.isEmpty()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(
+                            if (filter == AchievementFilter.UNLOCKED) {
+                                R.string.ach_filter_unlocked_empty
+                            } else {
+                                R.string.ach_filter_locked_empty
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
         }
     }
 
@@ -1021,23 +1096,122 @@ private fun TierLegend() {
 }
 
 @Composable
-private fun AchievementRow(achievement: Achievement, modifier: Modifier = Modifier) {
-    val unlockedColor = tierColor(achievement.tier)
-    // Same hue as the badge, sunk into the dark surface so the metal still pops.
-    val bgColor = if (achievement.unlocked) {
-        lerp(MaterialTheme.colorScheme.surface, unlockedColor, 0.32f)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
+private fun AchievementFilters(
+    selected: AchievementFilter,
+    onSelect: (AchievementFilter) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AchievementFilter.entries.forEach { filter ->
+            FilterChip(
+                selected = filter == selected,
+                onClick = { onSelect(filter) },
+                label = { Text(stringResource(filter.labelRes)) }
+            )
+        }
     }
-    val border = if (achievement.unlocked) {
-        BorderStroke(1.dp, unlockedColor.copy(alpha = 0.35f))
+}
+
+@Composable
+private fun CategoryHeader(category: AchievementCategory, unlocked: Int, total: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(categoryLabel(category)),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "$unlocked/$total",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@StringRes
+private fun categoryLabel(category: AchievementCategory): Int = when (category) {
+    AchievementCategory.STRENGTH -> R.string.ach_category_strength
+    AchievementCategory.VOLUME -> R.string.ach_category_volume
+    AchievementCategory.CONSISTENCY -> R.string.ach_category_consistency
+    AchievementCategory.PROGRESS -> R.string.ach_category_progress
+    AchievementCategory.BODYWEIGHT -> R.string.ach_category_bodyweight
+}
+
+@Composable
+private fun achievementDescription(achievement: Achievement): String =
+    if (achievement.descriptionArg != null) {
+        stringResource(achievement.descriptionRes, achievement.descriptionArg)
     } else {
-        null
+        stringResource(achievement.descriptionRes)
+    }
+
+@Composable
+internal fun achievementTitle(achievement: Achievement): String {
+    val titleArg = achievement.titleArgRes?.let { stringResource(it) }
+    return if (titleArg != null) {
+        stringResource(achievement.titleRes, titleArg)
+    } else {
+        stringResource(achievement.titleRes)
+    }
+}
+
+/** "18 / 30 kg", "1.29 / 1.50 ×BW", "31 / 50", "141k / 500k kg·reps". */
+@Composable
+private fun achievementProgressLabel(achievement: Achievement): String {
+    val current = achievement.progressCurrent
+    val target = achievement.progressTarget
+    fun oneDecimal(value: Double) = String.format(Locale.getDefault(), "%.1f", value)
+    fun twoDecimals(value: Double) = String.format(Locale.getDefault(), "%.2f", value)
+    return when (achievement.progressKind) {
+        AchievementProgressKind.KG ->
+            stringResource(R.string.ach_progress_kg, oneDecimal(current), "%.0f".format(target))
+        AchievementProgressKind.RATIO ->
+            stringResource(R.string.ach_progress_ratio, twoDecimals(current), twoDecimals(target))
+        AchievementProgressKind.COUNT ->
+            stringResource(R.string.ach_progress_count, current.roundToInt(), target.roundToInt())
+        AchievementProgressKind.TONNAGE ->
+            stringResource(
+                R.string.ach_progress_tonnage,
+                compactTonnage(current),
+                compactTonnage(target)
+            )
+    }
+}
+
+private fun compactTonnage(value: Double): String = when {
+    value >= 1_000_000 -> String.format(Locale.getDefault(), "%.1fM", value / 1_000_000)
+    value >= 1_000 -> String.format(Locale.getDefault(), "%.0fk", value / 1_000)
+    else -> String.format(Locale.getDefault(), "%.0f", value)
+}
+
+@Composable
+private fun AchievementRow(achievement: Achievement, modifier: Modifier = Modifier) {
+    val unlocked = achievement.unlocked
+    val accent = tierColor(achievement.tier)
+    // Unlocked: tier-tinted card. Locked: flat, dark, outlined card so the two
+    // states are obvious at a glance.
+    val bgColor = if (unlocked) {
+        lerp(MaterialTheme.colorScheme.surface, accent, 0.32f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
+    }
+    val border = if (unlocked) {
+        BorderStroke(1.dp, accent.copy(alpha = 0.35f))
+    } else {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = bgColor),
         border = border
     ) {
@@ -1049,46 +1223,111 @@ private fun AchievementRow(achievement: Achievement, modifier: Modifier = Modifi
         ) {
             TierBadge(
                 tier = achievement.tier,
-                unlocked = achievement.unlocked,
+                unlocked = unlocked,
                 badgeSize = 72.dp,
                 iconKey = achievement.iconKey,
-                iconTint = if (achievement.unlocked) {
+                iconTint = if (unlocked) {
                     Color.White
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                },
-                lockContentDescription = stringResource(R.string.ach_locked)
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                }
             )
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                val titleArg = achievement.titleArgRes?.let { stringResource(it) }
-                val title = if (titleArg != null) {
-                    stringResource(achievement.titleRes, titleArg)
-                } else {
-                    stringResource(achievement.titleRes)
-                }
-                val description = if (achievement.descriptionArg != null) {
-                    stringResource(achievement.descriptionRes, achievement.descriptionArg)
-                } else {
-                    stringResource(achievement.descriptionRes)
-                }
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (achievement.unlocked) {
-                        MaterialTheme.colorScheme.onSurface
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = achievementTitle(achievement),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (unlocked) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    if (unlocked) {
+                        TierChip(accent = accent, label = stringResource(tierLabel(achievement.tier)))
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        LockedChip()
                     }
-                )
+                }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = description,
+                    text = achievementDescription(achievement),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                        alpha = if (unlocked) 1f else 0.7f
+                    )
                 )
+                if (!unlocked) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LinearProgressIndicator(
+                        progress = { achievement.progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = accent.copy(alpha = 0.8f),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = achievementProgressLabel(achievement),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${(achievement.progress * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun TierChip(accent: Color, label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = accent,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(accent.copy(alpha = 0.16f))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    )
+}
+
+@Composable
+private fun LockedChip() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Icon(
+            Icons.Default.Lock,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(11.dp)
+        )
+        Spacer(modifier = Modifier.width(3.dp))
+        Text(
+            text = stringResource(R.string.ach_locked),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

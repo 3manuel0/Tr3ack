@@ -34,7 +34,7 @@ A workout tracker Android app for logging strength-training sessions, tracking b
   - **Session Tonnage** — Bar chart of total work capacity (kg·reps) for deload detection
   - **Belt Load vs Body Weight** — Dual-line chart showing relative strength gains during cuts/bulks (bodyweight exercises only)
 - **History** — Browse all logged sessions by date, edit or delete any past set
-- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 30 tier-colored achievements for volume, consistency, relative strength, PR coverage, body-weight tracking, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond). Badges use a consistent custom vector icon set (pull-up, flexed arm curling a dumbbell, bent-arm lateral raise, and Lucide-style glyphs) with a distinct glyph per achievement family, mounted on a metallic hexagonal emblem with a thick beveled frame, faceted field, pointed enamel base and mirrored feather wings that gain feathers and reach as the tier rises, in old-League-of-Legends rank colors (steel, copper, silver, gold, emerald, diamond)
+- **Achievements** — Gamified Goals tab: overall level + XP (from training volume and sessions), training streaks (consecutive **weeks** with ≥1 workout), and 42 tier-colored achievements for volume, consistency, relative strength, PR coverage, body-weight tracking, and per-exercise strength benchmarks (all computed retroactively from your data, ranked Iron → Copper → Silver → Gold → Emerald → Diamond). The list is grouped by category (Strength / Volume / Consistency / Progress / Bodyweight) with All / Unlocked / Locked filters; locked cards are flat and outlined with a "Locked" chip and a tier-tinted progress bar (e.g. `20.5 / 22 kg · 93%`), while unlocked cards take the tier color and show the tier name. Logging a set that crosses a threshold raises a "Achievement unlocked: …" snackbar. Badges use a consistent custom vector icon set (pull-up, dip bar, flexed arm curling a dumbbell, bent-arm lateral raise, and Lucide-style glyphs) with a distinct glyph per achievement family, mounted on a metallic hexagonal emblem with a thick beveled frame, faceted field, pointed enamel base and mirrored feather wings that gain feathers and reach as the tier rises, in old-League-of-Legends rank colors (steel, copper, silver, gold, emerald, diamond)
 - **Rank Ladder** — Per-exercise Iron → Diamond ladder reachable from Goals: current rank emblem, progress to the next tier, the benchmark for every tier, and locked/unlocked states. Derived from the same cached stats as the achievements, so it needs no extra persistence and updates as you log sets
 - **CSV Export** — Export a tidy CSV from History with **one row per exercise per day**: date, id/name, bodyweight flag, set count, body weight, then `added_weight_kg`, `reps` and `system_weight_kg` as `|`-separated per-set lists (set 3 = third value), plus total volume and best e1RM. Any number of sets works, back-filled sets stay on the same line, and a weight change on any set is visible at that index; two decimals, `.` separator, RFC-4180 quoting
 - **JSON Backup & Restore** — Full data backup/restore from the Dashboard overflow menu; exports editable JSON file containing all exercises, sets, and body weight entries
@@ -107,22 +107,32 @@ The Goals tab turn your training history into progression, all computed on the f
 | --- | --- | --- | --- | --- | --- | --- |
 | Bicep Curls | 16kg | 18kg | 20kg | 22kg | 24kg | 26kg |
 | Lateral Raises | 10kg | 12kg | 14kg | 16kg | 18kg | 20kg |
+| Weighted Pull-Ups | +20kg | +30kg | +40kg | +50kg | +60kg | +70kg |
+| Weighted Dips | +25kg | +35kg | +45kg | +55kg | +65kg | +75kg |
 
-You can mix-and-match exercises (e.g. sets up to 22kg) to chase the color tiers you want.
+The two weighted bodyweight ladders count **added** weight on the belt (from 6+ rep sets), so they stay meaningful as your body weight changes. You can mix-and-match exercises (e.g. sets up to 22kg) to chase the color tiers you want.
+
+Each locked badge carries its own progress bar (`current / target` in kg, ×BW, sessions, or tonnage) so you can see exactly how close the next tier is.
 
 ## CSV Export
 
-Export your data from the History screen (download icon in the top bar). The CSV includes:
+Export your data from the History screen (download icon in the top bar). The CSV has **one row per exercise per day**:
 
 | Column | Description |
 | --- | --- |
-| Date | Workout date |
-| Exercise | Exercise name |
-| Added Weight (kg) | Added weight per set in order (e.g. 20.0-19.0-19.0) |
-| Total System Weight (kg) | Body Weight + Added Weight per set in order (or just weight for free weight) |
-| % of Body Weight | Total System Weight / Body Weight × 100 (only shown when all added weights are the same for bodyweight exercises) |
-| Reps | Reps per set (e.g. 6-7-5) |
-| Volume (kg) | Sum of (Total System Weight × Reps) |
+| date | Workout date (`YYYY-MM-DD`) |
+| exercise_id / exercise | Stable id and quoted name |
+| is_bodyweight | `true` / `false` |
+| set_count | Number of sets that day |
+| body_weight_kg | Effective body weight for that date (blank if unknown) |
+| added_weight_kg | Per-set logged weight, `|`-separated (`25.4|25.4|22.5`) |
+| reps | Per-set reps, `|`-separated (`10|10|8`) |
+| system_weight_kg | Body weight + added weight per set, `|`-separated (added weight for free weights) |
+| volume_kg | Total system weight × reps for the day |
+| best_e1rm_kg | Highest per-set e1RM (consensus for bodyweight, Mayhew for free weights) |
+| best_e1rm_added_weight_kg | The same e1RM expressed as added weight |
+
+Lists are paired by index, so set 3 is the third value of each list and a weight change on set 3 is visible at that position. Any number of sets works; two decimals, `.` decimal separator, RFC-4180 quoting.
 
 ## JSON Backup & Restore
 

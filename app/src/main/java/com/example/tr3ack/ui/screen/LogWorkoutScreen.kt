@@ -54,6 +54,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -84,6 +85,7 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
     val bodyWeight by viewModel.bodyWeight.collectAsStateWithLifecycle()
     val savedSets by viewModel.savedSets.collectAsStateWithLifecycle()
     val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
+    val newlyUnlocked by viewModel.newlyUnlocked.collectAsStateWithLifecycle()
     val lastUsedWeight by viewModel.lastUsedWeight.collectAsStateWithLifecycle()
 
     var showDatePicker by remember { mutableStateOf(false) }
@@ -94,6 +96,17 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val setSavedMessage = stringResource(R.string.snackbar_set_saved)
+    val unlockedTitles = newlyUnlocked.map { achievementTitle(it) }
+    val unlockMessage = if (unlockedTitles.isEmpty()) {
+        null
+    } else {
+        pluralStringResource(
+            R.plurals.snackbar_achievements_unlocked,
+            unlockedTitles.size,
+            unlockedTitles.size,
+            unlockedTitles.first()
+        )
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -108,10 +121,10 @@ fun LogWorkoutScreen(repository: Tr3ackRepository) {
 
     LaunchedEffect(saveSuccess) {
         if (saveSuccess) {
-            scope.launch {
-                snackbarHostState.showSnackbar(setSavedMessage)
-            }
+            val message = unlockMessage ?: setSavedMessage
+            viewModel.clearNewlyUnlocked()
             viewModel.resetSaveSuccess()
+            scope.launch { snackbarHostState.showSnackbar(message) }
         }
     }
 

@@ -295,4 +295,30 @@
     <string name="ach_bodyweight_90_desc">Record 90 body-weight check-ins</string>
     <string name="ach_bodyweight_365_title">Year of Tracking</string>
     <string name="ach_bodyweight_365_desc">Record 365 body-weight check-ins</string>
+
+    <string name="ach_pullup_title">Weighted Pull-Ups · %1$s</string>
+    <string name="ach_dip_title">Weighted Dips · %1$s</string>
+    <string name="ach_added_target_desc">Add %1$d kg and hit 6+ reps</string>
+
+    <string name="ach_category_strength">Strength</string>
+    <string name="ach_category_volume">Volume</string>
+    <string name="ach_category_consistency">Consistency</string>
+    <string name="ach_category_progress">Progress</string>
+    <string name="ach_category_bodyweight">Bodyweight</string>
+
+    <string name="ach_filter_all">All</string>
+    <string name="ach_filter_unlocked">Unlocked</string>
+    <string name="ach_unlocked">Unlocked</string>
+    <string name="ach_filter_unlocked_empty">No achievements unlocked yet — log a set to get started.</string>
+    <string name="ach_filter_locked_empty">Everything here is unlocked. Nice work!</string>
+
+    <string name="ach_progress_kg">%1$s / %2$s kg</string>
+    <string name="ach_progress_ratio">%1$s / %2$s ×BW</string>
+    <string name="ach_progress_count">%1$d / %2$d</string>
+    <string name="ach_progress_tonnage">%1$s / %2$s kg·reps</string>
+
+    <plurals name="snackbar_achievements_unlocked">
+        <item quantity="one">Achievement unlocked: %1$s</item>
+        <item quantity="other">%1$d achievements unlocked</item>
+    </plurals>
 </resources>

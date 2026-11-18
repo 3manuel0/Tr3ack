@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -43,6 +44,9 @@ class LogWorkoutViewModel(private val repository: Tr3ackRepository) : ViewModel(
 
     private val _saveSuccess = MutableStateFlow(false)
     val saveSuccess: StateFlow<Boolean> = _saveSuccess.asStateFlow()
+
+    private val _newlyUnlocked = MutableStateFlow<List<Achievement>>(emptyList())
+    val newlyUnlocked: StateFlow<List<Achievement>> = _newlyUnlocked.asStateFlow()
 
     private var savedSetsJob: Job? = null
 
@@ -108,7 +112,18 @@ class LogWorkoutViewModel(private val repository: Tr3ackRepository) : ViewModel(
                 reps = repsValue,
                 timestamp = Instant.now().toEpochMilli()
             )
+            // Snapshot before the insert so we can tell which badges this set unlocked.
+            val before = achievementSnapshot()
+                .achievements
+                .filter { it.unlocked }
+                .map { it.id }
+                .toSet()
+
             repository.insertWorkoutSet(set)
+
+            _newlyUnlocked.value = achievementSnapshot()
+                .achievements
+                .filter { it.unlocked && it.id !in before }
             _reps.value = ""
             _lastUsedWeight.value = weightValue
             _saveSuccess.value = true
@@ -122,6 +137,18 @@ class LogWorkoutViewModel(private val repository: Tr3ackRepository) : ViewModel(
     fun resetSaveSuccess() {
         _saveSuccess.value = false
     }
+
+    fun clearNewlyUnlocked() {
+        _newlyUnlocked.value = emptyList()
+    }
+
+    private suspend fun achievementSnapshot(): AchievementSnapshot =
+        AchievementSnapshotBuilder.build(
+            workoutDays = repository.workoutDays.first(),
+            exerciseStats = repository.exerciseStats.first(),
+            bodyWeightEntries = repository.allBodyWeightEntries.first(),
+            workoutSets = repository.allWorkoutSets.first()
+        )
 
     fun refreshDefaultDate() {
         if (userEditedDate) return

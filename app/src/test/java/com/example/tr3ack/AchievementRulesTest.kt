@@ -1,6 +1,7 @@
 package com.example.tr3ack
 
 import com.example.tr3ack.R
+import com.example.tr3ack.viewmodel.AchievementProgressKind
 import com.example.tr3ack.viewmodel.AchievementRules
 import com.example.tr3ack.viewmodel.LevelInfo
 import com.example.tr3ack.viewmodel.StreakInfo
@@ -98,7 +99,7 @@ class AchievementRulesTest {
     }
 
     @Test
-    fun achievements_defaultTo30BadgesAllLocked() {
+    fun achievements_defaultTo42BadgesAllLocked() {
         val ach = AchievementRules.buildAchievements(
             totalTonnage = 0.0,
             totalSessions = 0,
@@ -110,8 +111,9 @@ class AchievementRulesTest {
             prExerciseCount = 0,
             bodyWeightCheckins = 0
         )
-        assertEquals(30, ach.size)
+        assertEquals(42, ach.size)
         assertTrue(ach.all { !it.unlocked })
+        assertTrue(ach.all { it.progress == 0f })
     }
 
     @Test
@@ -126,6 +128,8 @@ class AchievementRulesTest {
             maxLateralRaiseWeight = 18.0,
             prExerciseCount = 5,
             bodyWeightCheckins = 365,
+            maxPullUpWeight = 25.4,
+            maxDipWeight = 25.4
         )
         val byId = ach.associateBy { it.id }
         val unlockedIds = ach.filter { it.unlocked }.map { it.id }.toSet()
@@ -136,18 +140,66 @@ class AchievementRulesTest {
         assertEquals(2, ach.count { it.id.startsWith("bw") && it.unlocked })
         assertEquals(6, ach.count { it.id.startsWith("curl") && it.unlocked })
         assertEquals(5, ach.count { it.id.startsWith("lat") && it.unlocked })
+        assertEquals(1, ach.count { it.id.startsWith("pullup") && it.unlocked })
+        assertEquals(1, ach.count { it.id.startsWith("dip") && it.unlocked })
         assertEquals(3, ach.count { it.id.startsWith("pr_exercises") && it.unlocked })
         assertEquals(3, ach.count { it.id.startsWith("bodyweight_checkins") && it.unlocked })
-        assertEquals(28, unlockedIds.size)
+        assertEquals(30, unlockedIds.size)
 
         // Tier mapping: lower tiers unlock before higher ones.
         assertTrue(byId.getValue("curl_16").tier == "iron" && byId.getValue("curl_26").tier == "diamond")
         assertTrue(byId.getValue("lat_10").tier == "iron" && byId.getValue("lat_20").tier == "diamond")
+        assertTrue(byId.getValue("pullup_20").tier == "iron" && byId.getValue("pullup_70").tier == "diamond")
+        assertTrue(byId.getValue("dip_25").tier == "iron" && byId.getValue("dip_75").tier == "diamond")
 
         // Per-exercise unlocks stop at the max achievable weight.
         assertTrue(byId.getValue("lat_18").unlocked)
         assertFalse(byId.getValue("lat_20").unlocked)
         assertTrue(byId.getValue("curl_26").unlocked)
+        assertTrue(byId.getValue("pullup_20").unlocked)
+        assertFalse(byId.getValue("pullup_30").unlocked)
+        assertTrue(byId.getValue("dip_25").unlocked)
+        assertFalse(byId.getValue("dip_35").unlocked)
+    }
+
+    @Test
+    fun achievements_exposeProgressTowardEachTarget() {
+        val ach = AchievementRules.buildAchievements(
+            totalTonnage = 141_000.0,
+            totalSessions = 31,
+            currentStreak = 4,
+            longestStreak = 14,
+            maxBodyweightRatio = 1.29,
+            maxBicepCurlWeight = 20.5,
+            maxLateralRaiseWeight = 15.0,
+            prExerciseCount = 4,
+            bodyWeightCheckins = 12,
+            maxPullUpWeight = 25.4,
+            maxDipWeight = 25.4
+        ).associateBy { it.id }
+
+        val tonnage = ach.getValue("tonnage_500k")
+        assertFalse(tonnage.unlocked)
+        assertEquals(141_000.0, tonnage.progressCurrent, 1e-9)
+        assertEquals(500_000.0, tonnage.progressTarget, 1e-9)
+        assertEquals((141_000.0 / 500_000.0).toFloat(), tonnage.progress, 1e-6f)
+        assertEquals(AchievementProgressKind.TONNAGE, tonnage.progressKind)
+
+        val dip = ach.getValue("dip_35")
+        assertEquals(25.4, dip.progressCurrent, 1e-9)
+        assertEquals(35.0, dip.progressTarget, 1e-9)
+        assertEquals((25.4 / 35.0).toFloat(), dip.progress, 1e-6f)
+
+        val ratio = ach.getValue("bw_150")
+        assertEquals((1.29 / 1.5).toFloat(), ratio.progress, 1e-6f)
+
+        val sessions = ach.getValue("sessions_50")
+        assertEquals(31.0, sessions.progressCurrent, 1e-9)
+        assertEquals(AchievementProgressKind.COUNT, sessions.progressKind)
+
+        // An unlocked badge is always at 100%, never above.
+        assertEquals(1f, ach.getValue("sessions_10").progress, 1e-6f)
+        assertEquals(1f, ach.getValue("tonnage_100k").progress, 1e-6f)
     }
 
     @Test
@@ -180,7 +232,9 @@ class AchievementRulesTest {
             listOf("pr_exercises_1", "pr_exercises_3", "pr_exercises_5", "bodyweight_checkins_30", "bodyweight_checkins_90", "bodyweight_checkins_365"),
             ids.drop(12).take(6)
         )
-        assertEquals(listOf("curl_16", "curl_18", "curl_20", "curl_22", "curl_24", "curl_26"), ids.takeLast(12).take(6))
-        assertEquals(listOf("lat_10", "lat_12", "lat_14", "lat_16", "lat_18", "lat_20"), ids.takeLast(6))
+        assertEquals(listOf("curl_16", "curl_18", "curl_20", "curl_22", "curl_24", "curl_26"), ids.drop(18).take(6))
+        assertEquals(listOf("lat_10", "lat_12", "lat_14", "lat_16", "lat_18", "lat_20"), ids.drop(24).take(6))
+        assertEquals(listOf("pullup_20", "pullup_30", "pullup_40", "pullup_50", "pullup_60", "pullup_70"), ids.drop(30).take(6))
+        assertEquals(listOf("dip_25", "dip_35", "dip_45", "dip_55", "dip_65", "dip_75"), ids.drop(36).take(6))
     }
 }

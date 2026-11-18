@@ -6,11 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.tr3ack.R
 import com.example.tr3ack.data.entity.BodyWeightEntry
 import com.example.tr3ack.data.entity.Exercise
-import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.ExerciseStatsEntity
 import com.example.tr3ack.data.entity.Goal
 import com.example.tr3ack.data.entity.GoalType
 import com.example.tr3ack.data.entity.WorkoutDayEntity
+import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,6 +33,15 @@ data class StreakInfo(
     val longest: Long = 0,
 )
 
+enum class AchievementCategory {
+    STRENGTH, VOLUME, CONSISTENCY, PROGRESS, BODYWEIGHT
+}
+
+/** How [Achievement.progressCurrent] / [Achievement.progressTarget] are rendered. */
+enum class AchievementProgressKind {
+    KG, RATIO, COUNT, TONNAGE
+}
+
 data class Achievement(
     val id: String,
     @StringRes val titleRes: Int,
@@ -42,6 +51,12 @@ data class Achievement(
     val iconKey: String,
     val tier: String,
     val unlocked: Boolean,
+    val category: AchievementCategory,
+    /** 0..1, derived from current/target so the card and bar always agree. */
+    val progress: Float = if (unlocked) 1f else 0f,
+    val progressCurrent: Double = 0.0,
+    val progressTarget: Double = 0.0,
+    val progressKind: AchievementProgressKind = AchievementProgressKind.COUNT,
 )
 
 class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewModel() {
@@ -69,8 +84,13 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
 
     init {
         viewModelScope.launch {
-            combine(repository.workoutDays, repository.exerciseStats, repository.allBodyWeightEntries) { days, stats, bodyWeightEntries ->
-                compute(days, stats, bodyWeightEntries)
+            combine(
+                repository.workoutDays,
+                repository.exerciseStats,
+                repository.allBodyWeightEntries,
+                repository.allWorkoutSets
+            ) { days, stats, bodyWeightEntries, sets ->
+                compute(days, stats, bodyWeightEntries, sets)
             }.collect { }
         }
 
@@ -115,41 +135,19 @@ class AchievementsViewModel(private val repository: Tr3ackRepository) : ViewMode
     private fun compute(
         workoutDays: List<WorkoutDayEntity>,
         exerciseStats: List<ExerciseStatsEntity>,
-        bodyWeightEntries: List<BodyWeightEntry>
+        bodyWeightEntries: List<BodyWeightEntry>,
+        workoutSets: List<WorkoutSet>
     ) {
-        val sessionDates = workoutDays.map { it.date }.sorted()
-        val totalTonnage = workoutDays.sumOf { it.tonnage }
-        val totalSessions = workoutDays.size
-        val streak = AchievementRules.computeStreak(sessionDates)
-
-        val maxBodyweightRatio = exerciseStats
-            .filter { it.isBodyweightBased }
-            .maxOfOrNull { it.maxBodyweightRatio } ?: 0.0
-        val maxBicepCurlWeight = exerciseStats
-            .find { it.exerciseId == ExerciseIds.BICEP_CURLS }?.maxAddedWeightGte6 ?: 0.0
-        val maxLateralRaiseWeight = exerciseStats
-            .find { it.exerciseId == ExerciseIds.LATERAL_RAISES }?.maxAddedWeightGte6 ?: 0.0
-        val prExerciseCount = exerciseStats.count { it.hasData && it.bestE1RM > 0.0 }
-        val bodyWeightCheckins = bodyWeightEntries
-            .filter { it.bodyWeightKg > 0.0 }
-            .map { it.date }
-            .distinct()
-            .size
-
-        _totalTonnage.value = totalTonnage
-        _totalSessions.value = totalSessions
-        _streak.value = streak
-        _level.value = AchievementRules.computeLevel(totalTonnage, totalSessions)
-        _achievements.value = AchievementRules.buildAchievements(
-            totalTonnage,
-            totalSessions,
-            streak.current,
-            streak.longest,
-            maxBodyweightRatio,
-            maxBicepCurlWeight,
-            maxLateralRaiseWeight,
-            prExerciseCount,
-            bodyWeightCheckins
+        val snapshot = AchievementSnapshotBuilder.build(
+            workoutDays = workoutDays,
+            exerciseStats = exerciseStats,
+            bodyWeightEntries = bodyWeightEntries,
+            workoutSets = workoutSets
         )
+        _totalTonnage.value = snapshot.totalTonnage
+        _totalSessions.value = snapshot.totalSessions
+        _streak.value = snapshot.streak
+        _level.value = snapshot.level
+        _achievements.value = snapshot.achievements
     }
 }
