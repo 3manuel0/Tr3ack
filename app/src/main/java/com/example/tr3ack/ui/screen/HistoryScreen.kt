@@ -29,10 +29,14 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,11 +63,29 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val selectedDateSets by viewModel.selectedDateSets.collectAsStateWithLifecycle()
     val exercises by viewModel.exercises.collectAsStateWithLifecycle()
+    val deletedSet by viewModel.deletedSet.collectAsStateWithLifecycle()
     val exerciseById = remember(exercises) { exercises.associateBy { it.id } }
 
     var showAddPastWorkout by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val setDeletedMessage = stringResource(R.string.snackbar_set_deleted)
+    val undoLabel = stringResource(R.string.action_undo)
+
+    LaunchedEffect(deletedSet) {
+        val set = deletedSet ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = setDeletedMessage,
+            actionLabel = undoLabel
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoDeleteSet(set)
+        } else {
+            viewModel.clearDeletedSet()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddPastWorkout = true }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_add_past_workout))

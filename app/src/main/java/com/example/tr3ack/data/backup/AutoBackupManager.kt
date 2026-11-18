@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import com.example.tr3ack.repository.Tr3ackRepository
+import com.example.tr3ack.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
@@ -40,6 +41,7 @@ class AutoBackupManager(
     private val scope: CoroutineScope
 ) {
     private val resolver = context.applicationContext.contentResolver
+    private val appContext = context.applicationContext
     private val dir = File(context.filesDir, "backups").apply { mkdirs() }
     private val latestFile = File(dir, "auto_backup.json")
     private val mutex = Mutex()
@@ -73,6 +75,7 @@ class AutoBackupManager(
         val json = BackupJson.build(exercises, sets, bodyWeights)
         latestFile.writeText(json)
         writeToDownloads(json)
+        WidgetUpdater.update(appContext)
 
         // One dated snapshot per day; keep the last 14.
         val dated = File(dir, "auto_${LocalDate.now().format(dateFormat)}.json")

@@ -94,6 +94,9 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
     private val _currentTier = MutableStateFlow<String?>(null)
     val currentTier: StateFlow<String?> = _currentTier.asStateFlow()
 
+    private val _repMaxes = MutableStateFlow<List<RepMax>>(emptyList())
+    val repMaxes: StateFlow<List<RepMax>> = _repMaxes.asStateFlow()
+
     private var selectionJob: kotlinx.coroutines.Job? = null
 
     fun selectExercise(exerciseId: Long) {
@@ -123,6 +126,11 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
                             buildFreeWeightOneRepMax(row, exercise)
                         }
                         _currentTier.value = buildCurrentTier(exercise, row)
+                    }
+                }
+                launch {
+                    repository.getSetsForExercise(exerciseId).collect { sets ->
+                        _repMaxes.value = RepMaxRules.build(sets)
                     }
                 }
                 if (!exercise.isBodyweightBased) {

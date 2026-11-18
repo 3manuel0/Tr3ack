@@ -28,10 +28,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,13 +63,31 @@ fun BodyWeightScreen(repository: Tr3ackRepository) {
     val entries by viewModel.allEntries.collectAsStateWithLifecycle()
     val editingDate by viewModel.editingDate.collectAsStateWithLifecycle()
     val editingWeight by viewModel.editingWeight.collectAsStateWithLifecycle()
+    val deletedEntry by viewModel.deletedEntry.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var addDate by remember { mutableStateOf<LocalDate?>(null) }
     var addWeight by remember { mutableStateOf("") }
     var addDateError by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val weightDeletedMessage = stringResource(R.string.snackbar_weight_deleted)
+    val undoLabel = stringResource(R.string.action_undo)
+
+    LaunchedEffect(deletedEntry) {
+        val entry = deletedEntry ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = weightDeletedMessage,
+            actionLabel = undoLabel
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoDeleteEntry(entry)
+        } else {
+            viewModel.clearDeletedEntry()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_add_entry))

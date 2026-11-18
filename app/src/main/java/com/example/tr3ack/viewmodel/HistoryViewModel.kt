@@ -41,6 +41,9 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     private val _importResult = MutableStateFlow<String?>(null)
     val importResult: StateFlow<String?> = _importResult.asStateFlow()
 
+    private val _deletedSet = MutableStateFlow<WorkoutSet?>(null)
+    val deletedSet: StateFlow<WorkoutSet?> = _deletedSet.asStateFlow()
+
     private var selectionJob: Job? = null
 
     fun selectDate(date: LocalDate) {
@@ -52,9 +55,21 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     }
 
     fun deleteSet(set: WorkoutSet) {
+        _deletedSet.value = set
         viewModelScope.launch {
             repository.deleteWorkoutSet(set)
         }
+    }
+
+    fun undoDeleteSet(set: WorkoutSet) {
+        _deletedSet.value = null
+        viewModelScope.launch {
+            repository.insertWorkoutSet(set)
+        }
+    }
+
+    fun clearDeletedSet() {
+        _deletedSet.value = null
     }
 
     fun generateCsv() {

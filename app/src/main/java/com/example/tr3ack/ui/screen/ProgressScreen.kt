@@ -72,6 +72,7 @@ import com.example.tr3ack.viewmodel.ChartPoint
 import com.example.tr3ack.viewmodel.ForecastRules
 import com.example.tr3ack.viewmodel.OneRepMax
 import com.example.tr3ack.viewmodel.ProgressViewModel
+import com.example.tr3ack.viewmodel.RepMax
 import com.example.tr3ack.viewmodel.rollingAverage
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -251,6 +252,7 @@ fun ProgressScreen(repository: Tr3ackRepository, onOpenRankLadder: () -> Unit = 
     val personalRecords by viewModel.bestSet.collectAsStateWithLifecycle()
     val oneRepMax by viewModel.oneRepMax.collectAsStateWithLifecycle()
     val currentTier by viewModel.currentTier.collectAsStateWithLifecycle()
+    val repMaxes by viewModel.repMaxes.collectAsStateWithLifecycle()
 
     var dayCount by remember { mutableIntStateOf(30) }
 
@@ -313,6 +315,15 @@ fun ProgressScreen(repository: Tr3ackRepository, onOpenRankLadder: () -> Unit = 
                         rankTier = currentTier,
                         onOpenRank = onOpenRankLadder
                     )
+                }
+
+                if (repMaxes.isNotEmpty()) {
+                    item {
+                        RepMaxCard(
+                            repMaxes = repMaxes,
+                            isBodyweight = selectedExercise.isBodyweightBased
+                        )
+                    }
                 }
 
                 // Day count toggle + charts
@@ -467,6 +478,48 @@ private fun shortExerciseName(name: String): String = name
     .replace("Weighted ", "")
     .removePrefix("Bicep ")
     .removeSuffix(" Raises")
+
+@Composable
+private fun RepMaxCard(repMaxes: List<RepMax>, isBodyweight: Boolean) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.progress_rep_maxes),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = stringResource(
+                    if (isBodyweight) R.string.progress_rep_maxes_added
+                    else R.string.progress_rep_maxes_kg
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                repMaxes.forEach { rm ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "%.1f".format(rm.addedWeightKg),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "× ${rm.reps}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun ProgressHeroCard(

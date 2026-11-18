@@ -25,6 +25,9 @@ class BodyWeightViewModel(private val repository: Tr3ackRepository) : ViewModel(
 
     private val _editingEntryId = MutableStateFlow<Long>(0)
 
+    private val _deletedEntry = MutableStateFlow<BodyWeightEntry?>(null)
+    val deletedEntry: StateFlow<BodyWeightEntry?> = _deletedEntry.asStateFlow()
+
     fun startEditing(date: LocalDate, currentWeight: Double?) {
         val existing = allEntries.value.find { it.date == date.toString() }
         _editingEntryId.value = existing?.id ?: 0
@@ -70,9 +73,21 @@ class BodyWeightViewModel(private val repository: Tr3ackRepository) : ViewModel(
     }
 
     fun deleteEntry(entry: BodyWeightEntry) {
+        _deletedEntry.value = entry
         viewModelScope.launch {
             repository.deleteBodyWeight(entry)
         }
+    }
+
+    fun undoDeleteEntry(entry: BodyWeightEntry) {
+        _deletedEntry.value = null
+        viewModelScope.launch {
+            repository.insertBodyWeight(entry)
+        }
+    }
+
+    fun clearDeletedEntry() {
+        _deletedEntry.value = null
     }
 
     fun getWeightForDate(date: LocalDate): Double? {
