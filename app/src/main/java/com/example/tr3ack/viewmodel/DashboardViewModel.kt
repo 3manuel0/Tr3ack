@@ -78,6 +78,9 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
     private val _exerciseTrendNotes = MutableStateFlow<Map<Long, TrendNote>>(emptyMap())
     val exerciseTrendNotes: StateFlow<Map<Long, TrendNote>> = _exerciseTrendNotes.asStateFlow()
 
+    private val _overload = MutableStateFlow<Map<Long, OverloadInfo>>(emptyMap())
+    val overload: StateFlow<Map<Long, OverloadInfo>> = _overload.asStateFlow()
+
     private val _lastLoggedDateByExercise = MutableStateFlow<Map<Long, String>>(emptyMap())
     val lastLoggedDateByExercise: StateFlow<Map<Long, String>> = _lastLoggedDateByExercise.asStateFlow()
 
@@ -149,6 +152,14 @@ class DashboardViewModel(private val repository: Tr3ackRepository) : ViewModel()
                             _exerciseTrendNotes.value + (exerciseId to note)
                         } else {
                             _exerciseTrendNotes.value - exerciseId
+                        }
+                        val overload = OverloadRules.compute(
+                            e1rms.sortedBy { it.date }.map { it.e1rm }
+                        )
+                        _overload.value = if (overload != null) {
+                            _overload.value + (exerciseId to overload)
+                        } else {
+                            _overload.value - exerciseId
                         }
                     }
                 }

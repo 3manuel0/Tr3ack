@@ -69,6 +69,7 @@ import com.example.tr3ack.R
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.BestSetRecord
 import com.example.tr3ack.viewmodel.ChartPoint
+import com.example.tr3ack.viewmodel.ForecastRules
 import com.example.tr3ack.viewmodel.OneRepMax
 import com.example.tr3ack.viewmodel.ProgressViewModel
 import com.example.tr3ack.viewmodel.rollingAverage
@@ -255,6 +256,12 @@ fun ProgressScreen(repository: Tr3ackRepository, onOpenRankLadder: () -> Unit = 
 
     val selectedExercise = exercises.find { it.id == selectedExerciseId }
     val displayData = remember(chartData, dayCount) { chartData.takeLast(dayCount) }
+    val e1rmForecast = remember(displayData) {
+        ForecastRules.forecast(
+            dates = displayData.map { it.date },
+            values = displayData.map { it.estimatedOneRM }
+        )
+    }
     val recentFreeWeightSets = remember(freeWeightData) {
         val cutoff = LocalDate.now().minusDays(4).toString()
         freeWeightData.filter { set -> set.date >= cutoff }.sortedByDescending { it.date }
@@ -345,6 +352,18 @@ fun ProgressScreen(repository: Tr3ackRepository, onOpenRankLadder: () -> Unit = 
                                     .fillMaxWidth()
                                     .height(220.dp)
                                     .padding(12.dp)
+                            )
+                        }
+                        if (e1rmForecast?.at4Weeks != null && e1rmForecast.at8Weeks != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = stringResource(
+                                    R.string.progress_forecast,
+                                    "%.1f".format(e1rmForecast.at4Weeks),
+                                    "%.1f".format(e1rmForecast.at8Weeks)
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

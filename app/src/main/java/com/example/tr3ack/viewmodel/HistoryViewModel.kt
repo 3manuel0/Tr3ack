@@ -2,13 +2,10 @@ package com.example.tr3ack.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.tr3ack.data.entity.BodyWeightEntity
+import com.example.tr3ack.data.backup.BackupJson
 import com.example.tr3ack.data.entity.CsvExporter
 import com.example.tr3ack.data.entity.Exercise
-import com.example.tr3ack.data.entity.ExerciseEntity
-import com.example.tr3ack.data.entity.ExerciseIds
 import com.example.tr3ack.data.entity.WorkoutSet
-import com.example.tr3ack.data.entity.WorkoutSetEntity
 import com.example.tr3ack.repository.Tr3ackRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -19,8 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 import java.time.LocalDate
 
 class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
@@ -87,115 +82,28 @@ class HistoryViewModel(private val repository: Tr3ackRepository) : ViewModel() {
     }
 
     suspend fun buildBackupJson(): String {
-        val allExercises = repository.allExercises.first()
-        val allSets = repository.allWorkoutSets.first()
-        val allBodyWeight = repository.allBodyWeightEntries.first()
-
-        val root = JSONObject()
-        root.put("meta", JSONObject().apply {
-            put("version", 1)
-            put("exportDate", LocalDate.now().toString())
-            put("exerciseCount", allExercises.size)
-            put("workoutSetCount", allSets.size)
-            put("bodyWeightEntryCount", allBodyWeight.size)
-        })
-
-        val exercisesArr = JSONArray()
-        for (ex in allExercises) {
-            exercisesArr.put(JSONObject().apply {
-                put("id", ex.id)
-                put("name", ex.name)
-                put("isBodyweightBased", ex.isBodyweightBased)
-            })
-        }
-        root.put("exercises", exercisesArr)
-
-        val setsArr = JSONArray()
-        for (set in allSets) {
-            setsArr.put(JSONObject().apply {
-                put("id", set.id)
-                put("exerciseId", set.exerciseId)
-                put("date", set.date)
-                put("addedWeightKg", set.addedWeightKg)
-                put("reps", set.reps)
-                put("timestamp", set.timestamp)
-            })
-        }
-        root.put("workoutSets", setsArr)
-
-        val bwArr = JSONArray()
-        for (bw in allBodyWeight) {
-            bwArr.put(JSONObject().apply {
-                put("id", bw.id)
-                put("date", bw.date)
-                put("bodyWeightKg", bw.bodyWeightKg)
-            })
-        }
-        root.put("bodyWeightEntries", bwArr)
-
-        return root.toString(2)
+        return BackupJson.build(
+            allExercises = repository.allExercises.first(),
+            allSets = repository.allWorkoutSets.first(),
+            allBodyWeight = repository.allBodyWeightEntries.first()
+        )
     }
 
     fun consumeJson() {
         _exportJson.value = null
     }
 
-    private val knownExerciseIds = setOf(
-        ExerciseIds.WEIGHTED_PULL_UPS,
-        ExerciseIds.WEIGHTED_DIPS,
-        ExerciseIds.BICEP_CURLS,
-        ExerciseIds.LATERAL_RAISES
-    )
-
     fun importBackupJson(jsonString: String) {
         viewModelScope.launch(Dispatchers.Default) {
             try {
-                val root = JSONObject(jsonString)
-
-                val exercisesArr = root.getJSONArray("exercises")
-                val setsArr = root.getJSONArray("workoutSets")
-                val bwArr = root.getJSONArray("bodyWeightEntries")
-
-                val exercises = mutableListOf<ExerciseEntity>()
-                for (i in 0 until exercisesArr.length()) {
-                    val obj = exercisesArr.getJSONObject(i)
-                    val id = obj.getLong("id")
-                    if (id !in knownExerciseIds) continue
-                    exercises.add(ExerciseEntity(
-                        id = id,
-                        name = obj.getString("name"),
-                        isBodyweightBased = obj.getBoolean("isBodyweightBased")
-                    ))
-                }
-
-                val sets = mutableListOf<WorkoutSetEntity>()
-                for (i in 0 until setsArr.length()) {
-                    val obj = setsArr.getJSONObject(i)
-                    val exerciseId = obj.getLong("exerciseId")
-                    if (exerciseId !in knownExerciseIds) continue
-                    sets.add(WorkoutSetEntity(
-                        id = obj.getLong("id"),
-                        exerciseId = exerciseId,
-                        date = obj.getString("date"),
-                        addedWeightKg = obj.getDouble("addedWeightKg"),
-                        reps = obj.getInt("reps"),
-                        timestamp = obj.getLong("timestamp")
-                    ))
-                }
-
-                val bwEntries = mutableListOf<BodyWeightEntity>()
-                for (i in 0 until bwArr.length()) {
-                    val obj = bwArr.getJSONObject(i)
-                    bwEntries.add(BodyWeightEntity(
-                        id = obj.getLong("id"),
-                        date = obj.getString("date"),
-                        bodyWeightKg = obj.getDouble("bodyWeightKg")
-                    ))
-                }
-
-                repository.replaceAllData(exercises, sets, bwEntries)
-
-                _importResult.value = "Restored ${exercises.size} exercises, ${sets.size} sets, ${bwEntries.size} weight entries"
+                val payload = BackupJson.parse(jsonString)
+                repository.replaceAllData(
+                    payload.exercises,
+                    payload.sets,
+                    payload.bodyWeightEntries
+                )
+                _importResult.value =
+                    "Restored ${payload.exercises.size} exercises, ${payload.sets.size} sets, ${payload.bodyWeightEntries.size} weight entries"
             } catch (e: Exception) {
                 _importResult.value = "Import failed: ${e.message}"
             }

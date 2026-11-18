@@ -80,6 +80,7 @@ import com.example.tr3ack.data.entity.WorkoutSet
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.viewmodel.AchievementRules
 import com.example.tr3ack.viewmodel.DashboardViewModel
+import com.example.tr3ack.viewmodel.OverloadInfo
 import com.example.tr3ack.viewmodel.PersonalBest
 import com.example.tr3ack.viewmodel.TrendDirection
 import com.example.tr3ack.viewmodel.TrendNote
@@ -115,6 +116,7 @@ fun DashboardScreen(
     val lateralRaisesPB by viewModel.lateralRaisesPB.collectAsStateWithLifecycle()
     val exerciseTrends by viewModel.exerciseTrends.collectAsStateWithLifecycle()
     val exerciseTrendNotes by viewModel.exerciseTrendNotes.collectAsStateWithLifecycle()
+    val overload by viewModel.overload.collectAsStateWithLifecycle()
     val workoutDays by viewModel.workoutDays.collectAsStateWithLifecycle()
     val weekVolume by viewModel.weekVolume.collectAsStateWithLifecycle()
     var showWeightDialog by remember { mutableStateOf(false) }
@@ -142,31 +144,35 @@ fun DashboardScreen(
             weight * set.reps
         }
     }
-    val pbEntries = remember(pullUpsPB, dipsPB, bicepCurlsPB, lateralRaisesPB, exerciseTrends, exerciseTrendNotes) {
+    val pbEntries = remember(pullUpsPB, dipsPB, bicepCurlsPB, lateralRaisesPB, exerciseTrends, exerciseTrendNotes, overload) {
         listOf(
             PersonalBestCellData(
                 ExerciseIds.WEIGHTED_PULL_UPS,
                 pullUpsPB,
                 exerciseTrends[ExerciseIds.WEIGHTED_PULL_UPS].orEmpty(),
-                exerciseTrendNotes[ExerciseIds.WEIGHTED_PULL_UPS]
+                exerciseTrendNotes[ExerciseIds.WEIGHTED_PULL_UPS],
+                overload[ExerciseIds.WEIGHTED_PULL_UPS]
             ),
             PersonalBestCellData(
                 ExerciseIds.WEIGHTED_DIPS,
                 dipsPB,
                 exerciseTrends[ExerciseIds.WEIGHTED_DIPS].orEmpty(),
-                exerciseTrendNotes[ExerciseIds.WEIGHTED_DIPS]
+                exerciseTrendNotes[ExerciseIds.WEIGHTED_DIPS],
+                overload[ExerciseIds.WEIGHTED_DIPS]
             ),
             PersonalBestCellData(
                 ExerciseIds.BICEP_CURLS,
                 bicepCurlsPB,
                 exerciseTrends[ExerciseIds.BICEP_CURLS].orEmpty(),
-                exerciseTrendNotes[ExerciseIds.BICEP_CURLS]
+                exerciseTrendNotes[ExerciseIds.BICEP_CURLS],
+                overload[ExerciseIds.BICEP_CURLS]
             ),
             PersonalBestCellData(
                 ExerciseIds.LATERAL_RAISES,
                 lateralRaisesPB,
                 exerciseTrends[ExerciseIds.LATERAL_RAISES].orEmpty(),
-                exerciseTrendNotes[ExerciseIds.LATERAL_RAISES]
+                exerciseTrendNotes[ExerciseIds.LATERAL_RAISES],
+                overload[ExerciseIds.LATERAL_RAISES]
             )
         )
     }
@@ -331,7 +337,8 @@ private data class PersonalBestCellData(
     val exerciseId: Long,
     val pb: PersonalBest,
     val trend: List<Double>,
-    val note: TrendNote?
+    val note: TrendNote?,
+    val overload: OverloadInfo?
 )
 
 @DrawableRes
@@ -639,6 +646,35 @@ private fun PersonalBestCell(
                             )
                         }
                     }
+                }
+                data.overload?.let { overload ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val overloadColor = when {
+                        overload.beatLast -> Color(0xFF66BB6A)
+                        overload.deltaKg < 0.0 -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    val baseLabel = when {
+                        overload.beatLast -> stringResource(
+                            R.string.overload_beat_last,
+                            "%.1f".format(overload.deltaKg)
+                        )
+                        overload.deltaKg < 0.0 -> stringResource(
+                            R.string.overload_below_last,
+                            "%.1f".format(overload.deltaKg)
+                        )
+                        else -> stringResource(R.string.overload_matched)
+                    }
+                    val streakSuffix = if (overload.beatLast && overload.streak >= 2) {
+                        " · " + stringResource(R.string.overload_streak, overload.streak)
+                    } else {
+                        ""
+                    }
+                    Text(
+                        text = baseLabel + streakSuffix,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = overloadColor
+                    )
                 }
             } else {
                 Text(

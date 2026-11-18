@@ -2,6 +2,7 @@ package com.example.tr3ack
 
 import android.app.Application
 import android.content.Context
+import com.example.tr3ack.data.backup.AutoBackupManager
 import com.example.tr3ack.data.database.Tr3ackDatabase
 import com.example.tr3ack.data.entity.StatsCalculator
 import com.example.tr3ack.repository.Tr3ackRepository
@@ -22,6 +23,8 @@ class Tr3ackApplication : Application() {
             goalDao = database.goalDao()
         )
     }
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val autoBackup by lazy { AutoBackupManager(this, repository, appScope) }
 
     override fun onCreate() {
         super.onCreate()
@@ -29,11 +32,13 @@ class Tr3ackApplication : Application() {
         // after an E1RM/tonnage formula change). The caches are kept in sync on every
         // write, so a full rebuild on each launch would be wasted I/O.
         val prefs = getSharedPreferences("tr3ack", Context.MODE_PRIVATE)
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        appScope.launch {
             val cacheKey = "stats_cache_built_v${StatsCalculator.CACHE_VERSION}"
             if (prefs.getBoolean(cacheKey, false)) return@launch
             runCatching { repository.refreshStatsCache() }
                 .onSuccess { prefs.edit().putBoolean(cacheKey, true).apply() }
         }
+        // Write an automatic backup on launch and after every data change.
+        autoBackup.start()
     }
 }

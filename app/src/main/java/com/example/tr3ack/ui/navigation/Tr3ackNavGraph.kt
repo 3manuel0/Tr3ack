@@ -47,6 +47,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.tr3ack.R
+import com.example.tr3ack.Tr3ackApplication
 import com.example.tr3ack.repository.Tr3ackRepository
 import com.example.tr3ack.ui.screen.AchievementsScreen
 import com.example.tr3ack.ui.screen.BodyWeightScreen
@@ -81,6 +82,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
     val exportCsv by historyViewModel.exportCsv.collectAsStateWithLifecycle()
     val csvExportedMessage = stringResource(R.string.toast_csv_exported)
     val backupScope = rememberCoroutineScope()
+    val app = remember(context) { context.applicationContext as Tr3ackApplication }
 
     val csvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -113,6 +115,7 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
 
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showImportConfirmDialog by remember { mutableStateOf(false) }
+    var showRestoreConfirmDialog by remember { mutableStateOf(false) }
     var pendingImportJson by remember { mutableStateOf<String?>(null) }
 
     val jsonExportLauncher = rememberLauncherForActivityResult(
@@ -242,6 +245,16 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                                     Icon(Icons.Default.FileUpload, contentDescription = null)
                                 }
                             )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_restore_auto_backup)) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showRestoreConfirmDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                                }
+                            )
                         }
                     }
                 }
@@ -343,6 +356,46 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                     showImportConfirmDialog = false
                     pendingImportJson = null
                 }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showRestoreConfirmDialog) {
+        val lastBackupText = app.autoBackup.lastBackupAtMillis()?.let { millis ->
+            runCatching {
+                java.time.Instant.ofEpochMilli(millis)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
+            }.getOrDefault(null)
+        }
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirmDialog = false },
+            title = { Text(stringResource(R.string.dialog_restore_auto_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.dialog_restore_auto_message,
+                        lastBackupText ?: stringResource(R.string.dialog_restore_auto_none)
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRestoreConfirmDialog = false
+                    backupScope.launch(Dispatchers.IO) {
+                        val message = app.autoBackup.restoreLatest()
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }) {
+                    Text(stringResource(R.string.action_restore))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreConfirmDialog = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             }
