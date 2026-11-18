@@ -140,17 +140,17 @@ class AchievementRulesTest {
         assertEquals(2, ach.count { it.id.startsWith("bw") && it.unlocked })
         assertEquals(6, ach.count { it.id.startsWith("curl") && it.unlocked })
         assertEquals(5, ach.count { it.id.startsWith("lat") && it.unlocked })
-        assertEquals(1, ach.count { it.id.startsWith("pullup") && it.unlocked })
-        assertEquals(1, ach.count { it.id.startsWith("dip") && it.unlocked })
+        assertEquals(3, ach.count { it.id.startsWith("pullup") && it.unlocked })
+        assertEquals(3, ach.count { it.id.startsWith("dip") && it.unlocked })
         assertEquals(3, ach.count { it.id.startsWith("pr_exercises") && it.unlocked })
         assertEquals(3, ach.count { it.id.startsWith("bodyweight_checkins") && it.unlocked })
-        assertEquals(30, unlockedIds.size)
+        assertEquals(34, unlockedIds.size)
 
         // Tier mapping: lower tiers unlock before higher ones.
         assertTrue(byId.getValue("curl_16").tier == "iron" && byId.getValue("curl_26").tier == "diamond")
         assertTrue(byId.getValue("lat_10").tier == "iron" && byId.getValue("lat_20").tier == "diamond")
-        assertTrue(byId.getValue("pullup_20").tier == "iron" && byId.getValue("pullup_70").tier == "diamond")
-        assertTrue(byId.getValue("dip_25").tier == "iron" && byId.getValue("dip_75").tier == "diamond")
+        assertTrue(byId.getValue("pullup_10").tier == "iron" && byId.getValue("pullup_60").tier == "diamond")
+        assertTrue(byId.getValue("dip_10").tier == "iron" && byId.getValue("dip_60").tier == "diamond")
 
         // Per-exercise unlocks stop at the max achievable weight.
         assertTrue(byId.getValue("lat_18").unlocked)
@@ -158,8 +158,8 @@ class AchievementRulesTest {
         assertTrue(byId.getValue("curl_26").unlocked)
         assertTrue(byId.getValue("pullup_20").unlocked)
         assertFalse(byId.getValue("pullup_30").unlocked)
-        assertTrue(byId.getValue("dip_25").unlocked)
-        assertFalse(byId.getValue("dip_35").unlocked)
+        assertTrue(byId.getValue("dip_20").unlocked)
+        assertFalse(byId.getValue("dip_30").unlocked)
     }
 
     @Test
@@ -185,10 +185,10 @@ class AchievementRulesTest {
         assertEquals((141_000.0 / 500_000.0).toFloat(), tonnage.progress, 1e-6f)
         assertEquals(AchievementProgressKind.TONNAGE, tonnage.progressKind)
 
-        val dip = ach.getValue("dip_35")
+        val dip = ach.getValue("dip_30")
         assertEquals(25.4, dip.progressCurrent, 1e-9)
-        assertEquals(35.0, dip.progressTarget, 1e-9)
-        assertEquals((25.4 / 35.0).toFloat(), dip.progress, 1e-6f)
+        assertEquals(30.0, dip.progressTarget, 1e-9)
+        assertEquals((25.4 / 30.0).toFloat(), dip.progress, 1e-6f)
 
         val ratio = ach.getValue("bw_150")
         assertEquals((1.29 / 1.5).toFloat(), ratio.progress, 1e-6f)
@@ -234,7 +234,7 @@ class AchievementRulesTest {
         )
         assertEquals(listOf("curl_16", "curl_18", "curl_20", "curl_22", "curl_24", "curl_26"), ids.drop(18).take(6))
         assertEquals(listOf("lat_10", "lat_12", "lat_14", "lat_16", "lat_18", "lat_20"), ids.drop(24).take(6))
-        assertEquals(listOf("pullup_20", "pullup_30", "pullup_40", "pullup_50", "pullup_60", "pullup_70"), ids.drop(30).take(6))
-        assertEquals(listOf("dip_25", "dip_35", "dip_45", "dip_55", "dip_65", "dip_75"), ids.drop(36).take(6))
+        assertEquals(listOf("pullup_10", "pullup_15", "pullup_20", "pullup_30", "pullup_45", "pullup_60"), ids.drop(30).take(6))
+        assertEquals(listOf("dip_10", "dip_15", "dip_20", "dip_30", "dip_45", "dip_60"), ids.drop(36).take(6))
     }
 }

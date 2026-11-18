@@ -24,9 +24,13 @@ object AchievementRules {
 
     val colorTiers = listOf("iron", "copper", "silver", "gold", "emerald", "diamond")
 
-    /** Added-weight milestones (kg, over a 6+ rep set) for the two weighted bodyweight lifts. */
-    val pullUpMilestones = listOf(20.0, 30.0, 40.0, 50.0, 60.0, 70.0)
-    val dipMilestones = listOf(25.0, 35.0, 45.0, 55.0, 65.0, 75.0)
+    /**
+     * Added-weight milestones (kg, over a 6+ rep set) for the two weighted
+     * bodyweight lifts. Small 5 kg steps through the Intermediate tiers, then
+     * larger leaps for Advanced / Advanced+ / Elite.
+     */
+    val pullUpMilestones = listOf(10.0, 15.0, 20.0, 30.0, 45.0, 60.0)
+    val dipMilestones = listOf(10.0, 15.0, 20.0, 30.0, 45.0, 60.0)
 
     fun computeStreak(sessionDates: List<String>): StreakInfo {
         if (sessionDates.isEmpty()) return StreakInfo()

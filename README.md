@@ -107,8 +107,8 @@ The Goals tab turn your training history into progression, all computed on the f
 | --- | --- | --- | --- | --- | --- | --- |
 | Bicep Curls | 16kg | 18kg | 20kg | 22kg | 24kg | 26kg |
 | Lateral Raises | 10kg | 12kg | 14kg | 16kg | 18kg | 20kg |
-| Weighted Pull-Ups | +20kg | +30kg | +40kg | +50kg | +60kg | +70kg |
-| Weighted Dips | +25kg | +35kg | +45kg | +55kg | +65kg | +75kg |
+| Weighted Pull-Ups | +10kg | +15kg | +20kg | +30kg | +45kg | +60kg |
+| Weighted Dips | +10kg | +15kg | +20kg | +30kg | +45kg | +60kg |
 
 The two weighted bodyweight ladders count **added** weight on the belt (from 6+ rep sets), so they stay meaningful as your body weight changes. You can mix-and-match exercises (e.g. sets up to 22kg) to chase the color tiers you want.
 
