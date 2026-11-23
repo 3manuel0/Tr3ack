@@ -138,6 +138,13 @@ class LogWorkoutViewModel(private val repository: Tr3ackRepository) : ViewModel(
         _saveSuccess.value = false
     }
 
+    fun deleteSet(set: WorkoutSet) {
+        viewModelScope.launch {
+            repository.deleteWorkoutSet(set)
+            loadSavedSets()
+        }
+    }
+
     fun clearNewlyUnlocked() {
         _newlyUnlocked.value = emptyList()
     }

@@ -120,6 +120,8 @@
     <!-- Log Workout -->
     <string name="content_desc_save_set">Save Set</string>
     <string name="snackbar_set_saved">Set saved!</string>
+    <string name="action_log_set">Log Set</string>
+    <string name="action_log_set_weight">Log %1$s kg × %2$s</string>
     <string name="snackbar_set_deleted">Set deleted</string>
     <string name="snackbar_weight_deleted">Weight entry deleted</string>
     <string name="action_undo">Undo</string>
