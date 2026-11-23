@@ -11,7 +11,7 @@
         android:id="@+id/widget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Personal Records"
+        android:text="PERSONAL RECORDS"
         android:textColor="#AEBBD8"
         android:textSize="11sp"
         android:textStyle="bold"
@@ -22,7 +22,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="4dp">
+        android:layout_marginTop="6dp">
 
         <LinearLayout
             android:id="@+id/widget_page_0"
@@ -32,20 +32,35 @@
             android:gravity="center_vertical"
             android:visibility="gone">
 
-            <TextView
-                android:id="@+id/widget_name_0"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/widget_icon_0"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp" />
+
+                <TextView
+                    android:id="@+id/widget_name_0"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textColor="#CDD6F4"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/widget_value_0"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#FFFFFF"
+                android:layout_marginTop="4dp"
+                android:textColor="#CDD6F4"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
@@ -53,8 +68,8 @@
                 android:id="@+id/widget_detail_0"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#AEBBD8"
+                android:layout_marginTop="1dp"
+                android:textColor="#CDD6F4"
                 android:textSize="11sp" />
         </LinearLayout>
 
@@ -66,20 +81,35 @@
             android:gravity="center_vertical"
             android:visibility="gone">
 
-            <TextView
-                android:id="@+id/widget_name_1"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/widget_icon_1"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp" />
+
+                <TextView
+                    android:id="@+id/widget_name_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textColor="#CDD6F4"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/widget_value_1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#FFFFFF"
+                android:layout_marginTop="4dp"
+                android:textColor="#CDD6F4"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
@@ -87,8 +117,8 @@
                 android:id="@+id/widget_detail_1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#AEBBD8"
+                android:layout_marginTop="1dp"
+                android:textColor="#CDD6F4"
                 android:textSize="11sp" />
         </LinearLayout>
 
@@ -100,20 +130,35 @@
             android:gravity="center_vertical"
             android:visibility="gone">
 
-            <TextView
-                android:id="@+id/widget_name_2"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/widget_icon_2"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp" />
+
+                <TextView
+                    android:id="@+id/widget_name_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textColor="#CDD6F4"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/widget_value_2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#FFFFFF"
+                android:layout_marginTop="4dp"
+                android:textColor="#CDD6F4"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
@@ -121,8 +166,8 @@
                 android:id="@+id/widget_detail_2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#AEBBD8"
+                android:layout_marginTop="1dp"
+                android:textColor="#CDD6F4"
                 android:textSize="11sp" />
         </LinearLayout>
 
@@ -134,20 +179,35 @@
             android:gravity="center_vertical"
             android:visibility="gone">
 
-            <TextView
-                android:id="@+id/widget_name_3"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/widget_icon_3"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp" />
+
+                <TextView
+                    android:id="@+id/widget_name_3"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textColor="#CDD6F4"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/widget_value_3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#FFFFFF"
+                android:layout_marginTop="4dp"
+                android:textColor="#CDD6F4"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
@@ -155,8 +215,8 @@
                 android:id="@+id/widget_detail_3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#AEBBD8"
+                android:layout_marginTop="1dp"
+                android:textColor="#CDD6F4"
                 android:textSize="11sp" />
         </LinearLayout>
     </FrameLayout>
@@ -170,8 +230,8 @@
 
         <ImageButton
             android:id="@+id/widget_prev"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             android:src="@drawable/widget_chevron_left"
             android:background="@android:color/transparent"
             android:contentDescription="Previous" />
@@ -187,8 +247,8 @@
 
         <ImageButton
             android:id="@+id/widget_next"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             android:src="@drawable/widget_chevron_right"
             android:background="@android:color/transparent"
             android:contentDescription="Next" />

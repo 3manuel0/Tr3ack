@@ -73,6 +73,7 @@ object WidgetUpdater {
                     } else {
                         "—" to "No PR yet"
                     }
+                    views.setImageViewResource(iconId(index), iconRes(exerciseId))
                     views.setTextViewText(nameId(index), name)
                     views.setTextViewText(valueId(index), value)
                     views.setTextViewText(detailId(index), detail)
@@ -118,13 +119,8 @@ object WidgetUpdater {
         val date = runCatching {
             LocalDate.parse(row.bestE1RMDate).format(dateFormat)
         }.getOrDefault("")
-        val weightPart = if (row.isBodyweightBased) {
-            "+%.1f kg".format(row.bestE1RMAddedWeight)
-        } else {
-            "%.1f kg".format(row.bestE1RMAddedWeight)
-        }
-        val suffix = if (date.isNotEmpty()) " · $date" else ""
-        return "$weightPart × ${row.bestE1RMReps}$suffix"
+        val pct = "%.1f%% BW".format(row.bestE1RMPercentBodyWeight)
+        return if (date.isNotEmpty()) "$pct · $date" else pct
     }
 
     private fun shortName(name: String): String = name
@@ -137,6 +133,21 @@ object WidgetUpdater {
         1 -> R.id.widget_page_1
         2 -> R.id.widget_page_2
         else -> R.id.widget_page_3
+    }
+
+    private fun iconId(index: Int): Int = when (index) {
+        0 -> R.id.widget_icon_0
+        1 -> R.id.widget_icon_1
+        2 -> R.id.widget_icon_2
+        else -> R.id.widget_icon_3
+    }
+
+    private fun iconRes(exerciseId: Long): Int = when (exerciseId) {
+        ExerciseIds.WEIGHTED_PULL_UPS -> R.drawable.ic_ach_pullup
+        ExerciseIds.WEIGHTED_DIPS -> R.drawable.ic_ex_dips
+        ExerciseIds.BICEP_CURLS -> R.drawable.ic_ach_bicep
+        ExerciseIds.LATERAL_RAISES -> R.drawable.ic_ach_lateral
+        else -> R.drawable.ic_ach_weight
     }
 
     private fun nameId(index: Int): Int = when (index) {
