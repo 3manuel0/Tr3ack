@@ -101,6 +101,24 @@ object MovementFactors {
         return weight * mayhewFactor(effectiveReps)
     }
 
+    /**
+     * Predicted weight at a given rep count, obtained by inverting the same
+     * equation used to estimate the 1RM — so the "predicted maxes" table and the
+     * E1RM card always agree. Returns the weight in the same units as the 1RM:
+     * total system load for bodyweight movements, plain lifted weight for free
+     * weights. Reps are clamped to each formula's validated range (1..12 for
+     * bodyweight, 1..15 for free weights); a true single returns the 1RM unchanged.
+     */
+    fun predictedWeightAt(e1rm: Double, reps: Int, isBodyweightBased: Boolean): Double {
+        if (e1rm <= 0.0) return 0.0
+        return if (isBodyweightBased) {
+            e1rm / tswFactor(reps)
+        } else {
+            val effectiveReps = reps.coerceIn(1, MAX_FREE_WEIGHT_REPS)
+            if (effectiveReps <= 1) e1rm else e1rm / mayhewFactor(effectiveReps)
+        }
+    }
+
     /** Mean of the six validated rep-max equations for an already-clamped rep count. */
     private fun consensusFactor(reps: Int): Double {
         val factors = doubleArrayOf(

@@ -1,6 +1,6 @@
 package com.example.tr3ack
 
-import com.example.tr3ack.data.entity.WorkoutSet
+import com.example.tr3ack.data.entity.MovementFactors
 import com.example.tr3ack.viewmodel.RepMaxRules
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -8,40 +8,54 @@ import org.junit.Test
 
 class RepMaxRulesTest {
 
-    private fun set(id: Long, reps: Int, weight: Double) =
-        WorkoutSet(id, exerciseId = 1, date = "2026-08-21", addedWeightKg = weight, reps = reps, timestamp = id)
-
     @Test
-    fun bestWeightPerRepCount_isMaxAtThatReps() {
-        val sets = listOf(
-            set(1, 6, 20.0),
-            set(2, 6, 25.0),
-            set(3, 6, 22.5),
-            set(4, 8, 18.0),
-            set(5, 10, 15.0)
-        )
-        val result = RepMaxRules.build(sets)
-        assertEquals(
-            listOf(6 to 25.0, 8 to 18.0, 10 to 15.0),
-            result.map { it.reps to it.addedWeightKg }
-        )
+    fun noE1rm_isEmpty() {
+        assertTrue(RepMaxRules.predict(0.0, isBodyweightBased = false, bodyWeightKg = 0.0).isEmpty())
     }
 
     @Test
-    fun ignoresRepsOutsideOneToFifteen() {
-        val sets = listOf(
-            set(1, 0, 50.0),
-            set(2, 20, 60.0),
-            set(3, 5, 10.0)
-        )
-        val result = RepMaxRules.build(sets)
-        assertEquals(1, result.size)
-        assertEquals(5, result.first().reps)
-        assertEquals(10.0, result.first().addedWeightKg, 1e-9)
+    fun freeWeight_prediction_roundTripsThroughE1rm() {
+        val e1rm = 100.0
+        val result = RepMaxRules.predict(e1rm, isBodyweightBased = false, bodyWeightKg = 0.0)
+        // Free weights show every rep range up to 15.
+        assertEquals(listOf(3, 5, 6, 8, 10, 12, 15), result.map { it.reps })
+
+        for (rm in result) {
+            // Feeding the predicted weight back into the E1RM formula returns the original 1RM.
+            val backToE1rm = MovementFactors.freeWeightE1RM(rm.addedWeightKg, rm.reps)
+            assertEquals(e1rm, backToE1rm, 0.5)
+            // Heavier reps = lighter predicted weight.
+        }
     }
 
     @Test
-    fun emptyInput_isEmpty() {
-        assertTrue(RepMaxRules.build(emptyList()).isEmpty())
+    fun predictedWeight_decreasesAsRepsIncrease() {
+        val result = RepMaxRules.predict(100.0, isBodyweightBased = false, bodyWeightKg = 0.0)
+        val weights = result.map { it.addedWeightKg }
+        assertEquals(weights.sortedDescending(), weights)
+    }
+
+    @Test
+    fun bodyweight_subtractsBodyWeight_forAddedLoad() {
+        val e1rm = 130.0
+        val bw = 89.2
+        val result = RepMaxRules.predict(e1rm, isBodyweightBased = true, bodyWeightKg = bw)
+        // Bodyweight movements cap at 12 reps (validated range).
+        assertEquals(listOf(3, 5, 6, 8, 10, 12), result.map { it.reps })
+
+        val six = result.first { it.reps == 6 }
+        val expectedSystem = MovementFactors.predictedWeightAt(e1rm, 6, isBodyweightBased = true)
+        assertEquals(expectedSystem - bw, six.addedWeightKg, 0.01)
+
+        // A single (rep 1) prediction equals the 1RM itself.
+        assertEquals(e1rm, MovementFactors.predictedWeightAt(e1rm, 1, isBodyweightBased = true), 1e-9)
+    }
+
+    @Test
+    fun bodyweight_withUnknownWeight_treatsAddedAsZero() {
+        val result = RepMaxRules.predict(130.0, isBodyweightBased = true, bodyWeightKg = 0.0)
+        // No body weight -> fall back to total system load (added treated as 0 offset).
+        val six = result.first { it.reps == 6 }
+        assertEquals(MovementFactors.predictedWeightAt(130.0, 6, true), six.addedWeightKg, 0.01)
     }
 }

@@ -183,9 +183,9 @@
     <string name="progress_chip_90d">90d</string>
     <string name="progress_e1rm_chart">Estimated 1RM (kg)</string>
     <string name="progress_forecast">On pace ≈ %1$s kg in 4 wk · %2$s kg in 8 wk</string>
-    <string name="progress_rep_maxes">Rep maxes</string>
-    <string name="progress_rep_maxes_kg">Heaviest weight at each rep count</string>
-    <string name="progress_rep_maxes_added">Heaviest added weight at each rep count</string>
+    <string name="progress_rep_maxes">Predicted maxes</string>
+    <string name="progress_rep_maxes_kg">Predicted weight for each rep range</string>
+    <string name="progress_rep_maxes_added">Predicted added weight for each rep range</string>
     <string name="progress_tonnage_chart">Session Tonnage (kg·reps)</string>
     <string name="progress_belt_vs_bw">Belt Load vs Body Weight</string>
     <string name="progress_sets_over_time">Sets Over Time</string>

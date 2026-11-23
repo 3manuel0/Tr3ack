@@ -126,11 +126,15 @@ class ProgressViewModel(private val repository: Tr3ackRepository) : ViewModel() 
                             buildFreeWeightOneRepMax(row, exercise)
                         }
                         _currentTier.value = buildCurrentTier(exercise, row)
-                    }
-                }
-                launch {
-                    repository.getSetsForExercise(exerciseId).collect { sets ->
-                        _repMaxes.value = RepMaxRules.build(sets)
+                        _repMaxes.value = RepMaxRules.predict(
+                            e1rm = row?.bestE1RM ?: 0.0,
+                            isBodyweightBased = exercise.isBodyweightBased,
+                            bodyWeightKg = if (exercise.isBodyweightBased) {
+                                _oneRepMax.value?.currentBodyWeight ?: 0.0
+                            } else {
+                                0.0
+                            }
+                        )
                     }
                 }
                 if (!exercise.isBodyweightBased) {
