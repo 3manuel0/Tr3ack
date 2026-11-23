@@ -302,7 +302,6 @@ fun Tr3ackNavGraph(repository: Tr3ackRepository) {
                 DashboardScreen(
                     repository = repository,
                     onNavigateToLog = { navController.navigate(Screen.LogWorkout.route) },
-                    onNavigateToBodyWeight = { navController.navigate(Screen.BodyWeight.route) },
                     onNavigateToStats = { navController.navigate(Screen.Progress.route) },
                     onOpenRankLadder = { navController.navigate(Screen.RankLadder.route) }
                 )

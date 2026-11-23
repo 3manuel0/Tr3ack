@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -65,6 +66,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,7 +102,6 @@ import kotlin.math.ceil
 fun DashboardScreen(
     repository: Tr3ackRepository,
     onNavigateToLog: () -> Unit,
-    onNavigateToBodyWeight: () -> Unit,
     onNavigateToStats: () -> Unit = {},
     onOpenRankLadder: () -> Unit = {}
 ) {
@@ -203,8 +204,10 @@ fun DashboardScreen(
                 todayBodyWeight = todayBodyWeight,
                 streakWeeks = streakInfo.current,
                 onLogSet = onNavigateToLog,
-                onOpenWeight = onNavigateToBodyWeight,
-                onEditWeight = { showWeightDialog = true }
+                onLogWeight = {
+                    weightInput = todayBodyWeight?.let { "%.1f".format(it) } ?: ""
+                    showWeightDialog = true
+                }
             )
         }
 
@@ -310,7 +313,9 @@ fun DashboardScreen(
                     value = weightInput,
                     onValueChange = { weightInput = it.filter { c -> c.isDigit() || c == '.' } },
                     label = { Text(stringResource(R.string.weight_kg_label)) },
-                    singleLine = true
+                    suffix = { Text(stringResource(R.string.unit_kg)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                 )
             },
             confirmButton = {
@@ -358,8 +363,7 @@ private fun TodayHeroCard(
     todayBodyWeight: Double?,
     streakWeeks: Long,
     onLogSet: () -> Unit,
-    onOpenWeight: () -> Unit,
-    onEditWeight: () -> Unit
+    onLogWeight: () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
     Box(
@@ -400,7 +404,7 @@ private fun TodayHeroCard(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Surface(
-                        onClick = onEditWeight,
+                        onClick = onLogWeight,
                         shape = RoundedCornerShape(50),
                         color = Color.White.copy(alpha = 0.10f)
                     ) {
@@ -417,7 +421,7 @@ private fun TodayHeroCard(
                         text = stringResource(R.string.dashboard_body_weight_edit),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFFB9C3DD),
-                        modifier = Modifier.clickable { onEditWeight() }
+                        modifier = Modifier.clickable { onLogWeight() }
                     )
                 }
             }
@@ -441,7 +445,7 @@ private fun TodayHeroCard(
                     Text(stringResource(R.string.dashboard_log_a_set))
                 }
                 OutlinedButton(
-                    onClick = onOpenWeight,
+                    onClick = onLogWeight,
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFCDD6F4)),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
